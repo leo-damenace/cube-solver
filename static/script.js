@@ -33,9 +33,10 @@ const CUBING_ORDER     = ["U","R","F","D","L","B"];
 const OUR_IDX_FOR_FACE = { U:0, R:2, F:1, D:5, L:4, B:3 };
 const COLOR_TO_FACE    = { white:"U", red:"R", green:"F", yellow:"D", orange:"L", blue:"B" };
 
-// Guide cube alg strings — rotates the 3D guide to highlight the next face
-// These are cube rotations shown in the guide player
-const GUIDE_ROTATIONS = ["","x","x y","x y2","x y'","x2"];
+// Unfolded cube face layout:
+//        [0=U]
+//  [4=L] [1=F] [2=R] [3=B]
+//        [5=D]
 
 // ── MOVE EXPLANATIONS ─────────────────────────────────────
 const MOVE_EXPLANATIONS = {
@@ -111,8 +112,8 @@ const faceCountEl  = document.getElementById("face-counter");
 const mainTitle    = document.getElementById("main-title");
 const mainDesc     = document.getElementById("main-desc");
 const guideWrap    = document.getElementById("guide-wrap");
-const guideFaceLabel = document.getElementById("guide-face-label");
-const guidePlayer  = document.getElementById("guide-player");
+const guideCanvas  = document.getElementById("guide-canvas");
+const guideInstr   = document.getElementById("guide-instruction");
 const faceEditor   = document.getElementById("face-editor");
 const editorClose  = document.getElementById("editor-close");
 const editorGrid   = document.getElementById("editor-grid");
@@ -134,6 +135,8 @@ async function checkCode() {
       appEl.style.display  = "block";
       injectRestartBtn();
       startCamera();
+      guideWrap.style.display = "block";
+      setTimeout(() => drawGuideCube(0), 200);
     } else {
       gateError.textContent = "Invalid code.";
       codeInput.classList.add("shake");
@@ -285,11 +288,9 @@ captureBtn.addEventListener("click", ()=>{
     mainTitle.textContent = "SCAN FACE " + (currentFace+1) + " OF 6";
     mainDesc.textContent  = seq.instruction;
 
-    // Update 3D guide
+    // Update unfolded cube guide
     guideWrap.style.display = "block";
-    guideFaceLabel.textContent = seq.label;
-    guidePlayer.setAttribute("experimental-setup-alg", GUIDE_ROTATIONS[currentFace]);
-    guidePlayer.setAttribute("alg", "");
+    drawGuideCube(currentFace);
   } else {
     captureBtn.disabled    = true;
     captureBtn.textContent = "✅ All faces captured!";
@@ -562,7 +563,7 @@ function doRestart(){
 
   captureBtn.disabled    =false;
   captureBtn.textContent ="📸 \u00a0Capture Face";
-  guideWrap.style.display="none";
+  guideWrap.style.display="none"; drawGuideCube(-1);
   solveRow.style.display ="none";
   solutionArea.style.display="none";
 
@@ -574,3 +575,162 @@ function doRestart(){
   initSlots();
   window.scrollTo({top:0,behavior:"smooth"});
 }
+
+// ── UNFOLDED CUBE GUIDE ───────────────────────────────────
+// Draws the classic cross-shaped unfolded cube on a canvas.
+// Scanned faces show real colours; future faces are dark grey.
+// The NEXT face to scan glows with an accent outline.
+//
+// Layout on canvas:
+//          [ U  ]
+//  [ L  ]  [ F  ]  [ R  ]  [ B  ]
+//          [ D  ]
+
+const FACE_SCAN_ORDER = [0,1,2,3,4,5]; // U F R B L D
+
+// Instructions shown below the cube for each next face
+const GUIDE_INSTRUCTIONS = [
+  "👉 <strong>Hold any face</strong> toward the camera and press Capture.",
+  "🔄 Tilt the cube so the <strong>bottom edge of that face points toward you</strong>. Scan the face now facing you.",
+  "↩️ Rotate the cube <strong>90° to the right</strong>. Scan the face now facing you.",
+  "↩️ Rotate the cube <strong>90° to the right again</strong>. Scan the face now facing you.",
+  "↩️ Rotate the cube <strong>90° to the right once more</strong>. Scan the face now facing you.",
+  "🔄 <strong>Flip the cube upside down</strong> (original face now on top). Scan the bottom face.",
+];
+
+function drawGuideCube(nextFaceIndex) {
+  const canvas = guideCanvas;
+  if (!canvas) return;
+
+  // Size the canvas to fit nicely
+  const W = canvas.parentElement.clientWidth || 360;
+  const CELL = Math.floor(W / 6.2);  // each face = 4 cells wide, 4 tall; we have 4 faces across + padding
+  const FACE = CELL * 4;
+  const PAD  = Math.floor(CELL * 0.6);
+
+  const CW = FACE * 4 + PAD * 5;  // 4 faces across + gaps
+  const CH = FACE * 3 + PAD * 4;  // 3 faces tall  + gaps
+  canvas.width  = CW;
+  canvas.height = CH;
+  const gc = canvas.getContext("2d");
+
+  // Background
+  gc.fillStyle = "#1a1a1a";
+  gc.fillRect(0, 0, CW, CH);
+
+  // Face positions in the cross layout (col, row) — 0-indexed in face units
+  // col and row refer to which face-slot in the grid
+  const FACE_POS = [
+    { col:1, row:0 }, // 0 = U (top)
+    { col:1, row:1 }, // 1 = F (middle centre)
+    { col:2, row:1 }, // 2 = R (middle right)
+    { col:3, row:1 }, // 3 = B (middle far right)
+    { col:0, row:1 }, // 4 = L (middle left)
+    { col:1, row:2 }, // 5 = D (bottom)
+  ];
+
+  const faceX = (col) => PAD + col * (FACE + PAD);
+  const faceY = (row) => PAD + row * (FACE + PAD);
+
+  FACE_POS.forEach(({col,row}, faceIdx) => {
+    const x = faceX(col);
+    const y = faceY(row);
+    const isScanned = faceIdx < nextFaceIndex;
+    const isNext    = faceIdx === nextFaceIndex;
+    const colors    = faceColors[faceIdx];
+
+    // Draw 16 cells
+    const cs = Math.floor(FACE / 4);
+    for (let r=0; r<4; r++) {
+      for (let c=0; c<4; c++) {
+        const cx = x + c * cs;
+        const cy = y + r * cs;
+        const gap = 2;
+
+        if (isScanned && colors) {
+          gc.fillStyle = CUBE_COLORS[colors[r*4+c]].hex;
+        } else if (isNext) {
+          gc.fillStyle = "#2a2a2a";
+        } else {
+          gc.fillStyle = "#222";
+        }
+        gc.beginPath();
+        gc.roundRect(cx+gap, cy+gap, cs-gap*2, cs-gap*2, 3);
+        gc.fill();
+      }
+    }
+
+    // Border
+    if (isNext) {
+      // Glowing accent border for next face
+      gc.strokeStyle = "#c8f135";
+      gc.lineWidth   = 3;
+      gc.shadowColor = "#c8f135";
+      gc.shadowBlur  = 12;
+      gc.beginPath();
+      gc.roundRect(x+1, y+1, FACE-2, FACE-2, 6);
+      gc.stroke();
+      gc.shadowBlur = 0;
+
+      // "SCAN NEXT" label inside
+      gc.fillStyle  = "#c8f135";
+      gc.font       = `bold ${Math.max(9, Math.floor(CELL*1.1))}px DM Sans, sans-serif`;
+      gc.textAlign  = "center";
+      gc.textBaseline = "middle";
+      gc.fillText("SCAN", x + FACE/2, y + FACE/2 - CELL*0.6);
+      gc.fillText("NEXT", x + FACE/2, y + FACE/2 + CELL*0.6);
+    } else if (!isScanned) {
+      gc.strokeStyle = "#333";
+      gc.lineWidth   = 1;
+      gc.beginPath();
+      gc.roundRect(x+0.5, y+0.5, FACE-1, FACE-1, 6);
+      gc.stroke();
+    } else {
+      // Done — subtle green tick in corner
+      gc.fillStyle = "#35f1b0";
+      gc.font      = `${Math.floor(CELL*1.2)}px sans-serif`;
+      gc.textAlign = "right";
+      gc.textBaseline = "top";
+      gc.fillText("✓", x + FACE - 4, y + 2);
+    }
+  });
+
+  // Face labels (U F R B L D)
+  const FACE_LABELS2 = ["U","F","R","B","L","D"];
+  gc.textAlign = "center";
+  gc.textBaseline = "bottom";
+  FACE_POS.forEach(({col,row}, faceIdx) => {
+    const x = faceX(col);
+    const y = faceY(row);
+    const isScanned = faceIdx < nextFaceIndex;
+    const isNext    = faceIdx === nextFaceIndex;
+    gc.fillStyle = isNext ? "#c8f135" : isScanned ? "#35f1b0" : "#444";
+    gc.font = `${Math.floor(CELL*0.9)}px DM Mono, monospace`;
+    gc.fillText(FACE_LABELS2[faceIdx], x + FACE/2, y - 2);
+  });
+
+  // Update instruction text
+  if (guideInstr) {
+    if (nextFaceIndex < 0 || nextFaceIndex > 5) {
+      guideInstr.innerHTML = "All faces scanned!";
+    } else {
+      guideInstr.innerHTML = GUIDE_INSTRUCTIONS[nextFaceIndex];
+    }
+  }
+}
+
+// Draw initial empty cube when app loads
+document.getElementById("app") && (() => {
+  const observer = new MutationObserver(() => {
+    if (appEl.style.display !== "none") {
+      guideWrap.style.display = "block";
+      setTimeout(() => drawGuideCube(0), 100);
+      observer.disconnect();
+    }
+  });
+  observer.observe(appEl, { attributes:true, attributeFilter:["style"] });
+})();
+
+window.addEventListener("resize", () => {
+  if (guideWrap.style.display !== "none") drawGuideCube(currentFace);
+});
