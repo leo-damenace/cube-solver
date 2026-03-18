@@ -95,6 +95,7 @@ enterBtn.addEventListener("touchend", e => { e.preventDefault(); checkCode(); })
 codeInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); checkCode(); } });
 codeInput.addEventListener("input",   ()  => { gateError.textContent = ""; });
 
+
 // ── CAMERA ───────────────────────────────────────────────
 async function startCamera() {
   try {
@@ -102,32 +103,39 @@ async function startCamera() {
       video: { facingMode: "environment", width:{ ideal:1280 }, height:{ ideal:960 } }
     });
     video.srcObject = stream;
-    video.addEventListener("loadedmetadata", () => {
-      overlay.width  = video.videoWidth  || video.clientWidth;
-      overlay.height = video.videoHeight || video.clientHeight;
-      drawGrid();
-    });
+    video.addEventListener("loadedmetadata", () => { syncOverlay(); drawGrid(); });
+    video.addEventListener("play", syncOverlay);
+    window.addEventListener("resize", syncOverlay);
   } catch {
     alert("Camera access denied. Please allow camera permissions and reload.");
   }
 }
 
+function syncOverlay() {
+  const rect = video.getBoundingClientRect();
+  const s = Math.min(rect.width || 400, rect.height || 400);
+  overlay.width  = s;
+  overlay.height = s;
+  overlay.style.width  = s + "px";
+  overlay.style.height = s + "px";
+  overlay.style.left   = ((rect.width  - s) / 2) + "px";
+  overlay.style.top    = ((rect.height - s) / 2) + "px";
+}
+
 // ── GRID OVERLAY ─────────────────────────────────────────
 function drawGrid() {
-  const w = overlay.width, h = overlay.height;
-  const size  = Math.min(w, h) * 0.56;
-  const sx    = (w - size) / 2;
-  const sy    = (h - size) / 2;
-  const cell  = size / 4;
+  const s    = overlay.width || 400;
+  const size = s * 0.80;
+  const sx   = (s - size) / 2;
+  const sy   = (s - size) / 2;
+  const cell = size / 4;
 
-  ctx.clearRect(0, 0, w, h);
+  ctx.clearRect(0, 0, s, s);
 
-  // Vignette outside grid
   ctx.fillStyle = "rgba(0,0,0,0.38)";
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, s, s);
   ctx.clearRect(sx, sy, size, size);
 
-  // Corner accents
   const corner = 18;
   ctx.strokeStyle = "#c8f135";
   ctx.lineWidth   = 3;
@@ -141,7 +149,6 @@ function drawGrid() {
     ctx.beginPath(); ctx.moveTo(x + dx*corner, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy*corner); ctx.stroke();
   });
 
-  // Inner grid lines
   ctx.strokeStyle = "rgba(200,241,53,0.35)";
   ctx.lineWidth   = 1;
   for (let i = 1; i < 4; i++) {
