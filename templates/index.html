@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
       --bg:#0c0c0c; --surface:#161616; --card:#1e1e1e;
       --border:#2c2c2c; --border2:#3a3a3a;
@@ -22,147 +22,129 @@
     #gate::before { content:''; position:absolute; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle,rgba(200,241,53,0.06) 0%,transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
     .bg-tiles { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
     .tile { position:absolute; border-radius:6px; border:1px solid rgba(255,255,255,0.04); animation:drift linear infinite; }
-    @keyframes drift { 0%{transform:translateY(110vh) rotate(0deg);opacity:0} 5%{opacity:1} 95%{opacity:0.4} 100%{transform:translateY(-10vh) rotate(360deg);opacity:0} }
+    @keyframes drift { 0%{transform:translateY(110vh) rotate(0deg);opacity:0} 5%{opacity:1} 95%{opacity:.4} 100%{transform:translateY(-10vh) rotate(360deg);opacity:0} }
     .gate-box { position:relative; z-index:2; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:3rem 2.5rem 2.5rem; width:min(440px,92vw); text-align:center; }
-    .logo { font-family:'Bebas Neue',sans-serif; font-size:3.2rem; letter-spacing:3px; line-height:1; margin-bottom:0.2rem; }
+    .logo { font-family:'Bebas Neue',sans-serif; font-size:3.2rem; letter-spacing:3px; line-height:1; margin-bottom:.2rem; }
     .logo span { color:var(--accent); }
-    .logo-sub { font-size:0.75rem; color:var(--muted); letter-spacing:4px; text-transform:uppercase; margin-bottom:2.2rem; display:block; }
-    .gate-label { font-size:0.72rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; text-align:left; margin-bottom:0.5rem; }
-    #code-input { width:100%; background:var(--bg); border:1px solid var(--border2); border-radius:10px; padding:0.9rem 1.2rem; font-family:'DM Mono',monospace; font-size:1.1rem; color:var(--text); text-align:center; letter-spacing:4px; text-transform:uppercase; outline:none; transition:border-color 0.2s,box-shadow 0.2s; }
-    #code-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(200,241,53,0.08); }
-    #code-input.shake { animation:shake 0.35s ease; border-color:var(--red); }
+    .logo-sub { font-size:.75rem; color:var(--muted); letter-spacing:4px; text-transform:uppercase; margin-bottom:2.2rem; display:block; }
+    .gate-label { font-size:.72rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; text-align:left; margin-bottom:.5rem; }
+    #code-input { width:100%; background:var(--bg); border:1px solid var(--border2); border-radius:10px; padding:.9rem 1.2rem; font-family:'DM Mono',monospace; font-size:1.1rem; color:var(--text); text-align:center; letter-spacing:4px; text-transform:uppercase; outline:none; transition:border-color .2s,box-shadow .2s; }
+    #code-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(200,241,53,.08); }
+    #code-input.shake { animation:shake .35s ease; border-color:var(--red); }
     @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)} 80%{transform:translateX(-4px)} }
-    #enter-btn { margin-top:0.85rem; width:100%; background:var(--accent); color:#000; border:none; border-radius:10px; padding:1.1rem; font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:500; cursor:pointer; letter-spacing:1px; transition:opacity 0.15s,transform 0.1s; min-height:52px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
-    #enter-btn:hover { opacity:0.88; transform:translateY(-1px); }
-    .gate-error { color:var(--red); font-size:0.78rem; margin-top:0.7rem; min-height:1.2em; font-family:'DM Mono',monospace; }
-    .gate-footer { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border); font-size:0.72rem; color:var(--muted2); letter-spacing:1px; }
+    #enter-btn { margin-top:.85rem; width:100%; background:var(--accent); color:#000; border:none; border-radius:10px; padding:1.1rem; font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:500; cursor:pointer; letter-spacing:1px; transition:opacity .15s,transform .1s; min-height:52px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+    #enter-btn:hover { opacity:.88; transform:translateY(-1px); }
+    .gate-error { color:var(--red); font-size:.78rem; margin-top:.7rem; min-height:1.2em; font-family:'DM Mono',monospace; }
+    .gate-footer { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border); font-size:.72rem; color:var(--muted2); letter-spacing:1px; }
 
-    /* APP LAYOUT */
+    /* APP */
     #app { display:none; min-height:100vh; }
-    .layout { display:grid; grid-template-columns:260px 1fr; min-height:100vh; }
+    .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
     .sidebar { background:var(--surface); border-right:1px solid var(--border); padding:2rem 1.5rem; display:flex; flex-direction:column; gap:2rem; position:sticky; top:0; height:100vh; overflow-y:auto; }
     .sidebar-logo { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:2px; }
     .sidebar-logo span { color:var(--accent); }
-    .sidebar-section-label { font-size:0.65rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:0.75rem; }
-    .face-steps { display:flex; flex-direction:column; gap:6px; }
-    .face-step { display:flex; align-items:center; gap:10px; padding:0.6rem 0.8rem; border-radius:8px; border:1px solid transparent; transition:all 0.2s; }
-    .face-step .dot { width:10px; height:10px; border-radius:50%; border:2px solid var(--muted2); flex-shrink:0; transition:all 0.2s; }
-    .face-step .step-name { font-size:0.82rem; color:var(--muted); transition:color 0.2s; }
-    .face-step.active { background:rgba(200,241,53,0.05); border-color:rgba(200,241,53,0.2); }
-    .face-step.active .dot { background:var(--accent); border-color:var(--accent); box-shadow:0 0 8px rgba(200,241,53,0.5); }
-    .face-step.active .step-name { color:var(--accent); font-weight:500; }
-    .face-step.done .dot { background:var(--accent2); border-color:var(--accent2); }
-    .face-step.done .step-name { color:var(--accent2); }
-    .sidebar-tip { margin-top:auto; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem; font-size:0.78rem; color:var(--muted); line-height:1.6; }
+    .sidebar-section-label { font-size:.65rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:.75rem; }
+    .scan-steps { display:flex; flex-direction:column; gap:8px; }
+    .scan-step { display:flex; align-items:flex-start; gap:10px; padding:.7rem .8rem; border-radius:10px; border:1px solid transparent; transition:all .2s; }
+    .scan-step .step-dot { width:12px; height:12px; border-radius:50%; border:2px solid var(--muted2); flex-shrink:0; margin-top:3px; transition:all .2s; }
+    .scan-step .step-text { font-size:.82rem; color:var(--muted); line-height:1.4; }
+    .scan-step.active { background:rgba(200,241,53,.05); border-color:rgba(200,241,53,.2); }
+    .scan-step.active .step-dot { background:var(--accent); border-color:var(--accent); box-shadow:0 0 8px rgba(200,241,53,.5); }
+    .scan-step.active .step-text { color:var(--accent); font-weight:500; }
+    .scan-step.done .step-dot { background:var(--accent2); border-color:var(--accent2); }
+    .scan-step.done .step-text { color:var(--accent2); }
+    .sidebar-tip { margin-top:auto; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem; font-size:.78rem; color:var(--muted); line-height:1.6; }
     .sidebar-tip strong { color:var(--text); display:block; margin-bottom:4px; }
 
     /* MAIN */
     .main { padding:2.5rem 2rem; max-width:680px; }
     .main-header { margin-bottom:1.5rem; }
-    .main-header h2 { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:2px; line-height:1; margin-bottom:0.4rem; }
-    .main-header p { font-size:0.85rem; color:var(--muted); line-height:1.6; }
+    .main-header h2 { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:2px; line-height:1; margin-bottom:.4rem; }
+    .main-header p { font-size:.85rem; color:var(--muted); line-height:1.6; }
 
-    /* GUIDE CUBE — unfolded flat cube diagram */
-    #guide-wrap {
-      background:var(--card); border:1px solid var(--border); border-radius:var(--r);
-      overflow:hidden; margin-bottom:1rem;
-    }
-    #guide-canvas { width:100%; display:block; background:var(--card); }
-    #guide-instruction {
-      padding:0.9rem 1.2rem; border-top:1px solid var(--border);
-      font-size:0.88rem; color:var(--text); line-height:1.5; text-align:center;
-    }
-    #guide-instruction strong { color:var(--accent); }
+    /* 3D CUBE VIEWER */
+    #cube-viewer-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
+    #cube-viewer-header { padding:.7rem 1.2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    #cube-viewer-header span { font-size:.7rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
+    #cube-viewer-label { font-size:.85rem; color:var(--accent); font-weight:500; }
+    #cube3d { width:100%; height:240px; display:block; }
+
+    /* CORNER DIAGRAM */
+    #corner-diagram { width:100%; border-radius:10px; margin-bottom:1rem; display:block; background:var(--card); border:1px solid var(--border); }
 
     /* CAMERA */
     .camera-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; position:relative; }
     .camera-wrap { position:relative; aspect-ratio:1/1; background:#000; overflow:hidden; }
     #camera { width:100%; height:100%; object-fit:cover; display:block; }
     #overlay { position:absolute; pointer-events:none; }
-    .camera-badge { position:absolute; top:12px; left:12px; background:rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:20px; padding:4px 12px; font-size:0.72rem; font-family:'DM Mono',monospace; color:#fff; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; }
+    .camera-badge { position:absolute; top:12px; left:12px; background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:4px 12px; font-size:.72rem; font-family:'DM Mono',monospace; color:#fff; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; }
     .rec-dot { width:6px; height:6px; border-radius:50%; background:var(--red); animation:blink 1.2s ease infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-    .camera-footer { padding:1rem 1.2rem; display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); }
-    .face-label-text { font-size:0.82rem; color:var(--muted); }
-    .face-label-text strong { color:var(--text); font-weight:500; }
-    .face-counter { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+    .camera-footer { padding:.8rem 1.2rem; display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); }
+    .face-label-text { font-size:.82rem; color:var(--muted); }
+    .face-label-text strong { color:var(--text); }
 
     /* BUTTONS */
     .btn-row { display:flex; gap:10px; margin-bottom:1.5rem; }
-    .btn { font-family:'DM Sans',sans-serif; font-size:0.9rem; font-weight:500; padding:0.75rem 1.5rem; border-radius:10px; border:none; cursor:pointer; transition:opacity 0.15s,transform 0.1s; flex:1; touch-action:manipulation; }
-    .btn:hover { opacity:0.85; transform:translateY(-1px); }
-    .btn:active { transform:scale(0.98); }
-    .btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+    .btn { font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:500; padding:.8rem 1.5rem; border-radius:10px; border:none; cursor:pointer; transition:opacity .15s,transform .1s; flex:1; touch-action:manipulation; min-height:48px; }
+    .btn:hover { opacity:.85; transform:translateY(-1px); }
+    .btn:active { transform:scale(.98); }
+    .btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
     .btn-primary { background:var(--accent); color:#000; }
     .btn-success { background:var(--accent2); color:#000; }
     .btn-ghost { background:var(--card); color:var(--muted); border:1px solid var(--border); }
 
-    /* SCANNED FACES PREVIEW */
-    .section-label { font-size:0.65rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:0.8rem; }
-    .faces-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:1.5rem; }
-    .face-thumb { display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; }
-    .face-thumb:hover .mini-grid { border-color:var(--accent); }
-    .face-thumb-label { font-size:0.65rem; color:var(--muted); font-family:'DM Mono',monospace; }
-    .mini-grid { display:grid; grid-template-columns:repeat(4,13px); gap:2px; padding:5px; background:var(--card); border:1px solid var(--border); border-radius:7px; transition:border-color 0.15s; }
-    .mini-cell { width:13px; height:13px; border-radius:2px; border:1px solid rgba(0,0,0,0.2); }
-    .face-slot { width:72px; height:72px; background:var(--card); border:1px dashed var(--border2); border-radius:7px; display:flex; align-items:center; justify-content:center; }
-    .face-slot-icon { font-size:1.2rem; opacity:0.2; }
+    /* PHOTO PREVIEWS */
+    .photos-row { display:flex; gap:12px; margin-bottom:1.5rem; }
+    .photo-slot { flex:1; aspect-ratio:1/1; background:var(--card); border:1px dashed var(--border2); border-radius:10px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+    .photo-slot img { width:100%; height:100%; object-fit:cover; display:block; }
+    .photo-slot-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.7); padding:4px 8px; font-size:.7rem; color:#ccc; text-align:center; font-family:'DM Mono',monospace; }
+    .photo-slot-empty { font-size:.75rem; color:var(--muted2); text-align:center; padding:1rem; }
+    .photo-slot.done { border-style:solid; border-color:var(--accent2); }
+    .photo-edit-btn { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.7); border:1px solid var(--border2); color:var(--muted); border-radius:6px; padding:3px 8px; font-size:.7rem; cursor:pointer; font-family:'DM Mono',monospace; }
 
-    /* FACE EDITOR MODAL — full screen overlay */
-    #face-editor {
-      display:none; position:fixed; inset:0; z-index:1000;
-      background:rgba(0,0,0,0.92); backdrop-filter:blur(8px);
-      flex-direction:column; align-items:center; justify-content:center; gap:1.5rem;
-      padding:1.5rem;
-    }
+    /* FACE EDITOR MODAL */
+    #face-editor { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.93); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:center; gap:1.2rem; padding:1.5rem; overflow-y:auto; }
     #face-editor.open { display:flex; }
     #editor-header { width:100%; max-width:420px; display:flex; align-items:center; justify-content:space-between; }
     #editor-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:2px; color:var(--accent); }
-    #editor-close { background:var(--card); border:1px solid var(--border2); color:var(--text); width:42px; height:42px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
-    #editor-close:hover { background:var(--border); }
-    #editor-hint { font-size:0.82rem; color:var(--muted); text-align:center; }
-    /* Big 4x4 grid */
-    #editor-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; width:min(340px,85vw); }
-    .editor-cell {
-      aspect-ratio:1/1; border-radius:10px; cursor:pointer;
-      border:3px solid transparent; transition:transform 0.12s, border-color 0.12s;
-      position:relative;
-    }
+    #editor-close { background:var(--card); border:1px solid var(--border2); color:var(--text); width:44px; height:44px; border-radius:10px; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    #editor-subtitle { font-size:.8rem; color:var(--muted); text-align:center; max-width:340px; line-height:1.5; }
+    .editor-faces-wrap { display:flex; flex-direction:column; gap:1.2rem; width:100%; max-width:420px; }
+    .editor-face-section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; }
+    .editor-face-label { font-size:.7rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:.7rem; }
+    .editor-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:.8rem; }
+    .editor-cell { aspect-ratio:1/1; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:transform .12s,border-color .12s; }
     .editor-cell:hover { transform:scale(1.06); }
     .editor-cell.selected { border-color:#fff; transform:scale(1.1); }
-    .editor-cell.selected::after { content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:rgba(255,255,255,0.9); font-weight:bold; }
-    /* Colour palette */
-    #colour-palette { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:min(340px,85vw); }
-    .palette-swatch {
-      width:52px; height:52px; border-radius:12px; cursor:pointer;
-      border:3px solid transparent; transition:transform 0.12s, border-color 0.12s;
-      display:flex; align-items:center; justify-content:center;
-      font-size:0.65rem; color:rgba(0,0,0,0.6); font-weight:600; text-transform:uppercase; letter-spacing:1px;
-    }
+    .colour-palette { display:flex; gap:8px; flex-wrap:wrap; }
+    .palette-swatch { width:44px; height:44px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:transform .12s,border-color .12s; display:flex; align-items:center; justify-content:center; font-size:.6rem; color:rgba(0,0,0,.6); font-weight:600; text-transform:uppercase; }
     .palette-swatch:hover { transform:scale(1.1); }
-    .palette-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 12px rgba(255,255,255,0.3); }
-    #editor-done { background:var(--accent); color:#000; border:none; border-radius:10px; padding:0.85rem 2.5rem; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:500; cursor:pointer; touch-action:manipulation; }
+    .palette-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 12px rgba(255,255,255,.3); }
+    #editor-done { background:var(--accent); color:#000; border:none; border-radius:10px; padding:.9rem 2.5rem; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:500; cursor:pointer; touch-action:manipulation; min-height:48px; }
 
     /* SOLUTION */
     .solution-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
     .solution-header { padding:1rem 1.2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
     .solution-header h3 { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:1px; color:var(--accent2); }
-    .move-count { font-family:'DM Mono',monospace; font-size:0.75rem; color:var(--muted); }
+    .move-count { font-family:'DM Mono',monospace; font-size:.75rem; color:var(--muted); }
     .solution-body { padding:1.2rem; }
-    .moves-wrap { display:flex; flex-wrap:wrap; gap:5px; }
-    .move-chip { background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:5px 11px; font-family:'DM Mono',monospace; font-size:0.85rem; color:var(--text); transition:background 0.15s; cursor:pointer; }
+    .move-chip { background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:5px 11px; font-family:'DM Mono',monospace; font-size:.85rem; color:var(--text); cursor:pointer; display:inline-block; margin:3px; transition:background .15s; }
     .move-chip:hover { background:var(--border); }
     #twisty-wrap { background:#111; border-top:1px solid var(--border); }
     twisty-player { width:100%; height:320px; display:block; }
-    .error-box { background:rgba(255,77,77,0.08); border:1px solid rgba(255,77,77,0.25); border-radius:10px; padding:1rem 1.2rem; font-size:0.85rem; color:#ff9090; line-height:1.7; }
-    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,0,0,0.2); border-top-color:#000; border-radius:50%; animation:spin 0.7s linear infinite; vertical-align:middle; margin-right:6px; }
+    .error-box { background:rgba(255,77,77,.08); border:1px solid rgba(255,77,77,.25); border-radius:10px; padding:1rem 1.2rem; font-size:.85rem; color:#ff9090; line-height:1.7; }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,0,0,.2); border-top-color:#000; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px; }
+    .spinner-white { border:2px solid rgba(255,255,255,.2); border-top-color:#fff; }
     @keyframes spin { to{transform:rotate(360deg)} }
 
-    /* MOBILE */
-    @media (max-width:640px) {
+    /* STATUS BANNER */
+    #status-banner { background:rgba(200,241,53,.08); border:1px solid rgba(200,241,53,.2); border-radius:10px; padding:.9rem 1.2rem; font-size:.85rem; color:var(--accent); margin-bottom:1.2rem; display:none; text-align:center; line-height:1.5; }
+
+    @media(max-width:640px) {
       .layout { grid-template-columns:1fr; }
-      .sidebar { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); padding:1.2rem 1rem; flex-direction:row; flex-wrap:wrap; gap:0.8rem; }
-      .face-steps { flex-direction:row; flex-wrap:wrap; }
+      .sidebar { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); padding:1.2rem 1rem; flex-direction:row; flex-wrap:wrap; gap:.8rem; }
+      .scan-steps { flex-direction:row; flex-wrap:wrap; }
       .sidebar-tip { display:none; }
       .main { padding:1.5rem 1rem; }
     }
@@ -187,36 +169,47 @@
 <!-- APP -->
 <div id="app">
   <div class="layout">
-
     <aside class="sidebar">
       <div class="sidebar-logo">CUBE<span>SOLVE</span></div>
       <div>
-        <div class="sidebar-section-label">Progress</div>
-        <div class="face-steps" id="face-steps">
-          <div class="face-step active" data-i="0"><div class="dot"></div><span class="step-name">Face 1</span></div>
-          <div class="face-step"        data-i="1"><div class="dot"></div><span class="step-name">Face 2</span></div>
-          <div class="face-step"        data-i="2"><div class="dot"></div><span class="step-name">Face 3</span></div>
-          <div class="face-step"        data-i="3"><div class="dot"></div><span class="step-name">Face 4</span></div>
-          <div class="face-step"        data-i="4"><div class="dot"></div><span class="step-name">Face 5</span></div>
-          <div class="face-step"        data-i="5"><div class="dot"></div><span class="step-name">Face 6</span></div>
+        <div class="sidebar-section-label">Steps</div>
+        <div class="scan-steps">
+          <div class="scan-step active" id="step-0">
+            <div class="step-dot"></div>
+            <span class="step-text">📸 Photo 1 — Point camera at any corner. 3 faces visible.</span>
+          </div>
+          <div class="scan-step" id="step-1">
+            <div class="step-dot"></div>
+            <span class="step-text">📸 Photo 2 — Flip cube. Point at opposite corner. Last 3 faces.</span>
+          </div>
+          <div class="scan-step" id="step-2">
+            <div class="step-dot"></div>
+            <span class="step-text">✅ Review colours &amp; Solve.</span>
+          </div>
         </div>
       </div>
       <div class="sidebar-tip">
-        <strong>How to scan</strong>
-        Scan any face first. The 3D guide will then show you which face to rotate towards the camera next. Match your cube to the guide image.
+        <strong>Tips for best results</strong>
+        Good lighting is key. Make sure all 3 faces are clearly visible. Hold the cube steady when you take the photo. Gemini AI reads the colours — it's very accurate but works best in clear light.
       </div>
     </aside>
 
     <main class="main">
       <div class="main-header">
-        <h2 id="main-title">SCAN ANY FACE FIRST</h2>
-        <p id="main-desc">Hold any face of your cube towards the camera. Fill the yellow grid with the stickers, then press Capture. The guide will take it from there.</p>
+        <h2 id="main-title">POINT AT A CORNER</h2>
+        <p id="main-desc">Hold your cube so you can see 3 faces at once — like looking at a corner. Take the photo when all 3 faces are clearly visible.</p>
       </div>
 
-      <!-- Unfolded cube guide -->
-      <div id="guide-wrap">
-        <canvas id="guide-canvas"></canvas>
-        <div id="guide-instruction">Scan any face first to get started.</div>
+      <!-- Status banner -->
+      <div id="status-banner"></div>
+
+      <!-- 3D cube viewer -->
+      <div id="cube-viewer-wrap">
+        <div id="cube-viewer-header">
+          <span>CUBE STATE</span>
+          <span id="cube-viewer-label">Waiting for scan...</span>
+        </div>
+        <canvas id="cube3d"></canvas>
       </div>
 
       <!-- Camera -->
@@ -227,25 +220,37 @@
           <div class="camera-badge"><div class="rec-dot"></div>LIVE</div>
         </div>
         <div class="camera-footer">
-          <div class="face-label-text">Face <strong id="face-num">1</strong> of 6</div>
-          <div class="face-counter" id="face-counter">0 captured</div>
+          <div class="face-label-text">Shot <strong id="shot-num">1</strong> of 2</div>
+          <div id="camera-status" style="font-size:.75rem;color:var(--muted)">Align corner with camera</div>
         </div>
       </div>
 
       <div class="btn-row">
-        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Capture Face</button>
+        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Take Photo</button>
       </div>
 
-      <!-- Scanned faces -->
-      <div id="faces-section">
-        <div class="section-label">Scanned Faces — tap any to edit colours</div>
-        <div class="faces-row" id="faces-row"></div>
+      <!-- Photo previews -->
+      <div class="section-label" style="font-size:.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;">Photos Taken</div>
+      <div class="photos-row">
+        <div class="photo-slot" id="photo-slot-0">
+          <div class="photo-slot-empty">Corner 1<br>not taken</div>
+        </div>
+        <div class="photo-slot" id="photo-slot-1">
+          <div class="photo-slot-empty">Corner 2<br>not taken</div>
+        </div>
       </div>
 
+      <!-- Edit colours button -->
+      <div class="btn-row" id="edit-row" style="display:none">
+        <button class="btn btn-ghost" id="edit-btn">✏️ &nbsp;Review &amp; Fix Colours</button>
+      </div>
+
+      <!-- Solve button -->
       <div class="btn-row" id="solve-row" style="display:none">
         <button class="btn btn-success" id="solve-btn">✅ &nbsp;Solve the Cube!</button>
       </div>
 
+      <!-- Solution -->
       <div id="solution-area" style="display:none">
         <div class="solution-card">
           <div class="solution-header">
@@ -267,25 +272,24 @@
 <!-- FACE EDITOR MODAL -->
 <div id="face-editor">
   <div id="editor-header">
-    <div id="editor-title">EDIT FACE</div>
+    <div id="editor-title">FIX COLOURS</div>
     <button id="editor-close">✕</button>
   </div>
-  <div id="editor-hint">Tap a square, then tap a colour below to change it</div>
-  <div id="editor-grid"></div>
-  <div id="colour-palette"></div>
-  <button id="editor-done">Done</button>
+  <div id="editor-subtitle">Tap a square then tap a colour to fix it. Paint mode — pick colour once, tap multiple squares.</div>
+  <div class="editor-faces-wrap" id="editor-faces-wrap"></div>
+  <button id="editor-done">Save &amp; Close</button>
 </div>
 
 <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
-<script src="/static/script.js" type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/static/script.js"></script>
 <script>
   const tilesEl = document.getElementById('bg-tiles');
-  const tileColors = ['#e8ff3b','#3bffb0','#ff6b6b','#6b8cff','#ff9f43','#fff'];
-  for (let i=0; i<18; i++) {
-    const t = document.createElement('div');
-    t.className = 'tile';
-    const sz = 24 + Math.random()*32;
-    t.style.cssText = `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;background:${tileColors[Math.floor(Math.random()*tileColors.length)]}18;animation-duration:${8+Math.random()*14}s;animation-delay:${-Math.random()*20}s;border-radius:${4+Math.random()*8}px;`;
+  const tc = ['#e8ff3b','#3bffb0','#ff6b6b','#6b8cff','#ff9f43','#fff'];
+  for(let i=0;i<18;i++){
+    const t=document.createElement('div'); t.className='tile';
+    const sz=24+Math.random()*32;
+    t.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;background:${tc[Math.floor(Math.random()*tc.length)]}18;animation-duration:${8+Math.random()*14}s;animation-delay:${-Math.random()*20}s;border-radius:${4+Math.random()*8}px;`;
     tilesEl.appendChild(t);
   }
 </script>
