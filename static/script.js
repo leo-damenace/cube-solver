@@ -91,7 +91,8 @@ async function checkCode() {
 }
 
 enterBtn.addEventListener("click", checkCode);
-codeInput.addEventListener("keydown", e => { if (e.key === "Enter") checkCode(); });
+enterBtn.addEventListener("touchend", e => { e.preventDefault(); checkCode(); });
+codeInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); checkCode(); } });
 codeInput.addEventListener("input",   ()  => { gateError.textContent = ""; });
 
 // ── CAMERA ───────────────────────────────────────────────
