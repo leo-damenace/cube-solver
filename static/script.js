@@ -169,76 +169,100 @@ captureBtn.addEventListener("click", takePhoto);
 captureBtn.addEventListener("touchend",e=>{e.preventDefault();takePhoto();});
 
 async function takePhoto(){
-  if(currentShot>=2) return;
+  const btn       = document.getElementById("capture-btn");
+  const shotNum   = document.getElementById("shot-num");
+  const titleEl   = document.getElementById("main-title");
+  const descEl    = document.getElementById("main-desc");
+  const slot0     = document.getElementById("photo-slot-0");
+  const slot1     = document.getElementById("photo-slot-1");
+  const editRowEl = document.getElementById("edit-row");
+  const solveRowEl= document.getElementById("solve-row");
+  const vidEl     = document.getElementById("camera");
 
-  // Capture frame
-  const snap=document.createElement("canvas");
-  snap.width=video.videoWidth||1280; snap.height=video.videoHeight||720;
-  snap.getContext("2d").drawImage(video,0,0);
-  const b64=snap.toDataURL("image/jpeg",0.92).split(",")[1];
-  photosTaken[currentShot]=b64;
+  if(currentShot >= 2) return;
 
-  // Show preview
-  const slot=document.getElementById(`photo-slot-${currentShot}`);
-  slot.innerHTML=`<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Corner ${currentShot+1}</div>`;
+  // Capture frame from video
+  const snap = document.createElement("canvas");
+  snap.width  = vidEl.videoWidth  || 1280;
+  snap.height = vidEl.videoHeight || 720;
+  snap.getContext("2d").drawImage(vidEl, 0, 0);
+  const b64 = snap.toDataURL("image/jpeg", 0.92).split(",")[1];
+
+  // Save and show preview
+  const shotIndex = currentShot;
+  photosTaken[shotIndex] = b64;
+  const slot = shotIndex === 0 ? slot0 : slot1;
+  slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Corner ${shotIndex+1}</div>`;
   slot.classList.add("done");
 
-  // Send to Gemini
-  showBanner(`🤖 Gemini is reading the colours from photo ${currentShot+1}...`);
-  captureBtn.disabled=true;
-  captureBtn.textContent="Analysing...";
+  // Disable button while Gemini analyses
+  btn.disabled  = true;
+  btn.textContent = "Analysing...";
 
-  const cornerType = currentShot===0 ? "first" : "second";
+  showBanner(`🤖 Gemini is reading photo ${shotIndex+1}...`);
+
+  const cornerType = shotIndex === 0 ? "first" : "second";
+
   try {
-    const res  = await fetch("/analyze-corner",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({image:b64,corner:cornerType})});
+    const res  = await fetch("/analyze-corner", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({image:b64, corner:cornerType})
+    });
     const data = await res.json();
 
     if(!data.ok){
-      showBanner(`⚠️ Gemini error: ${data.error}. Try retaking the photo.`,"error");
-      captureBtn.disabled=false; captureBtn.textContent="📸 Retake Photo"; captureBtn.setAttribute("onclick","takePhoto()");
+      showBanner(`⚠️ Gemini error: ${data.error}. Retake the photo.`, "error");
+      btn.disabled = false;
+      btn.textContent = "📸 Retake Photo";
+      btn.onclick = takePhoto;
       return;
     }
 
-    // Map Gemini response to our faceColors array
+    // Map colours to faceColors
     const map = GEMINI_MAP[cornerType];
-    for(const [key,faceIdx] of Object.entries(map)){
-      const geminiColors = data.faces[key];
-      if(geminiColors && geminiColors.length===16){
-        faceColors[faceIdx] = geminiColors.map(c=>c.toLowerCase().trim());
+    for(const [key, faceIdx] of Object.entries(map)){
+      const cols = data.faces[key];
+      if(cols && cols.length === 16){
+        faceColors[faceIdx] = cols.map(c => c.toLowerCase().trim());
       }
     }
 
-    updateThreeCube();
+    if(typeof updateThreeCube === "function") updateThreeCube();
 
-    if(currentShot===0){
-      currentShot=1;
-      shotNumEl.textContent="2";
+    if(shotIndex === 0){
+      // Move to shot 2
+      currentShot = 1;
+      shotNum.textContent = "2";
       markStep(0,"done"); markStep(1,"active");
-      mainTitle.textContent="NOW FLIP THE CUBE";
-      mainDesc.textContent="Flip your cube over so you can see the 3 faces that were hidden. Point the camera at that opposite corner and take the second photo.";
-      showBanner("✅ Photo 1 done! Gemini read 3 faces. Now flip and shoot the other corner.");
-      captureBtn.disabled=false;
-      captureBtn.textContent="📸 Take Photo 2";
-      captureBtn.onclick = takePhoto;
-      // Switch guide to corner 2
-      if(typeof switchGuideToShot2==="function") switchGuideToShot2();
+      titleEl.textContent = "NOW FLIP THE CUBE";
+      descEl.textContent  = "Flip your cube to the opposite corner so the other 3 faces are visible. Then take the second photo.";
+      showBanner("✅ Photo 1 done! Now flip and shoot the opposite corner.");
+      btn.disabled   = false;
+      btn.textContent= "📸 Take Photo 2";
+      btn.onclick    = takePhoto;
+      if(typeof switchGuideToShot2 === "function") switchGuideToShot2();
     } else {
-      currentShot=2;
+      // Both done
+      currentShot = 2;
       markStep(1,"done"); markStep(2,"active");
-      mainTitle.textContent="ALL FACES SCANNED";
-      mainDesc.innerHTML="Gemini has read all 6 faces. Review the colours below, then press Solve. <strong>Tap 'Review & Fix Colours'</strong> if anything looks wrong.";
-      showBanner("✅ Both photos done! All 6 faces read. Review colours then hit Solve.");
-      captureBtn.style.display="none";
-      editRow.style.display="flex";
-      solveRow.style.display="flex";
-      // Hide guide, show cube state
-      if(typeof hideGuideShowCubeState==="function") hideGuideShowCubeState();
+      titleEl.textContent = "ALL FACES SCANNED";
+      descEl.innerHTML    = "Both photos taken. Review colours if needed, then press Solve.";
+      showBanner("✅ Done! Both photos analysed. Hit Solve when ready.");
+      btn.style.display   = "none";
+      editRowEl.style.display  = "flex";
+      solveRowEl.style.display = "flex";
+      if(typeof hideGuideShowCubeState === "function") hideGuideShowCubeState();
     }
-    cubeLabel.textContent = currentShot>=2 ? "All 6 faces scanned" : `${currentShot} of 2 photos taken`;
+
+    if(document.getElementById("cube-viewer-label"))
+      document.getElementById("cube-viewer-label").textContent = currentShot >= 2 ? "All 6 faces scanned" : `${currentShot} of 2 photos taken`;
 
   } catch(err){
-    showBanner(`⚠️ Error: ${err.message}`,"error");
-    captureBtn.disabled=false; captureBtn.textContent="📸 Retake Photo";
+    showBanner(`⚠️ Error: ${err.message}`, "error");
+    btn.disabled   = false;
+    btn.textContent= "📸 Retake Photo";
+    btn.onclick    = takePhoto;
   }
 }
 
@@ -585,54 +609,61 @@ function injectRestartBtn(){
   if(document.getElementById("top-restart-btn")) return;
   const btn=document.createElement("button");
   btn.id="top-restart-btn";
-  btn.innerHTML="&#x21BA; Restart";
-  btn.style.cssText="position:fixed;top:14px;right:16px;z-index:999;background:#1e1e1e;border:1px solid #3a3a3a;color:#888;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:.82rem;cursor:pointer;transition:color .15s,border-color .15s;touch-action:manipulation;";
-  btn.addEventListener("mouseenter",()=>{btn.style.color="#c8f135";btn.style.borderColor="#c8f135";});
-  btn.addEventListener("mouseleave",()=>{btn.style.color="#888";btn.style.borderColor="#3a3a3a";});
-  btn.addEventListener("click",doRestart);
-  btn.addEventListener("touchend",e=>{e.preventDefault();doRestart();});
+  btn.textContent="↺ Restart";
+  btn.setAttribute("onclick","doRestart()");
+  btn.setAttribute("ontouchend","event.preventDefault();doRestart()");
+  btn.style.cssText="position:fixed;top:14px;right:16px;z-index:9999;background:#1e1e1e;border:1px solid #3a3a3a;color:#888;border-radius:8px;padding:10px 18px;font-family:inherit;font-size:.85rem;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;";
   document.body.appendChild(btn);
 }
 
 function doRestart(){
-  currentShot=0;
-  faceColors=Array(6).fill(null).map(()=>Array(16).fill("white"));
-  photosTaken=[null,null];
-  activePaintColor=COLOR_NAMES[0];
+  currentShot  = 0;
+  faceColors   = Array(6).fill(null).map(() => Array(16).fill("white"));
+  photosTaken  = [null, null];
+  activePaintColor = COLOR_NAMES[0];
 
-  shotNumEl.textContent="1";
-  mainTitle.textContent="POINT AT A CORNER";
-  mainDesc.textContent="Hold your cube so you can see 3 faces at once — like looking at a corner. Take the photo when all 3 faces are clearly visible.";
+  const el = id => document.getElementById(id);
 
-  statusBanner.style.display="none";
-  captureBtn.style.display=""; captureBtn.disabled=false; captureBtn.textContent="📸 \u00a0Take Photo";
-  editRow.style.display="none"; solveRow.style.display="none"; solutionArea.style.display="none";
-  cubeLabel.textContent="Waiting for scan...";
+  if(el("shot-num"))       el("shot-num").textContent       = "1";
+  if(el("main-title"))     el("main-title").textContent     = "POINT AT A CORNER";
+  if(el("main-desc"))      el("main-desc").textContent      = "Hold your cube so you can see 3 faces at once. Take the photo when all 3 faces are clearly visible.";
+  if(el("status-banner"))  el("status-banner").style.display= "none";
+  if(el("edit-row"))       el("edit-row").style.display     = "none";
+  if(el("solve-row"))      el("solve-row").style.display    = "none";
+  if(el("solution-area"))  el("solution-area").style.display= "none";
+  if(el("moves-wrap"))     el("moves-wrap").innerHTML       = "";
+  if(el("move-count"))     el("move-count").textContent     = "";
+  if(el("twisty-wrap"))    el("twisty-wrap").style.display  = "block";
+  if(el("cube-viewer-label")) el("cube-viewer-label").textContent = "Waiting for scan...";
 
-  document.getElementById("photo-slot-0").innerHTML='<div class="photo-slot-empty">Corner 1<br>not taken</div>';
-  document.getElementById("photo-slot-1").innerHTML='<div class="photo-slot-empty">Corner 2<br>not taken</div>';
-  document.getElementById("photo-slot-0").classList.remove("done");
-  document.getElementById("photo-slot-1").classList.remove("done");
+  const btn = el("capture-btn");
+  if(btn){
+    btn.style.display = "";
+    btn.disabled      = false;
+    btn.textContent   = "📸 Take Photo";
+    btn.onclick       = takePhoto;
+  }
 
-  solveBtn.innerHTML="✅ \u00a0Solve the Cube!"; solveBtn.disabled=false;
-  document.getElementById("twisty-wrap").style.display="block";
-  document.getElementById("move-count").textContent="";
+  if(el("photo-slot-0")){ el("photo-slot-0").innerHTML = '<div class="photo-slot-empty">Corner 1<br>not taken</div>'; el("photo-slot-0").classList.remove("done"); }
+  if(el("photo-slot-1")){ el("photo-slot-1").innerHTML = '<div class="photo-slot-empty">Corner 2<br>not taken</div>'; el("photo-slot-1").classList.remove("done"); }
 
-  [0,1,2].forEach(i=>markStep(i,""));
+  const solveBtn = el("solve-btn");
+  if(solveBtn){ solveBtn.innerHTML = "✅ Solve the Cube!"; solveBtn.disabled = false; }
+
+  [0,1,2].forEach(i => markStep(i,""));
   markStep(0,"active");
 
-  updateThreeCube();
-  window.scrollTo({top:0,behavior:"smooth"});
+  if(typeof updateThreeCube === "function") updateThreeCube();
+  if(el("guide-anim-wrap"))  el("guide-anim-wrap").style.display  = "block";
+  if(el("cube-viewer-wrap")) el("cube-viewer-wrap").style.display = "none";
+  if(typeof CORNER_TARGETS !== "undefined" && CORNER_TARGETS[0]){
+    if(el("guide-anim-badge"))       el("guide-anim-badge").textContent     = CORNER_TARGETS[0].badge;
+    if(el("guide-anim-label"))       el("guide-anim-label").textContent     = CORNER_TARGETS[0].label;
+    if(el("guide-anim-instruction")) el("guide-anim-instruction").innerHTML = CORNER_TARGETS[0].instruction;
+  }
+  if(typeof guidePhase !== "undefined") guidePhase = 0;
 
-  // Reset guide animation
-  document.getElementById("guide-anim-wrap").style.display  = "block";
-  document.getElementById("cube-viewer-wrap").style.display = "none";
-  document.getElementById("guide-anim-badge").textContent     = CORNER_TARGETS[0].badge;
-  document.getElementById("guide-anim-label").textContent     = CORNER_TARGETS[0].label;
-  document.getElementById("guide-anim-instruction").innerHTML = CORNER_TARGETS[0].instruction;
-  guidePhase=0;
-  guideTargetRotX=CORNER_TARGETS[0].rotX;
-  guideTargetRotY=CORNER_TARGETS[0].rotY;
+  window.scrollTo({top:0, behavior:"smooth"});
 }
 
 // ── GUIDE ANIMATION CUBE ──────────────────────────────────
