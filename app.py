@@ -21,6 +21,13 @@ def verify_code():
     code = data.get("code", "").strip().upper()
     return jsonify({"valid": code in VALID_CODES})
 
+@app.route("/test-key")
+def test_key():
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return jsonify({"status": "MISSING - GEMINI_API_KEY not set"})
+    return jsonify({"status": "SET", "key_preview": api_key[:8] + "..."})
+
 @app.route("/analyze-corner", methods=["POST"])
 def analyze_corner():
     # Read key fresh on every request so env var changes take effect immediately
