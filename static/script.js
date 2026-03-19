@@ -217,7 +217,11 @@ async function takePhoto(){
       mainTitle.textContent="NOW FLIP THE CUBE";
       mainDesc.textContent="Flip your cube over so you can see the 3 faces that were hidden. Point the camera at that opposite corner and take the second photo.";
       showBanner("✅ Photo 1 done! Gemini read 3 faces. Now flip and shoot the other corner.");
-      captureBtn.disabled=false; captureBtn.textContent="📸 Take Photo 2";
+      captureBtn.disabled=false;
+      captureBtn.textContent="📸 Take Photo 2";
+      captureBtn.setAttribute("onclick","takePhoto()");
+      // Switch guide to corner 2
+      if(typeof switchGuideToShot2==="function") switchGuideToShot2();
     } else {
       currentShot=2;
       markStep(1,"done"); markStep(2,"active");
@@ -227,6 +231,8 @@ async function takePhoto(){
       captureBtn.style.display="none";
       editRow.style.display="flex";
       solveRow.style.display="flex";
+      // Hide guide, show cube state
+      if(typeof hideGuideShowCubeState==="function") hideGuideShowCubeState();
     }
     cubeLabel.textContent = currentShot>=2 ? "All 6 faces scanned" : `${currentShot} of 2 photos taken`;
 
@@ -823,20 +829,4 @@ const guideObserver = new MutationObserver(() => {
 });
 if (appEl) guideObserver.observe(appEl, { attributes: true, attributeFilter: ["style"] });
 
-// Patch takePhoto to switch guide after shot 1 and hide after shot 2
-const _origTakePhoto = takePhoto;
-window.takePhoto = async function() {
-  await _origTakePhoto();
-  if (currentShot === 1) {
-    // Just finished shot 1 — switch guide to corner 2
-    switchGuideToShot2();
-  } else if (currentShot === 2) {
-    // Just finished shot 2 — hide guide, show cube state
-    hideGuideShowCubeState();
-  }
-};
-// Reassign button listeners to new takePhoto
-captureBtn.removeEventListener("click", takePhoto);
-captureBtn.removeEventListener("touchend", takePhoto);
-captureBtn.addEventListener("click", window.takePhoto);
-captureBtn.addEventListener("touchend", e => { e.preventDefault(); window.takePhoto(); });
+// guide switching now handled inside takePhoto directly
