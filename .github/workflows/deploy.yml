@@ -8,16 +8,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Set Gemini API key on Render
+      - name: Push env var to Render
         run: |
-          curl -X PATCH \
+          curl -s -X PUT \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d '[{"key":"GEMINI_API_KEY","value":"${{ secrets.GEMINI_API_KEY }}"}]'
 
-      - name: Trigger Render deploy
+      - name: Trigger deploy
         run: |
-          curl -X POST \
+          curl -s -X POST \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}'
