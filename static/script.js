@@ -1,3 +1,15 @@
+// Global camera function
+async function startCamera(){
+  const video = document.getElementById("camera");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+    video.play();
+  } catch(err) {
+    alert("Camera error: " + err.message + ". Go to Settings > Safari > Camera > Allow.");
+  }
+}
+
 // ── GATE (global so onclick in HTML can call it) ──────────
 async function checkCode(){
   const codeInput = document.getElementById("code-input");
@@ -143,15 +155,7 @@ const editorDone  = document.getElementById("editor-done");
 // checkCode is defined globally above DOMContentLoaded
 
 // ── CAMERA ────────────────────────────────────────────────
-async function startCamera(){
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    video.srcObject = stream;
-    video.play();
-  } catch(err) {
-    alert("Camera error: " + err.message + ". Go to Settings > Safari > Camera > Allow.");
-  }
-}
+// startCamera defined globally above
 
 function syncOverlay(){
   // Overlay is no longer used for drawing — Gemini reads the full photo
