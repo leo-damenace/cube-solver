@@ -146,14 +146,17 @@ const editorDone  = document.getElementById("editor-done");
 async function startCamera(){
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"environment",width:{ideal:1920},height:{ideal:1080}}
+      video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}
     });
     video.srcObject=stream;
-    video.addEventListener("loadedmetadata",()=>{syncOverlay();});
-    video.addEventListener("play",syncOverlay);
-    window.addEventListener("resize",()=>{syncOverlay();drawCornerGuide();});
-  } catch {
-    alert("Camera access denied. Please allow camera permissions and reload.");
+    // iOS Safari requires manual play call
+    video.addEventListener("loadedmetadata", async ()=>{
+      try { await video.play(); } catch(e){ console.log('play error',e); }
+    });
+    window.addEventListener("resize", syncOverlay);
+  } catch(err) {
+    console.error('Camera error:', err);
+    alert("Camera access denied. Please go to Settings > Safari > Camera and set to Allow, then reload.");
   }
 }
 
