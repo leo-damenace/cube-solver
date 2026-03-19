@@ -224,9 +224,12 @@ async function takePhoto(){
     const data = await res.json();
 
     if(!data.ok){
-      showBanner(`⚠️ Gemini error: ${data.error}. Retake the photo.`, "error");
+      showBanner(`⚠️ ${data.error}`, "error");
+      isAnalysing = false;
       btn.disabled = false;
       btn.textContent = "📸 Retake Photo";
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
       btn.onclick = takePhoto;
       return;
     }
