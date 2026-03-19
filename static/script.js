@@ -186,7 +186,7 @@ async function takePhoto(){
   // Send to Gemini
   showBanner(`🤖 Gemini is reading the colours from photo ${currentShot+1}...`);
   captureBtn.disabled=true;
-  captureBtn.innerHTML=`<span class="spinner"></span> Analysing...`;
+  captureBtn.textContent="Analysing...";
 
   const cornerType = currentShot===0 ? "first" : "second";
   try {
@@ -195,7 +195,7 @@ async function takePhoto(){
 
     if(!data.ok){
       showBanner(`⚠️ Gemini error: ${data.error}. Try retaking the photo.`,"error");
-      captureBtn.disabled=false; captureBtn.textContent="📸 Retake Photo";
+      captureBtn.disabled=false; captureBtn.textContent="📸 Retake Photo"; captureBtn.setAttribute("onclick","takePhoto()");
       return;
     }
 
@@ -219,7 +219,7 @@ async function takePhoto(){
       showBanner("✅ Photo 1 done! Gemini read 3 faces. Now flip and shoot the other corner.");
       captureBtn.disabled=false;
       captureBtn.textContent="📸 Take Photo 2";
-      captureBtn.setAttribute("onclick","takePhoto()");
+      captureBtn.onclick = takePhoto;
       // Switch guide to corner 2
       if(typeof switchGuideToShot2==="function") switchGuideToShot2();
     } else {
