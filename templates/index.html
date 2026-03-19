@@ -168,8 +168,8 @@
     <div class="logo">CUBE<span>SOLVE</span></div>
     <span class="logo-sub">4×4 Rubik's Cube Solver</span>
     <p class="gate-label">Invite Code</p>
-    <input id="code-input" type="text" placeholder="CUBE-XXXX" maxlength="12" autocomplete="off" spellcheck="false"/>
-    <button id="enter-btn">Enter</button>
+    <input id="code-input" type="text" placeholder="CUBE-XXXX" maxlength="12" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')checkCode()"/>
+    <button id="enter-btn" onclick="checkCode()" ontouchend="event.preventDefault();checkCode()">Enter</button>
     <div class="gate-error" id="gate-error"></div>
     <div class="gate-footer">PRIVATE ACCESS ONLY &nbsp;·&nbsp; INVITE REQUIRED</div>
   </div>
