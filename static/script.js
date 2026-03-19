@@ -637,4 +637,226 @@ function doRestart(){
 
   updateThreeCube();
   window.scrollTo({top:0,behavior:"smooth"});
+
+  // Reset guide animation
+  document.getElementById("guide-anim-wrap").style.display  = "block";
+  document.getElementById("cube-viewer-wrap").style.display = "none";
+  document.getElementById("guide-anim-badge").textContent     = CORNER_TARGETS[0].badge;
+  document.getElementById("guide-anim-label").textContent     = CORNER_TARGETS[0].label;
+  document.getElementById("guide-anim-instruction").innerHTML = CORNER_TARGETS[0].instruction;
+  guidePhase=0;
+  guideTargetRotX=CORNER_TARGETS[0].rotX;
+  guideTargetRotY=CORNER_TARGETS[0].rotY;
 }
+
+// ── GUIDE ANIMATION CUBE ──────────────────────────────────
+// A separate Three.js scene showing a clean colourful cube
+// rotating to highlight the corner the user should point at.
+
+let guideScene, guideCamera, guideRenderer, guideAnimId;
+let guideTargetRotX = 0.6;
+let guideTargetRotY = 0.8;
+let guideCurRotX    = 0.6;
+let guideCurRotY    = 0.8;
+let guidePhase      = 0; // 0=shot1, 1=shot2
+
+// Standard solved cube colours for the guide (so it looks like a real cube)
+const GUIDE_FACE_COLORS = {
+  U: 0xffffff, // white top
+  D: 0xffd200, // yellow bottom
+  F: 0x009b2d, // green front
+  B: 0x0046c8, // blue back
+  R: 0xc41e1e, // red right
+  L: 0xff6400, // orange left
+};
+
+// Corner 1: top-front-right corner → rotate to show U+F+R faces
+// Corner 2: bottom-back-left corner → rotate to show D+B+L faces
+const CORNER_TARGETS = [
+  { rotX: 0.55, rotY: 0.75,  badge:"PHOTO 1 OF 2", label:"Point camera at this corner", instruction:"Hold your cube so you can see the <strong>Top, Front and Right</strong> faces at once — like this. Then take the photo." },
+  { rotX:-0.55, rotY:-2.4,   badge:"PHOTO 2 OF 2", label:"Flip to opposite corner",     instruction:"Now flip your cube so the <strong>Bottom, Back and Left</strong> faces are visible. Match this angle, then take the photo." },
+];
+
+function initGuideCube() {
+  const canvas = document.getElementById("guide3d");
+  if (!canvas || typeof THREE === "undefined") return;
+
+  const w = canvas.parentElement.clientWidth || 400;
+  const h = 220;
+  canvas.width = w; canvas.height = h;
+  canvas.style.height = h + "px";
+
+  guideScene  = new THREE.Scene();
+  guideCamera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
+  guideCamera.position.set(0, 0, 7);
+  guideCamera.lookAt(0, 0, 0);
+
+  guideRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  guideRenderer.setSize(w, h);
+  guideRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  guideRenderer.setClearColor(0x1a1a1a, 1);
+
+  guideScene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(4, 6, 5);
+  guideScene.add(dir);
+
+  buildGuideCubelets();
+  animateGuide();
+
+  window.addEventListener("resize", () => {
+    const nw = canvas.parentElement.clientWidth || 400;
+    guideCamera.aspect = nw / h;
+    guideCamera.updateProjectionMatrix();
+    guideRenderer.setSize(nw, h);
+  });
+}
+
+let guideCubelets = [];
+let guideCubeGroup;
+
+function buildGuideCubelets() {
+  guideCubeGroup = new THREE.Group();
+  const gap = 1.04;
+
+  for (let x = -1; x <= 1; x++) {
+    for (let y = -1; y <= 1; y++) {
+      for (let z = -1; z <= 1; z++) {
+        const geo  = new THREE.BoxGeometry(0.94, 0.94, 0.94);
+        const mats = [
+          // +X right = R, -X left = L, +Y top = U, -Y bot = D, +Z front = F, -Z back = B
+          new THREE.MeshLambertMaterial({ color: x === 1  ? GUIDE_FACE_COLORS.R : 0x1a1a1a }),
+          new THREE.MeshLambertMaterial({ color: x === -1 ? GUIDE_FACE_COLORS.L : 0x1a1a1a }),
+          new THREE.MeshLambertMaterial({ color: y === 1  ? GUIDE_FACE_COLORS.U : 0x1a1a1a }),
+          new THREE.MeshLambertMaterial({ color: y === -1 ? GUIDE_FACE_COLORS.D : 0x1a1a1a }),
+          new THREE.MeshLambertMaterial({ color: z === 1  ? GUIDE_FACE_COLORS.F : 0x1a1a1a }),
+          new THREE.MeshLambertMaterial({ color: z === -1 ? GUIDE_FACE_COLORS.B : 0x1a1a1a }),
+        ];
+        const mesh = new THREE.Mesh(geo, mats);
+        mesh.position.set(x * gap, y * gap, z * gap);
+        guideCubeGroup.add(mesh);
+        guideCubelets.push(mesh);
+      }
+    }
+  }
+
+  guideScene.add(guideCubeGroup);
+
+  // Set initial rotation for corner 1
+  guideCurRotX = CORNER_TARGETS[0].rotX;
+  guideCurRotY = CORNER_TARGETS[0].rotY;
+  guideTargetRotX = CORNER_TARGETS[0].rotX;
+  guideTargetRotY = CORNER_TARGETS[0].rotY;
+  guideCubeGroup.rotation.x = guideCurRotX;
+  guideCubeGroup.rotation.y = guideCurRotY;
+}
+
+// Glow effect — pulses the 3 highlighted corner faces
+let glowT = 0;
+function updateGuideGlow() {
+  glowT += 0.04;
+  const pulse = 0.55 + 0.45 * Math.sin(glowT);
+
+  const corner1Faces = [2, 4, 0]; // +X, +Y, +Z indices = R, U, F
+  const corner2Faces = [1, 3, 5]; // -X, -Y, -Z indices = L, D, B
+  const activeFaces  = guidePhase === 0 ? corner1Faces : corner2Faces;
+
+  guideCubelets.forEach(mesh => {
+    const p = mesh.position;
+    const isCorner1 = p.x > 0 && p.y > 0 && p.z > 0;
+    const isCorner2 = p.x < 0 && p.y < 0 && p.z < 0;
+    const isActive  = guidePhase === 0 ? isCorner1 : isCorner2;
+
+    mesh.material.forEach((mat, idx) => {
+      const baseColors = [
+        GUIDE_FACE_COLORS.R, GUIDE_FACE_COLORS.L,
+        GUIDE_FACE_COLORS.U, GUIDE_FACE_COLORS.D,
+        GUIDE_FACE_COLORS.F, GUIDE_FACE_COLORS.B,
+      ];
+      const onOuterFace = [p.x>0, p.x<0, p.y>0, p.y<0, p.z>0, p.z<0][idx];
+      if (!onOuterFace) return;
+
+      if (isActive && activeFaces.includes(idx)) {
+        // Brighten the 3 active faces with pulse
+        const base = new THREE.Color(baseColors[idx]);
+        base.lerp(new THREE.Color(0xffffff), pulse * 0.35);
+        mat.color.set(base);
+        mat.emissive = new THREE.Color(baseColors[idx]);
+        mat.emissiveIntensity = pulse * 0.25;
+      } else if (!onOuterFace) {
+        mat.color.setHex(0x1a1a1a);
+      } else {
+        mat.color.setHex(baseColors[idx]);
+        mat.emissiveIntensity = 0;
+      }
+    });
+  });
+}
+
+function animateGuide() {
+  guideAnimId = requestAnimationFrame(animateGuide);
+  if (!guideRenderer) return;
+
+  // Smooth rotation towards target
+  guideCurRotX += (guideTargetRotX - guideCurRotX) * 0.05;
+  guideCurRotY += (guideTargetRotY - guideCurRotY) * 0.05;
+  guideCubeGroup.rotation.x = guideCurRotX;
+  guideCubeGroup.rotation.y = guideCurRotY;
+
+  // Gentle idle bob
+  guideCubeGroup.rotation.y += 0.003;
+  guideTargetRotY += 0.003;
+
+  updateGuideGlow();
+  guideRenderer.render(guideScene, guideCamera);
+}
+
+function switchGuideToShot2() {
+  guidePhase = 1;
+  const t = CORNER_TARGETS[1];
+  guideTargetRotX = t.rotX;
+  guideTargetRotY = t.rotY;
+
+  document.getElementById("guide-anim-badge").textContent       = t.badge;
+  document.getElementById("guide-anim-label").textContent       = t.label;
+  document.getElementById("guide-anim-instruction").innerHTML   = t.instruction;
+}
+
+function hideGuideShowCubeState() {
+  document.getElementById("guide-anim-wrap").style.display  = "none";
+  document.getElementById("cube-viewer-wrap").style.display = "block";
+}
+
+// Initialise guide when app loads
+const _origCheckCode = checkCode;
+// Hook into login success — initialise guide cube
+const _origStartCamera = startCamera;
+window._guideCubeReady = false;
+
+// Patch: call initGuideCube after app becomes visible
+const guideObserver = new MutationObserver(() => {
+  if (appEl && appEl.style.display !== "none" && !window._guideCubeReady) {
+    window._guideCubeReady = true;
+    setTimeout(initGuideCube, 150);
+    guideObserver.disconnect();
+  }
+});
+if (appEl) guideObserver.observe(appEl, { attributes: true, attributeFilter: ["style"] });
+
+// Patch takePhoto to switch guide after shot 1 and hide after shot 2
+const _origTakePhoto = takePhoto;
+window.takePhoto = async function() {
+  await _origTakePhoto();
+  if (currentShot === 1) {
+    // Just finished shot 1 — switch guide to corner 2
+    switchGuideToShot2();
+  } else if (currentShot === 2) {
+    // Just finished shot 2 — hide guide, show cube state
+    hideGuideShowCubeState();
+  }
+};
+// Reassign button listeners to new takePhoto
+captureBtn.removeEventListener("click", takePhoto);
+captureBtn.removeEventListener("touchend", takePhoto);
+captureBtn.addEventListener("click", window.takePhoto);
+captureBtn.addEventListener("touchend", e => { e.preventDefault(); window.takePhoto(); });
