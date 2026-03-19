@@ -135,8 +135,7 @@ const codeInput   = document.getElementById("code-input");
 const enterBtn    = document.getElementById("enter-btn");
 const gateError   = document.getElementById("gate-error");
 const video       = document.getElementById("camera");
-const overlay     = document.getElementById("overlay");
-const ctx         = overlay.getContext("2d");
+const overlay = document.getElementById("overlay"); // may be null, that's OK
 const captureBtn  = document.getElementById("capture-btn");
 const solveRow    = document.getElementById("solve-row");
 const solveBtn    = document.getElementById("solve-btn");
@@ -160,9 +159,8 @@ const editorDone  = document.getElementById("editor-done");
 // startCamera defined globally above
 
 function syncOverlay(){
-  // Overlay is no longer used for drawing — Gemini reads the full photo
-  // Just hide the canvas entirely
-  overlay.style.display = "none";
+  const ov = document.getElementById("overlay");
+  if(ov) ov.style.display = "none";
 }
 
 // ── TAKE PHOTO ────────────────────────────────────────────
@@ -288,11 +286,13 @@ async function takePhoto(){
 }
 
 function showBanner(msg, type="info"){
-  statusBanner.style.display="block";
-  statusBanner.style.background = type==="error" ? "rgba(255,77,77,0.08)" : "rgba(200,241,53,0.08)";
-  statusBanner.style.borderColor= type==="error" ? "rgba(255,77,77,0.2)"  : "rgba(200,241,53,0.2)";
-  statusBanner.style.color      = type==="error" ? "#ff9090"               : "var(--accent)";
-  statusBanner.textContent=msg;
+  const b = document.getElementById("status-banner");
+  if(!b) return;
+  b.style.display="block";
+  b.style.background = type==="error" ? "rgba(255,77,77,0.08)" : "rgba(200,241,53,0.08)";
+  b.style.borderColor= type==="error" ? "rgba(255,77,77,0.2)"  : "rgba(200,241,53,0.2)";
+  b.style.color      = type==="error" ? "#ff9090"               : "var(--accent)";
+  b.textContent = msg;
 }
 
 function markStep(i, state){
