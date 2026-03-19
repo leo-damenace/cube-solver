@@ -87,7 +87,7 @@ Replace each "c" with the actual colour name."""
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
+        with urllib.request.urlopen(req, timeout=45) as resp:
             result = json.loads(resp.read().decode("utf-8"))
 
         # Check for API error in response
