@@ -141,7 +141,7 @@ async function startCamera(){
       video:{facingMode:"environment",width:{ideal:1920},height:{ideal:1080}}
     });
     video.srcObject=stream;
-    video.addEventListener("loadedmetadata",()=>{syncOverlay();drawCornerGuide();});
+    video.addEventListener("loadedmetadata",()=>{syncOverlay();});
     video.addEventListener("play",syncOverlay);
     window.addEventListener("resize",()=>{syncOverlay();drawCornerGuide();});
   } catch {
@@ -150,38 +150,9 @@ async function startCamera(){
 }
 
 function syncOverlay(){
-  const rect=video.getBoundingClientRect();
-  overlay.width =rect.width||400; overlay.height=rect.height||400;
-  overlay.style.width =overlay.width +"px";
-  overlay.style.height=overlay.height+"px";
-  overlay.style.left="0px"; overlay.style.top="0px";
-}
-
-// Draw a corner diamond guide on the camera overlay
-function drawCornerGuide(){
-  const w=overlay.width||400, h=overlay.height||400;
-  ctx.clearRect(0,0,w,h);
-  ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(0,0,w,h);
-
-  // Draw 3 rectangles suggesting 3 faces meeting at a corner
-  const cx=w/2, cy=h/2;
-  const s=Math.min(w,h)*0.3;
-
-  // Top face
-  ctx.strokeStyle="#c8f135"; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-  ctx.strokeRect(cx-s,cy-s*1.5,s*2,s);
-  // Left face
-  ctx.strokeRect(cx-s*2,cy-s*0.5,s,s*1.5);
-  // Right face
-  ctx.strokeRect(cx,cy-s*0.5,s,s*1.5);
-  ctx.setLineDash([]);
-
-  // Centre crosshair
-  ctx.strokeStyle="rgba(200,241,53,0.6)"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(cx-12,cy); ctx.lineTo(cx+12,cy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx,cy-12); ctx.lineTo(cx,cy+12); ctx.stroke();
-
-  requestAnimationFrame(drawCornerGuide);
+  // Overlay is no longer used for drawing — Gemini reads the full photo
+  // Just hide the canvas entirely
+  overlay.style.display = "none";
 }
 
 // ── TAKE PHOTO ────────────────────────────────────────────
