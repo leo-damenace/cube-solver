@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="manifest" href="/static/manifest.json">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>CubeSolve</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/static/icon.png">
+  <link rel="icon" type="image/png" href="/static/icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CubeSolve">
+  <meta name="theme-color" content="#0c0c0c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
@@ -237,7 +242,7 @@
       <!-- Camera -->
       <div class="camera-card">
         <div class="camera-wrap">
-          <video id="camera" autoplay playsinline muted webkit-playsinline></video>
+          <video id="camera" autoplay playsinline muted></video>
           <div class="camera-badge"><div class="rec-dot"></div>LIVE</div>
         </div>
         <div class="camera-footer">
