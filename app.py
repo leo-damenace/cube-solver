@@ -56,7 +56,7 @@ Be specific and practical."""
         with urllib.request.urlopen(req, timeout=30) as resp:
             result = json.loads(resp.read().decode())
         text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return f"<pre style='font-family:monospace;white-space:pre-wrap;padding:2rem;background:#111;color:#eee;font-size:14px'>{text}</pre>"
+        return f"<html><body style='font-family:sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6'><pre style='white-space:pre-wrap;font-size:14px'>{text}</pre></body></html>"
     except Exception as e:
         return jsonify({"error": str(e)})
 
