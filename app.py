@@ -90,9 +90,8 @@ Replace each "c" with the actual colour name."""
         with urllib.request.urlopen(req, timeout=45) as resp:
             result = json.loads(resp.read().decode("utf-8"))
 
-        # Check for API error in response
         if "error" in result:
-            return jsonify({"ok": False, "error": result["error"].get("message", "Gemini API error")}), 500
+            return jsonify({"ok": False, "error": result["error"].get("message", "Gemini API error")})
 
         text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         text = re.sub(r"```json|```", "", text).strip()
@@ -101,9 +100,15 @@ Replace each "c" with the actual colour name."""
 
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8")
-        return jsonify({"ok": False, "error": f"HTTP {e.code}: {body[:200]}"}), 500
+        return jsonify({"ok": False, "error": f"HTTP {e.code}: {body[:300]}"})
+    except urllib.error.URLError as e:
+        return jsonify({"ok": False, "error": f"URL error: {str(e)}"})
+    except json.JSONDecodeError as e:
+        return jsonify({"ok": False, "error": f"Bad JSON from Gemini: {text[:200]}"})
+    except KeyError as e:
+        return jsonify({"ok": False, "error": f"Unexpected Gemini response structure: {str(result)[:300]}"})
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return jsonify({"ok": False, "error": f"{type(e).__name__}: {str(e)}"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
