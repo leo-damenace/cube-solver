@@ -122,7 +122,8 @@ const MOVE_EXP = {
 function explainMove(m){ return MOVE_EXP[m]||{n:m,w:"Perform the "+m+" move.",y:"Part of the solving algorithm."}; }
 
 // ── STATE ─────────────────────────────────────────────────
-let currentShot = 0;          // 0 = first photo not taken, 1 = second, 2 = done
+let currentShot = 0;
+let isAnalysing = false;  // blocks photo during Gemini analysis          // 0 = first photo not taken, 1 = second, 2 = done
 let faceColors  = Array(6).fill(null).map(()=>Array(16).fill("white"));
 let photosTaken = [null, null]; // base64 of each photo
 let activePaintColor = COLOR_NAMES[0];
@@ -169,6 +170,7 @@ captureBtn.addEventListener("click", takePhoto);
 captureBtn.addEventListener("touchend",e=>{e.preventDefault();takePhoto();});
 
 async function takePhoto(){
+  if(isAnalysing) return;  // block during analysis
   const btn       = document.getElementById("capture-btn");
   const shotNum   = document.getElementById("shot-num");
   const titleEl   = document.getElementById("main-title");
@@ -181,12 +183,14 @@ async function takePhoto(){
 
   if(currentShot >= 2) return;
 
-  // Capture frame from video
+  // Capture frame — resize to max 800px to keep payload small
   const snap = document.createElement("canvas");
-  snap.width  = vidEl.videoWidth  || 1280;
-  snap.height = vidEl.videoHeight || 720;
-  snap.getContext("2d").drawImage(vidEl, 0, 0);
-  const b64 = snap.toDataURL("image/jpeg", 0.92).split(",")[1];
+  const maxW = 800;
+  const scale = Math.min(1, maxW / (vidEl.videoWidth || 1280));
+  snap.width  = Math.floor((vidEl.videoWidth  || 1280) * scale);
+  snap.height = Math.floor((vidEl.videoHeight || 720)  * scale);
+  snap.getContext("2d").drawImage(vidEl, 0, 0, snap.width, snap.height);
+  const b64 = snap.toDataURL("image/jpeg", 0.8).split(",")[1];
 
   // Save and show preview
   const shotIndex = currentShot;
@@ -195,20 +199,28 @@ async function takePhoto(){
   slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Corner ${shotIndex+1}</div>`;
   slot.classList.add("done");
 
-  // Disable button while Gemini analyses
+  // Fully lock button AND capture btn in HTML during analysis
+  isAnalysing = true;
   btn.disabled  = true;
-  btn.textContent = "Analysing...";
+  btn.textContent = "⏳ Analysing...";
+  btn.style.opacity = "0.5";
+  btn.style.pointerEvents = "none";
 
   showBanner(`🤖 Gemini is reading photo ${shotIndex+1}...`);
 
   const cornerType = shotIndex === 0 ? "first" : "second";
 
   try {
+    // 20 second timeout
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 50000);
     const res  = await fetch("/analyze-corner", {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({image:b64, corner:cornerType})
+      body: JSON.stringify({image:b64, corner:cornerType}),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     const data = await res.json();
 
     if(!data.ok){
@@ -238,8 +250,11 @@ async function takePhoto(){
       titleEl.textContent = "NOW FLIP THE CUBE";
       descEl.textContent  = "Flip your cube to the opposite corner so the other 3 faces are visible. Then take the second photo.";
       showBanner("✅ Photo 1 done! Now flip and shoot the opposite corner.");
+      isAnalysing = false;
       btn.disabled   = false;
       btn.textContent= "📸 Take Photo 2";
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
       btn.onclick    = takePhoto;
       if(typeof switchGuideToShot2 === "function") switchGuideToShot2();
     } else {
@@ -260,8 +275,11 @@ async function takePhoto(){
 
   } catch(err){
     showBanner(`⚠️ Error: ${err.message}`, "error");
+    isAnalysing = false;
     btn.disabled   = false;
     btn.textContent= "📸 Retake Photo";
+    btn.style.opacity = "1";
+    btn.style.pointerEvents = "auto";
     btn.onclick    = takePhoto;
   }
 }
