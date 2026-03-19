@@ -144,20 +144,34 @@ const editorDone  = document.getElementById("editor-done");
 
 // ── CAMERA ────────────────────────────────────────────────
 async function startCamera(){
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}
-    });
-    video.srcObject=stream;
-    // iOS Safari requires manual play call
-    video.addEventListener("loadedmetadata", async ()=>{
-      try { await video.play(); } catch(e){ console.log('play error',e); }
-    });
-    window.addEventListener("resize", syncOverlay);
-  } catch(err) {
-    console.error('Camera error:', err);
-    alert("Camera access denied. Please go to Settings > Safari > Camera and set to Allow, then reload.");
-  }
+  // Show tap-to-start overlay for iOS
+  const wrap = video.parentElement;
+  const startOverlay = document.createElement("div");
+  startOverlay.id = "cam-start-overlay";
+  startOverlay.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;z-index:10;cursor:pointer;gap:12px;";
+  startOverlay.innerHTML = '<div style="font-size:3rem;">📷</div><div style="color:#c8f135;font-size:1rem;font-weight:500;letter-spacing:1px;">Tap to Start Camera</div><div style="color:#666;font-size:.75rem;">Safari requires a tap to access the camera</div>';
+
+  const doStart = async () => {
+    startOverlay.remove();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}
+      });
+      video.srcObject = stream;
+      video.setAttribute("playsinline","");
+      video.setAttribute("webkit-playsinline","");
+      video.muted = true;
+      await video.play();
+      window.addEventListener("resize", syncOverlay);
+    } catch(err) {
+      console.error('Camera error:', err);
+      alert("Camera access denied. Please go to Settings > Safari > Camera > Allow, then reload.");
+    }
+  };
+
+  startOverlay.addEventListener("click", doStart);
+  startOverlay.addEventListener("touchend", e=>{ e.preventDefault(); doStart(); });
+  wrap.appendChild(startOverlay);
 }
 
 function syncOverlay(){
