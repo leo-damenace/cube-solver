@@ -21,6 +21,45 @@ def verify_code():
     code = data.get("code", "").strip().upper()
     return jsonify({"valid": code in VALID_CODES})
 
+@app.route("/ask-gemini")
+def ask_gemini():
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "no key"})
+    
+    question = """I am building a web app that photographs a 4x4 Rubik's cube and sends the image to you (Gemini 2.5 Flash) to read the sticker colours. 
+
+The user points their phone camera at one corner of the cube so 3 faces are visible at once.
+
+Please answer these questions to help me design the best camera guide overlay:
+1. What is the ideal angle to hold the cube (degrees from straight-on)?
+2. How much of the frame should the cube fill (what % of the image)?
+3. What lighting conditions work best vs worst?
+4. What are the most commonly confused colour pairs and how can the user avoid them?
+5. What framing/composition tips would make your colour detection most accurate?
+6. Is there anything specific about 4x4 cubes (vs 3x3) that affects detection?
+
+Be specific and practical."""
+
+    payload = json.dumps({
+        "contents": [{"parts": [{"text": question}]}],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+        text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        return f"<pre style='font-family:monospace;white-space:pre-wrap;padding:2rem;background:#111;color:#eee;font-size:14px'>{text}</pre>"
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
 @app.route("/test-key")
 def test_key():
     api_key = os.environ.get("GEMINI_API_KEY", "")
@@ -53,21 +92,43 @@ def analyze_corner():
     corner    = data.get("corner", "first")
 
     if corner == "first":
-        face_prompt = """Look at this 4x4 Rubik's cube photo. You can see 3 faces from a corner angle.
-Call them: TOP (facing up), LEFT (facing left), RIGHT (facing right).
-For each face read all 16 stickers left-to-right, top-to-bottom.
-Each sticker colour is one of: white, yellow, red, orange, blue, green.
-Reply with ONLY this JSON, no other text:
-{"top":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"left":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"right":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]}
-Replace each "c" with the actual colour name."""
+        face_prompt = """This is a photo of a 4x4 Rubik's cube taken from a corner angle so 3 faces are visible at once.
+
+Your job: identify the colour of every sticker on each of the 3 visible faces.
+
+The 3 faces are:
+- TOP: the face on top, tilted away from you
+- LEFT: the face on the left side
+- RIGHT: the face on the right side
+
+For each face, read the 4x4 grid of 16 stickers in order: row 1 left to right, then row 2 left to right, then row 3, then row 4.
+
+The 6 possible colours are: white, yellow, red, orange, blue, green.
+Be very precise — orange and red are different, white and yellow are different.
+
+Return ONLY valid JSON with no extra text, no markdown, no explanation:
+{"top":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"],"left":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"],"right":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"]}
+
+Each array must have exactly 16 colour values."""
     else:
-        face_prompt = """Look at this 4x4 Rubik's cube photo. You can see 3 faces from a corner angle.
-Call them: BOTTOM (facing down), LEFT (facing left), RIGHT (facing right).
-For each face read all 16 stickers left-to-right, top-to-bottom.
-Each sticker colour is one of: white, yellow, red, orange, blue, green.
-Reply with ONLY this JSON, no other text:
-{"bottom":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"left":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"right":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]}
-Replace each "c" with the actual colour name."""
+        face_prompt = """This is a photo of a 4x4 Rubik's cube taken from the OPPOSITE corner to the first photo. 3 different faces are now visible.
+
+Your job: identify the colour of every sticker on each of the 3 visible faces.
+
+The 3 faces are:
+- BOTTOM: the face on the bottom, tilted away from you
+- LEFT: the face on the left side
+- RIGHT: the face on the right side
+
+For each face, read the 4x4 grid of 16 stickers in order: row 1 left to right, then row 2 left to right, then row 3, then row 4.
+
+The 6 possible colours are: white, yellow, red, orange, blue, green.
+Be very precise — orange and red are different, white and yellow are different.
+
+Return ONLY valid JSON with no extra text, no markdown, no explanation:
+{"bottom":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"],"left":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"],"right":["colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour","colour"]}
+
+Each array must have exactly 16 colour values."""
 
     payload = json.dumps({
         "contents": [{
