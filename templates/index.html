@@ -92,6 +92,7 @@
     .camera-wrap { position:relative; aspect-ratio:1/1; background:#000; overflow:hidden; }
     #camera { width:100%; height:100%; object-fit:cover; display:block; }
     #overlay { position:absolute; pointer-events:none; }
+    #overlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
     .camera-badge { position:absolute; top:12px; left:12px; background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:4px 12px; font-size:.72rem; font-family:'DM Mono',monospace; color:#fff; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; }
     .rec-dot { width:6px; height:6px; border-radius:50%; background:var(--red); animation:blink 1.2s ease infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
@@ -243,6 +244,7 @@
       <div class="camera-card">
         <div class="camera-wrap">
           <video id="camera" autoplay playsinline muted></video>
+          <canvas id="overlay"></canvas>
           <div class="camera-badge"><div class="rec-dot"></div>LIVE</div>
         </div>
         <div class="camera-footer">
