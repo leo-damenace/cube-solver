@@ -63,6 +63,15 @@
     .main-header p { font-size:.85rem; color:var(--muted); line-height:1.6; }
 
     /* 3D CUBE VIEWER */
+    /* GUIDE ANIMATION */
+    #guide-anim-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
+    #guide-anim-header { padding:.7rem 1.2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    #guide-anim-badge { font-size:.7rem; color:#000; background:var(--accent); border-radius:20px; padding:3px 10px; font-weight:600; letter-spacing:1px; }
+    #guide-anim-label { font-size:.82rem; color:var(--accent); font-weight:500; }
+    #guide3d { width:100%; display:block; }
+    #guide-anim-footer { padding:.9rem 1.2rem; border-top:1px solid var(--border); text-align:center; }
+    #guide-anim-instruction { font-size:.85rem; color:var(--muted); line-height:1.5; }
+    #guide-anim-instruction strong { color:var(--text); }
     #cube-viewer-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
     #cube-viewer-header { padding:.7rem 1.2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
     #cube-viewer-header span { font-size:.7rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
@@ -203,8 +212,20 @@
       <!-- Status banner -->
       <div id="status-banner"></div>
 
-      <!-- 3D cube viewer -->
-      <div id="cube-viewer-wrap">
+      <!-- Guide cube (animates to show which corner) -->
+      <div id="guide-anim-wrap">
+        <div id="guide-anim-header">
+          <span id="guide-anim-badge">PHOTO 1 OF 2</span>
+          <span id="guide-anim-label">Point camera at this corner</span>
+        </div>
+        <canvas id="guide3d"></canvas>
+        <div id="guide-anim-footer">
+          <div id="guide-anim-instruction">Hold your cube so <strong>3 faces</strong> are visible — like looking at a corner. Match this angle.</div>
+        </div>
+      </div>
+
+      <!-- 3D cube viewer (fills in after scans) -->
+      <div id="cube-viewer-wrap" style="display:none">
         <div id="cube-viewer-header">
           <span>CUBE STATE</span>
           <span id="cube-viewer-label">Waiting for scan...</span>
