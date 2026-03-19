@@ -1,3 +1,37 @@
+// ── GATE (global so onclick in HTML can call it) ──────────
+async function checkCode(){
+  const codeInput = document.getElementById("code-input");
+  const enterBtn  = document.getElementById("enter-btn");
+  const gateError = document.getElementById("gate-error");
+  const gateEl    = document.getElementById("gate");
+  const appEl     = document.getElementById("app");
+
+  const code = codeInput.value.trim().toUpperCase();
+  if(!code) return;
+  enterBtn.disabled=true;
+  enterBtn.innerHTML='<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,0.2);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;"></span> Checking...';
+  try {
+    const res  = await fetch("/verify-code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})});
+    const data = await res.json();
+    if(data.valid){
+      gateEl.style.display="none";
+      appEl.style.display ="block";
+      if(typeof injectRestartBtn === "function") injectRestartBtn();
+      if(typeof startCamera     === "function") startCamera();
+      if(typeof initThreeCube   === "function") initThreeCube();
+      if(typeof initGuideCube   === "function") setTimeout(initGuideCube, 150);
+    } else {
+      gateError.textContent="Invalid code.";
+      codeInput.style.borderColor="var(--red)";
+      setTimeout(()=>codeInput.style.borderColor="",1500);
+      enterBtn.disabled=false; enterBtn.textContent="Enter";
+    }
+  } catch(e) {
+    gateError.textContent="Network error — try again.";
+    enterBtn.disabled=false; enterBtn.textContent="Enter";
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 
 // ═══════════════════════════════════════════════════════════
@@ -106,35 +140,7 @@ const editorFacesWrap = document.getElementById("editor-faces-wrap");
 const editorDone  = document.getElementById("editor-done");
 
 // ── GATE ──────────────────────────────────────────────────
-async function checkCode(){
-  const code = codeInput.value.trim().toUpperCase();
-  if(!code) return;
-  enterBtn.disabled=true;
-  enterBtn.innerHTML='<span class="spinner"></span> Checking...';
-  try {
-    const res  = await fetch("/verify-code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})});
-    const data = await res.json();
-    if(data.valid){
-      gateEl.style.display="none";
-      appEl.style.display ="block";
-      injectRestartBtn();
-      startCamera();
-      initThreeCube();
-    } else {
-      gateError.textContent="Invalid code.";
-      codeInput.classList.add("shake");
-      codeInput.addEventListener("animationend",()=>codeInput.classList.remove("shake"),{once:true});
-      enterBtn.disabled=false; enterBtn.textContent="Enter";
-    }
-  } catch {
-    gateError.textContent="Network error.";
-    enterBtn.disabled=false; enterBtn.textContent="Enter";
-  }
-}
-enterBtn.addEventListener("click",checkCode);
-enterBtn.addEventListener("touchend",e=>{e.preventDefault();checkCode();});
-codeInput.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();checkCode();}});
-codeInput.addEventListener("input",()=>{gateError.textContent="";});
+// checkCode is defined globally above DOMContentLoaded
 
 // ── CAMERA ────────────────────────────────────────────────
 async function startCamera(){
