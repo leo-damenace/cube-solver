@@ -25,8 +25,21 @@ def verify_code():
 def test_key():
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
-        return jsonify({"status": "MISSING - GEMINI_API_KEY not set"})
-    return jsonify({"status": "SET", "key_preview": api_key[:8] + "..."})
+        return jsonify({"status": "MISSING"})
+    # Test a real Gemini call with a simple text prompt
+    import urllib.request, json
+    test_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    payload = json.dumps({"contents":[{"parts":[{"text":"Reply with just the word: working"}]}]}).encode()
+    req = urllib.request.Request(test_url, data=payload, headers={"Content-Type":"application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+        text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        return jsonify({"status": "OK", "gemini_reply": text, "key_preview": api_key[:8]+"..."})
+    except urllib.error.HTTPError as e:
+        return jsonify({"status": "HTTP_ERROR", "code": e.code, "body": e.read().decode()[:300]})
+    except Exception as e:
+        return jsonify({"status": "ERROR", "error": str(e)})
 
 @app.route("/analyze-corner", methods=["POST"])
 def analyze_corner():
