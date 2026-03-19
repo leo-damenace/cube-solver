@@ -44,7 +44,8 @@ async function checkCode(){
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+
+
 
 // ═══════════════════════════════════════════════════════════
 //  CubeSolve — script.js v5
@@ -839,6 +840,3 @@ captureBtn.removeEventListener("click", takePhoto);
 captureBtn.removeEventListener("touchend", takePhoto);
 captureBtn.addEventListener("click", window.takePhoto);
 captureBtn.addEventListener("touchend", e => { e.preventDefault(); window.takePhoto(); });
-
-
-}); // end DOMContentLoaded
