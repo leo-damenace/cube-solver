@@ -5,6 +5,11 @@ async function startCamera(){
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
     video.srcObject = stream;
     video.play();
+    video.addEventListener("playing", ()=>{
+      syncOverlay();
+      drawYGuide();
+    }, { once: true });
+    window.addEventListener("resize", syncOverlay);
   } catch(err) {
     alert("Camera error: " + err.message + ". Go to Settings > Safari > Camera > Allow.");
   }
@@ -135,7 +140,8 @@ const codeInput   = document.getElementById("code-input");
 const enterBtn    = document.getElementById("enter-btn");
 const gateError   = document.getElementById("gate-error");
 const video       = document.getElementById("camera");
-const overlay = document.getElementById("overlay"); // may be null, that's OK
+const overlay = document.getElementById("overlay");
+const ctx = overlay ? overlay.getContext("2d") : null;
 const captureBtn  = document.getElementById("capture-btn");
 const solveRow    = document.getElementById("solve-row");
 const solveBtn    = document.getElementById("solve-btn");
@@ -159,8 +165,148 @@ const editorDone  = document.getElementById("editor-done");
 // startCamera defined globally above
 
 function syncOverlay(){
+  const ov  = document.getElementById("overlay");
+  const vid = document.getElementById("camera");
+  if(!ov || !vid) return;
+  const rect = vid.getBoundingClientRect();
+  ov.width  = rect.width  || 400;
+  ov.height = rect.height || 400;
+  ov.style.width  = ov.width  + "px";
+  ov.style.height = ov.height + "px";
+}
+
+function drawYGuide(){
   const ov = document.getElementById("overlay");
-  if(ov) ov.style.display = "none";
+  if(!ov) return;
+  const c = ov.getContext("2d");
+  const W = ov.width  || 400;
+  const H = ov.height || 400;
+  c.clearRect(0, 0, W, H);
+
+  // Slight dark vignette outside guide area
+  c.fillStyle = "rgba(0,0,0,0.25)";
+  c.fillRect(0, 0, W, H);
+
+  // ── Y-GUIDE GEOMETRY ──────────────────────────────────
+  // The Y centre point sits at 55% down, 50% across
+  const cx = W * 0.50;
+  const cy = H * 0.52;
+
+  // Three arms of the Y:
+  //  Top-left  → upper-left corner  (left face)
+  //  Top-right → upper-right corner (right face)
+  //  Bottom    → bottom centre      (top face going away)
+  const armLen = Math.min(W, H) * 0.42;
+
+  const arms = [
+    { angle: -150 * Math.PI/180, label: "LEFT FACE"  },
+    { angle:  -30 * Math.PI/180, label: "RIGHT FACE" },
+    { angle:   90 * Math.PI/180, label: "TOP FACE"   },
+  ];
+
+  const tips = arms.map(a => ({
+    x: cx + Math.cos(a.angle) * armLen,
+    y: cy + Math.sin(a.angle) * armLen,
+    label: a.label,
+    angle: a.angle,
+  }));
+
+  // Draw dim background triangles for each face
+  const faceColors = ["rgba(200,241,53,0.04)", "rgba(53,241,176,0.04)", "rgba(255,255,255,0.03)"];
+  for(let i=0; i<3; i++){
+    const t1 = tips[i];
+    const t2 = tips[(i+1)%3];
+    // extend corners outward
+    const ex1 = cx + (t1.x-cx)*1.6, ey1 = cy + (t1.y-cy)*1.6;
+    const ex2 = cx + (t2.x-cx)*1.6, ey2 = cy + (t2.y-cy)*1.6;
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(ex1, ey1);
+    c.lineTo(ex2, ey2);
+    c.closePath();
+    c.fillStyle = faceColors[i];
+    c.fill();
+  }
+
+  // Draw the 3 Y arms as thick glowing lines
+  c.lineCap  = "round";
+  c.lineJoin = "round";
+
+  arms.forEach((a, i) => {
+    const tip = tips[i];
+    // Glow
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(tip.x, tip.y);
+    c.strokeStyle = "rgba(200,241,53,0.25)";
+    c.lineWidth   = 10;
+    c.stroke();
+    // Main line
+    c.beginPath();
+    c.moveTo(cx, cy);
+    c.lineTo(tip.x, tip.y);
+    c.strokeStyle = "#c8f135";
+    c.lineWidth   = 2;
+    c.stroke();
+
+    // Draw 4x4 grid lines along this face
+    // Each face occupies a 60° wedge — draw 3 dividers (creating 4 columns)
+    // and 3 row lines perpendicular to the arm
+    const perpAngle = a.angle + Math.PI/2;
+    const faceW = armLen * Math.tan(Math.PI/6); // width at the tip
+
+    for(let div = 1; div <= 3; div++){
+      // Row lines — parallel to tip edge, at 1/4, 2/4, 3/4 along the arm
+      const t  = div / 4;
+      const rx = cx + Math.cos(a.angle) * armLen * t;
+      const ry = cy + Math.sin(a.angle) * armLen * t;
+      const hw = faceW * t; // half-width at this distance
+      c.beginPath();
+      c.moveTo(rx - Math.cos(perpAngle)*hw, ry - Math.sin(perpAngle)*hw);
+      c.lineTo(rx + Math.cos(perpAngle)*hw, ry + Math.sin(perpAngle)*hw);
+      c.strokeStyle = "rgba(200,241,53,0.35)";
+      c.lineWidth   = 1;
+      c.stroke();
+
+      // Column lines — from arm line outward at 1/4, 2/4, 3/4 of face width
+      const cw = (faceW * div) / 4;  // NOT t, fixed column spacing at tip
+      // Draw from centre arm to tip edge on both sides
+      [1, -1].forEach(side => {
+        const ox = Math.cos(perpAngle) * cw * side;
+        const oy = Math.sin(perpAngle) * cw * side;
+        c.beginPath();
+        c.moveTo(cx + ox*0.05, cy + oy*0.05);
+        c.lineTo(tips[i].x + ox, tips[i].y + oy);
+        c.strokeStyle = "rgba(200,241,53,0.3)";
+        c.lineWidth   = 1;
+        c.stroke();
+      });
+    }
+
+    // Face label at tip
+    c.fillStyle  = "#c8f135";
+    c.font       = `bold ${Math.floor(W*0.03)}px DM Sans, sans-serif`;
+    c.textAlign  = "center";
+    c.textBaseline = "middle";
+    const lx = cx + Math.cos(a.angle) * (armLen + W*0.06);
+    const ly = cy + Math.sin(a.angle) * (armLen + W*0.06);
+    c.fillText(tip.label, lx, ly);
+  });
+
+  // Centre dot
+  c.beginPath();
+  c.arc(cx, cy, 5, 0, Math.PI*2);
+  c.fillStyle = "#c8f135";
+  c.fill();
+
+  // Instruction text at bottom
+  c.fillStyle    = "rgba(255,255,255,0.7)";
+  c.font         = `${Math.floor(W*0.032)}px DM Sans, sans-serif`;
+  c.textAlign    = "center";
+  c.textBaseline = "bottom";
+  c.fillText("Align cube corner with centre dot", W/2, H - 12);
+
+  requestAnimationFrame(drawYGuide);
 }
 
 // ── TAKE PHOTO ────────────────────────────────────────────
