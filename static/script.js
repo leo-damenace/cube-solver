@@ -204,8 +204,8 @@ function drawYGuide(){
   const t  = { x: cx,         y: cy - s * 1.2 };   // top
   const tl = { x: cx - s,     y: cy - s * 0.5 };   // top-left
   const tr = { x: cx + s,     y: cy - s * 0.5 };   // top-right
-  const bl = { x: cx - s,     y: cy + s * 0.5 };   // bottom-left
-  const br = { x: cx + s,     y: cy + s * 0.5 };   // bottom-right
+  const bl = { x: cx - s * 0.6, y: cy + s * 0.7 };   // bottom-left
+  const br = { x: cx + s * 0.6, y: cy + s * 0.7 };   // bottom-right
   const b  = { x: cx,         y: cy + s * 1.2 };   // bottom (not visible, just for reference)
 
   // The 3 faces:
@@ -223,8 +223,9 @@ function drawYGuide(){
   // Left face rhombus:  tl, fc, bl, { tl.x+(bl.x-fc.x), tl.y+(bl.y-fc.y) }
   // Right face rhombus: tr, { tr.x+(br.x-fc.x), tr.y+(br.y-fc.y) }, br, fc
 
-  const ll = { x: tl.x + (bl.x - fc.x), y: tl.y + (bl.y - fc.y) }; // far-left
-  const rr = { x: tr.x + (br.x - fc.x), y: tr.y + (br.y - fc.y) }; // far-right
+  // Tighten the left/right faces so they look like cube sides not flat wings
+  const ll = { x: tl.x + (bl.x - fc.x) * 0.75, y: tl.y + (bl.y - fc.y) * 0.75 }; // far-left
+  const rr = { x: tr.x + (br.x - fc.x) * 0.75, y: tr.y + (br.y - fc.y) * 0.75 }; // far-right
 
   // Face fills
   function fillFace(pts, color){
