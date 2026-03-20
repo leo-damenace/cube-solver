@@ -183,77 +183,58 @@ function drawYGuide(){
   const H = ov.height || 400;
   c.clearRect(0, 0, W, H);
 
-  // Draw a proper isometric cube using fixed ratios
-  // Imagine a cube tilted so you see top + front-left + front-right
-  // 
-  //         A (top)
-  //        / \
-  //       B   C
-  //      /|   |\
-  //     D |   | E
-  //      \|   |/
-  //       F   G
-  //        \ /
-  //         H (front corner — the dot)
-  //
-  // We only show 3 faces: top(A,B,C), left(B,D,F,H), right(C,E,G,H) -- wait
-  // Actually standard isometric front-corner view:
-  //
-  //      top-vertex
-  //      /        \
-  //  left-top    right-top
-  //    |    \  /    |
-  //    |   FRONT    |
-  //    |   CORNER   |
-  //  left-bot    right-bot
+  // Hardcoded isometric cube — front corner points at camera
+  // Cube sits in upper-centre of frame
+  // All measurements as fractions of the shorter side
+  const u = Math.min(W, H) * 0.22; // unit size
+  const cx = W * 0.5;
+  const cy = H * 0.42;
 
-  const s  = Math.min(W, H) * 0.29;
-  const cx = W * 0.50;
-  const cy = H * 0.48;
-
-  // Standard isometric angles: 30° from horizontal for left/right edges
-  const sin30 = 0.5;
-  const cos30 = 0.866;
-
-  // 6 outer vertices + centre front corner
-  const fc  = { x: cx,                  y: cy };                        // front corner (centre dot)
-  const top = { x: cx,                  y: cy - s * 2 * sin30 - s * cos30 * 0.5 }; // top vertex -- simplified
-  // Let me just use direct coordinates that look right:
-
-  // Top vertex
-  const tv  = { x: cx,          y: cy - s * 1.6  };
-  // Left top and right top
-  const lt  = { x: cx - s,      y: cy - s * 0.55 };
-  const rt  = { x: cx + s,      y: cy - s * 0.55 };
-  // Left bottom and right bottom  
-  const lb  = { x: cx - s,      y: cy + s * 0.55 };
-  const rb  = { x: cx + s,      y: cy + s * 0.55 };
-  // Bottom vertex
-  const bv  = { x: cx,          y: cy + s * 1.6  };
+  // 7 key points — isometric projection
+  // Front corner = the point closest to camera
+  const fc  = {x: cx,       y: cy        };  // front corner (centre dot)
+  const top = {x: cx,       y: cy - u*2  };  // top vertex
+  const ml  = {x: cx - u*1.73, y: cy - u };  // mid-left
+  const mr  = {x: cx + u*1.73, y: cy - u };  // mid-right
+  const bl  = {x: cx - u*1.73, y: cy + u };  // bottom-left
+  const br  = {x: cx + u*1.73, y: cy + u };  // bottom-right
+  const bot = {x: cx,       y: cy + u*2  };  // bottom vertex (not shown)
 
   // 3 faces:
-  // TOP face:   tv, rt, fc, lt   (rhombus on top)
-  // LEFT face:  lt, fc, lb, ??   need far-left point
-  // RIGHT face: fc, rt, ??, rb   need far-right point
+  // TOP face:   top → mr → fc → ml
+  // LEFT face:  ml  → fc → bl → farL   where farL = ml shifted down
+  // RIGHT face: fc  → mr → farR → br   where farR = mr shifted down
+  const farL = {x: cx - u*1.73, y: cy + u};  // = bl
+  const farR = {x: cx + u*1.73, y: cy + u};  // = br
 
-  // Far left = lt + (lb - fc)
-  const fl = { x: lt.x + lb.x - fc.x, y: lt.y + lb.y - fc.y };
-  // Far right = rt + (rb - fc)
-  const fr = { x: rt.x + rb.x - fc.x, y: rt.y + rb.y - fc.y };
+  // Actually the 3 faces of an isometric cube from front:
+  // TOP:   top, mr, fc, ml
+  // LEFT:  ml, fc, bl, {x:ml.x+(bl.x-fc.x), y:ml.y+(bl.y-fc.y)}
+  // RIGHT: fc, mr, {x:mr.x+(br.x-fc.x), y:mr.y+(br.y-fc.y)}, br
 
-  // Subtle fills
-  function fillQuad(a,b,cc,d,col){
+  const leftFar  = {x: ml.x + (bl.x - fc.x), y: ml.y + (bl.y - fc.y)};
+  const rightFar = {x: mr.x + (br.x - fc.x), y: mr.y + (br.y - fc.y)};
+
+  // Dim outside
+  c.fillStyle = "rgba(0,0,0,0.25)";
+  c.fillRect(0, 0, W, H);
+
+  // Face fills
+  function face(pts, col){
     c.beginPath();
-    c.moveTo(a.x,a.y); c.lineTo(b.x,b.y); c.lineTo(cc.x,cc.y); c.lineTo(d.x,d.y);
-    c.closePath(); c.fillStyle=col; c.fill();
+    c.moveTo(pts[0].x, pts[0].y);
+    for(let i=1;i<pts.length;i++) c.lineTo(pts[i].x, pts[i].y);
+    c.closePath();
+    c.fillStyle = col; c.fill();
   }
-  fillQuad(tv, rt, fc, lt, "rgba(200,241,53,0.08)");  // top
-  fillQuad(lt, fc, lb, fl, "rgba(80,180,255,0.08)");  // left
-  fillQuad(fc, rt, fr, rb, "rgba(255,140,40,0.08)");  // right
+  face([top, mr, fc, ml],             "rgba(200,241,53,0.08)");
+  face([ml, fc, bl, leftFar],         "rgba(80,180,255,0.08)");
+  face([fc, mr, rightFar, br],        "rgba(255,140,40,0.08)");
 
-  // 4x4 grid on each face
-  function grid4(A,B,CC,D){
-    c.lineWidth=0.8; c.strokeStyle="rgba(200,241,53,0.6)";
+  // Grid helper
+  function grid4(A, B, CC, D){
+    c.strokeStyle = "rgba(200,241,53,0.5)";
+    c.lineWidth = 0.8;
     for(let i=1;i<4;i++){
       const t=i/4;
       const p1={x:A.x+(D.x-A.x)*t, y:A.y+(D.y-A.y)*t};
@@ -265,34 +246,53 @@ function drawYGuide(){
     }
   }
 
-  grid4(tv, rt, fc, lt);   // top
-  grid4(lt, fc, lb, fl);   // left
-  grid4(fc, rt, fr, rb);   // right
+  grid4(top, mr, fc, ml);
+  grid4(ml, fc, bl, leftFar);
+  grid4(fc, mr, rightFar, br);
 
   // Bold outlines
-  c.strokeStyle="#c8f135"; c.lineWidth=2.5; c.lineJoin="round"; c.lineCap="round";
+  c.strokeStyle = "#c8f135";
+  c.lineWidth = 2.5;
+  c.lineJoin = "round";
+  c.lineCap  = "round";
 
   // Top face
-  c.beginPath(); c.moveTo(tv.x,tv.y); c.lineTo(lt.x,lt.y); c.lineTo(fc.x,fc.y); c.lineTo(rt.x,rt.y); c.closePath(); c.stroke();
+  c.beginPath();
+  c.moveTo(top.x,top.y); c.lineTo(mr.x,mr.y);
+  c.lineTo(fc.x,fc.y);   c.lineTo(ml.x,ml.y);
+  c.closePath(); c.stroke();
+
   // Left face
-  c.beginPath(); c.moveTo(lt.x,lt.y); c.lineTo(fl.x,fl.y); c.lineTo(lb.x,lb.y); c.lineTo(fc.x,fc.y); c.closePath(); c.stroke();
+  c.beginPath();
+  c.moveTo(ml.x,ml.y);       c.lineTo(leftFar.x,leftFar.y);
+  c.lineTo(bl.x,bl.y);       c.lineTo(fc.x,fc.y);
+  c.closePath(); c.stroke();
+
   // Right face
-  c.beginPath(); c.moveTo(fc.x,fc.y); c.lineTo(rt.x,rt.y); c.lineTo(fr.x,fr.y); c.lineTo(rb.x,rb.y); c.closePath(); c.stroke();
+  c.beginPath();
+  c.moveTo(fc.x,fc.y);         c.lineTo(mr.x,mr.y);
+  c.lineTo(rightFar.x,rightFar.y); c.lineTo(br.x,br.y);
+  c.closePath(); c.stroke();
 
   // Front corner dot
-  c.beginPath(); c.arc(fc.x,fc.y,7,0,Math.PI*2); c.fillStyle="#fff"; c.fill();
-  c.beginPath(); c.arc(fc.x,fc.y,4,0,Math.PI*2); c.fillStyle="#c8f135"; c.fill();
+  c.beginPath(); c.arc(fc.x,fc.y,7,0,Math.PI*2);
+  c.fillStyle="#fff"; c.fill();
+  c.beginPath(); c.arc(fc.x,fc.y,4,0,Math.PI*2);
+  c.fillStyle="#c8f135"; c.fill();
 
   // Labels
-  c.fillStyle="#c8f135"; c.font=`bold ${Math.floor(W*0.033)}px DM Sans,sans-serif`;
-  c.textAlign="center"; c.textBaseline="middle";
-  c.fillText("TOP",   tv.x,      tv.y-16);
-  c.fillText("LEFT",  fl.x-24,   (lt.y+fl.y)/2);
-  c.fillText("RIGHT", fr.x+24,   (rt.y+fr.y)/2);
+  c.font = `bold ${Math.floor(W*0.032)}px DM Sans,sans-serif`;
+  c.fillStyle = "#c8f135";
+  c.textAlign = "center"; c.textBaseline = "middle";
+  c.fillText("TOP",   top.x, top.y-16);
+  c.fillText("LEFT",  leftFar.x-24, (ml.y+leftFar.y)/2);
+  c.fillText("RIGHT", rightFar.x+28, (mr.y+rightFar.y)/2);
 
-  c.fillStyle="rgba(255,255,255,0.8)"; c.font=`${Math.floor(W*0.032)}px DM Sans,sans-serif`;
-  c.textAlign="center"; c.textBaseline="bottom";
-  c.fillText("Align cube corner to the dot", W/2, H-10);
+  // Instruction
+  c.fillStyle = "rgba(255,255,255,0.8)";
+  c.font = `${Math.floor(W*0.032)}px DM Sans,sans-serif`;
+  c.textAlign = "center"; c.textBaseline = "bottom";
+  c.fillText("Align front corner to the dot", W/2, H-10);
 
   requestAnimationFrame(drawYGuide);
 }
