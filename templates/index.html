@@ -637,7 +637,7 @@
           <span id="shot-badge" style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:600;letter-spacing:2px;padding:3px 10px;border-radius:20px;">PHOTO 1 OF 2</span>
         </div>
         <div style="display:flex;justify-content:center;align-items:center;padding:1.2rem;background:#111;">
-          <canvas id="ref-cube" width="260" height="200" style="display:block;"></canvas>
+          <canvas id="ref-cube" width="300" height="240" style="display:block;max-width:100%;"></canvas>
         </div>
         <div style="padding:0.6rem 1.2rem;font-size:0.78rem;color:var(--muted);text-align:center;">
           Hold cube so <strong style="color:var(--text)">3 faces are visible</strong> — align the front corner to the dot in the camera
@@ -703,82 +703,6 @@
 <script src="/static/script.js" type="module"></script>
 
 <script>
-  // ── Draw 4×4 isometric reference cube ──
-  (function drawRefCube() {
-    const canvas = document.getElementById('ref-cube');
-    if (!canvas) return;
-    const rc = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    const cx = W / 2 - 10, cy = H / 2 + 10;
-    const cell = 22, N = 4;
-
-    // Iso axes
-    const rx = cell, ry = cell * 0.5;
-    const lx = -cell, ly = cell * 0.5;
-    const duy = cell; // down per row on side faces
-
-    // Face colors for a "solved" look (white top, orange right, blue left)
-    const TOP_C   = '#e8e8e8';
-    const RIGHT_C = '#e86c1a';
-    const LEFT_C  = '#2255cc';
-    const STROKE  = '#111';
-    const EDGE    = '#c8f135';
-
-    function pt(c, r, face) {
-      if (face === 'top')   return [cx + c*rx + r*lx,           cy + c*ry + r*ly           - N*duy];
-      if (face === 'right') return [cx + c*rx,                   cy + c*ry + r*duy           - N*duy + N*ry];
-      if (face === 'left')  return [cx + c*lx,                   cy + c*ly + r*duy           - N*duy + N*ly];
-    }
-
-    function drawFaceCell(c, r, face, fill) {
-      const corners = face === 'top'
-        ? [pt(c,r,'top'), pt(c+1,r,'top'), pt(c+1,r+1,'top'), pt(c,r+1,'top')]
-        : face === 'right'
-        ? [pt(c,r,'right'), pt(c+1,r,'right'), pt(c+1,r+1,'right'), pt(c,r+1,'right')]
-        : [pt(c,r,'left'),  pt(c+1,r,'left'),  pt(c+1,r+1,'left'),  pt(c,r+1,'left') ];
-
-      rc.beginPath();
-      rc.moveTo(corners[0][0], corners[0][1]);
-      corners.slice(1).forEach(p => rc.lineTo(p[0], p[1]));
-      rc.closePath();
-      rc.fillStyle = fill;
-      rc.fill();
-      rc.strokeStyle = STROKE;
-      rc.lineWidth = 1;
-      rc.stroke();
-    }
-
-    // Draw each face cell by cell
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        drawFaceCell(c, r, 'top',   TOP_C);
-        drawFaceCell(c, r, 'right', RIGHT_C);
-        drawFaceCell(c, r, 'left',  LEFT_C);
-      }
-    }
-
-    // Bold outline edges
-    rc.strokeStyle = EDGE;
-    rc.lineWidth = 2.5;
-    rc.lineJoin = 'round';
-
-    // Top face outline
-    const tfl = pt(0,0,'top'), tfr = pt(N,0,'top'), tbr = pt(N,N,'top'), tbl = pt(0,N,'top');
-    rc.beginPath(); rc.moveTo(tfl[0],tfl[1]); rc.lineTo(tfr[0],tfr[1]); rc.lineTo(tbr[0],tbr[1]); rc.lineTo(tbl[0],tbl[1]); rc.closePath(); rc.stroke();
-
-    // Right face outline
-    const rtl = pt(0,0,'right'), rtr = pt(N,0,'right'), rbr = pt(N,N,'right'), rbl = pt(0,N,'right');
-    rc.beginPath(); rc.moveTo(rtl[0],rtl[1]); rc.lineTo(rtr[0],rtr[1]); rc.lineTo(rbr[0],rbr[1]); rc.lineTo(rbl[0],rbl[1]); rc.closePath(); rc.stroke();
-
-    // Left face outline
-    const ltl = pt(0,0,'left'), ltr = pt(N,0,'left'), lbr = pt(N,N,'left'), lbl = pt(0,N,'left');
-    rc.beginPath(); rc.moveTo(ltl[0],ltl[1]); rc.lineTo(ltr[0],ltr[1]); rc.lineTo(lbr[0],lbr[1]); rc.lineTo(lbl[0],lbl[1]); rc.closePath(); rc.stroke();
-
-    // Center dot
-    rc.beginPath(); rc.arc(cx, cy, 5, 0, Math.PI*2);
-    rc.fillStyle = EDGE; rc.fill();
-  })();
-
   // Floating background tiles on gate screen
   const tilesEl = document.getElementById('bg-tiles');
   const colors = ['#e8ff3b','#3bffb0','#ff6b6b','#6b8cff','#ff9f43','#fff'];
