@@ -1,183 +1,144 @@
 from flask import Flask, render_template, request, jsonify
-import os, json, re, time
-import urllib.request
-from collections import defaultdict
+import os, base64, json, re
+import urllib.request, urllib.error
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+app = Flask(__name__)
 
 VALID_CODES = [
-    "CUBE-4829", "CUBE-1147", "CUBE-3301", "CUBE-7755", "CUBE-0042",
+    "CUBE-4829",
+    "CUBE-1147",
+    "CUBE-3301",
+    "CUBE-7755",
+    "CUBE-0042",
 ]
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    "gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
+)
 
-# ── SERVER-SIDE RATE LIMITING ─────────────────────────────
-request_counts = defaultdict(list)
-RATE_LIMIT = 5
-RATE_WINDOW = 60
+# ── Which faces are visible in each corner shot ───────────
+# Shot 1: top corner  → U (top), F (front), R (right)
+# Shot 2: bottom corner → D (bottom), B (back), L (left)
+SHOT_FACES = {
+    1: ["U", "F", "R"],
+    2: ["D", "B", "L"],
+}
 
-def is_rate_limited(ip):
-    now = time.time()
-    request_counts[ip] = [t for t in request_counts[ip] if now - t < RATE_WINDOW]
-    if len(request_counts[ip]) >= RATE_LIMIT:
-        return True
-    request_counts[ip].append(now)
-    return False
+FACE_PROMPTS = {
+    1: (
+        "This is a photo of a 4x4 Rubik's cube taken from the TOP-FRONT-RIGHT corner. "
+        "Three faces are visible: TOP (facing up), FRONT (facing you), RIGHT (facing right). "
+        "For each face, read the 4x4 grid of sticker colours left-to-right, top-to-bottom. "
+        "Return ONLY valid JSON, no markdown, no explanation:\n"
+        "{\n"
+        '  "U": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
+        '  "F": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
+        '  "R": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]\n'
+        "}\n"
+        "Each colour must be exactly one of: white, yellow, red, orange, blue, green"
+    ),
+    2: (
+        "This is a photo of a 4x4 Rubik's cube taken from the BOTTOM-BACK-LEFT corner. "
+        "Three faces are visible: BOTTOM (facing down / toward you), BACK (far face), LEFT (facing left). "
+        "For each face, read the 4x4 grid of sticker colours left-to-right, top-to-bottom "
+        "(orient each face as if looking directly at it). "
+        "Return ONLY valid JSON, no markdown, no explanation:\n"
+        "{\n"
+        '  "D": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
+        '  "B": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
+        '  "L": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]\n'
+        "}\n"
+        "Each colour must be exactly one of: white, yellow, red, orange, blue, green"
+    ),
+}
 
-# ── IMAGE COMPRESSION (no external libraries) ────────────
-# The browser already resizes to 800px before sending,
-# so server-side we just pass through as-is
-def compress_image(b64_str, max_size=800):
-    return b64_str  # compression handled client-side in JavaScript
+VALID_COLORS = {"white", "yellow", "red", "orange", "blue", "green"}
+
+
+def call_gemini(image_b64: str, shot: int) -> dict:
+    prompt = FACE_PROMPTS[shot]
+    payload = json.dumps({
+        "contents": [{
+            "parts": [
+                {"text": prompt},
+                {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
+            ]
+        }]
+    }).encode()
+
+    req = urllib.request.Request(
+        GEMINI_URL,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        body = json.loads(resp.read())
+
+    raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+    # Strip markdown fences if present
+    raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"\n?```$", "", raw)
+    return json.loads(raw)
+
+
+def validate_face(colors: list) -> list:
+    """Ensure 16 valid colour strings; replace invalid with 'white'."""
+    out = []
+    for c in (colors or []):
+        c = str(c).lower().strip()
+        out.append(c if c in VALID_COLORS else "white")
+    while len(out) < 16:
+        out.append("white")
+    return out[:16]
+
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
 @app.route("/verify-code", methods=["POST"])
 def verify_code():
     data = request.get_json()
     code = data.get("code", "").strip().upper()
-    return jsonify({"valid": code in VALID_CODES})
+    if code in VALID_CODES:
+        return jsonify({"valid": True})
+    return jsonify({"valid": False})
 
-@app.route("/analyze-both", methods=["POST"])
-def analyze_both():
-    # Rate limit
-    ip = request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
-    if is_rate_limited(ip):
-        return jsonify({"ok": False, "error": "Too many requests. Please wait a moment."}), 429
 
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if not api_key:
-        return jsonify({"ok": False, "error": "GEMINI_API_KEY not set"}), 500
+@app.route("/analyze-shot", methods=["POST"])
+def analyze_shot():
+    """
+    Accepts { shot: 1|2, image: "<base64 jpeg>" }
+    Returns { U:[16], F:[16], R:[16] }  or  { D:[16], B:[16], L:[16] }
+    """
+    if not GEMINI_API_KEY:
+        return jsonify({"error": "GEMINI_API_KEY not set"}), 500
 
-    data = request.get_json()
+    data  = request.get_json()
+    shot  = int(data.get("shot", 1))
+    image = data.get("image", "")
 
-    # Compress both images
-    img1 = compress_image(data.get("image1", ""), max_size=800)
-    img2 = compress_image(data.get("image2", ""), max_size=800)
+    if shot not in (1, 2):
+        return jsonify({"error": "shot must be 1 or 2"}), 400
+    if not image:
+        return jsonify({"error": "no image provided"}), 400
 
-    prompt = """I am sending you TWO photos of the same 4x4 Rubik's cube taken from opposite corners.
-
-PHOTO 1 (first image): Shows 3 faces.
-- TOP: the face on top
-- LEFT: the face on the left
-- RIGHT: the face on the right
-
-PHOTO 2 (second image): Shows the other 3 faces.
-- BOTTOM: the face on the bottom
-- LEFT: the face on the left
-- RIGHT: the face on the right
-
-For each face, read all 16 stickers left-to-right, top-to-bottom, row by row.
-Colours are exactly one of: white, yellow, red, orange, blue, green.
-Be precise — orange vs red and white vs yellow are the most common mistakes.
-
-Return ONLY this JSON, no markdown, no explanation, nothing else:
-{"photo1":{"top":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"left":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"right":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]},"photo2":{"bottom":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"left":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],"right":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]}}
-
-Replace every "c" with the actual colour name. Each array must have exactly 16 values."""
-
-    payload = json.dumps({
-        "contents": [{
-            "parts": [
-                {"text": prompt},
-                {"inline_data": {"mime_type": "image/jpeg", "data": img1}},
-                {"inline_data": {"mime_type": "image/jpeg", "data": img2}}
-            ]
-        }],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024}
-    }).encode("utf-8")
-
-    # Exponential backoff — up to 4 attempts
-    last_error = ""
-    for attempt in range(4):
-        try:
-            req = urllib.request.Request(
-                f"{GEMINI_URL}?key={api_key}",
-                data=payload,
-                headers={"Content-Type": "application/json", "User-Agent": "CubeSolverApp/1.0"},
-                method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                result = json.loads(resp.read().decode("utf-8"))
-
-            if "error" in result:
-                return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
-
-            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            text = re.sub(r"```json|```", "", text).strip()
-            data_out = json.loads(text)
-
-            # Validate structure
-            p1 = data_out.get("photo1", {})
-            p2 = data_out.get("photo2", {})
-            for key in ["top","left","right"]:
-                if key not in p1 or len(p1[key]) != 16:
-                    raise ValueError(f"photo1.{key} missing or wrong length")
-            for key in ["bottom","left","right"]:
-                if key not in p2 or len(p2[key]) != 16:
-                    raise ValueError(f"photo2.{key} missing or wrong length")
-
-            return jsonify({"ok": True, "photo1": p1, "photo2": p2})
-
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8")
-            last_error = f"HTTP {e.code}"
-            if e.code in [429, 500, 503]:
-                wait = 2 ** (attempt + 1)  # 2, 4, 8, 16 seconds
-                time.sleep(wait)
-                continue
-            return jsonify({"ok": False, "error": f"Gemini API error {e.code}"})
-
-        except (urllib.error.URLError, json.JSONDecodeError, ValueError, KeyError) as e:
-            last_error = str(e)
-            time.sleep(2 ** attempt)
-            continue
-
-        except Exception as e:
-            last_error = f"{type(e).__name__}: {str(e)}"
-            time.sleep(2)
-            continue
-
-    return jsonify({"ok": False, "error": f"Failed after retries: {last_error}"})
-
-@app.route("/test-key")
-def test_key():
-    api_key = os.environ.get("GEMINI_API_KEY","")
-    if not api_key:
-        return jsonify({"status":"MISSING"})
-    payload = json.dumps({"contents":[{"parts":[{"text":"Reply: working"}]}]}).encode()
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=payload, headers={"Content-Type":"application/json"}, method="POST"
-    )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
-        text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return jsonify({"status":"OK","reply":text,"key":api_key[:8]+"..."})
+        result = call_gemini(image, shot)
     except Exception as e:
-        return jsonify({"status":"ERROR","error":str(e)})
+        return jsonify({"error": str(e)}), 500
 
-@app.route("/ask-gemini")
-def ask_gemini():
-    api_key = os.environ.get("GEMINI_API_KEY","")
-    if not api_key:
-        return jsonify({"error":"no key"})
-    question = "I am building a 4x4 Rubik's cube solver app. I send you 2 photos from opposite corners. What makes a good photo for colour detection? Best angle, lighting, framing tips."
-    payload = json.dumps({"contents":[{"parts":[{"text":question}]}],"generationConfig":{"temperature":0.1,"maxOutputTokens":1024}}).encode()
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=payload, headers={"Content-Type":"application/json"}, method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-        text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return f"<html><body style='font-family:sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6'><pre style='white-space:pre-wrap'>{text}</pre></body></html>"
-    except Exception as e:
-        return jsonify({"error":str(e)})
+    # Validate each expected face
+    output = {}
+    for face_key in SHOT_FACES[shot]:
+        output[face_key] = validate_face(result.get(face_key, []))
+
+    return jsonify(output)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
