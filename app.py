@@ -57,7 +57,7 @@ FACE_PROMPTS = {
 VALID_COLORS = {"white", "yellow", "red", "orange", "blue", "green"}
 
 
-def call_gemini(image_b64: str, shot: int) -> dict:
+def call_gemini(image_b64: str, shot: int, retries: int = 4) -> dict:
     prompt = FACE_PROMPTS[shot]
     payload = json.dumps({
         "contents": [{
@@ -68,20 +68,31 @@ def call_gemini(image_b64: str, shot: int) -> dict:
         }]
     }).encode()
 
-    req = urllib.request.Request(
-        GEMINI_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        body = json.loads(resp.read())
+    import time
+    wait = 2  # initial backoff seconds
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(
+                GEMINI_URL,
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                body = json.loads(resp.read())
+            raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+            raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
+            raw = re.sub(r"\n?```$", "", raw)
+            return json.loads(raw)
 
-    raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
-    # Strip markdown fences if present
-    raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
-    raw = re.sub(r"\n?```$", "", raw)
-    return json.loads(raw)
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < retries - 1:
+                time.sleep(wait)
+                wait *= 2   # exponential backoff: 2s, 4s, 8s, 16s
+                continue
+            raise
+        except Exception:
+            raise
 
 
 def validate_face(colors: list) -> list:
