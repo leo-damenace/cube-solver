@@ -183,153 +183,132 @@ function drawYGuide(){
   const H = ov.height || 400;
   c.clearRect(0, 0, W, H);
 
-  // Draw a simple isometric half-cube outline
-  // 3 faces: top, left, right
-  // The cube is centred, takes up ~70% of the frame
+  // Simple isometric cube — 3 faces visible from front corner
+  // Think of it like this:
+  //
+  //        top
+  //       /      //    tl        tr
+  //    | \      / |
+  //    |  centre  |
+  //    |  /    \  |
+  //    bl        br
+  //       \    /
+  //        bottom (not drawn — only 3 faces)
+  //
+  // We only draw top face + left face + right face
 
-  const size = Math.min(W, H) * 0.32; // half-width of one face
+  const s  = Math.min(W,H) * 0.28; // half-size of cube face
   const cx = W * 0.5;
-  const cy = H * 0.48;
+  const cy = H * 0.5;
 
-  // Isometric cube corner points:
-  // Top corner (top of cube)
-  const top    = { x: cx,          y: cy - size * 1.15 };
-  // Left corner
-  const left   = { x: cx - size * 1.5, y: cy + size * 0.2  };
-  // Right corner
-  const right  = { x: cx + size * 1.5, y: cy + size * 0.2  };
-  // Bottom corner (front bottom)
-  const bottom = { x: cx,          y: cy + size * 1.5  };
-  // Middle left (where top-left face meets left-front face)
-  const midL   = { x: cx - size * 0.75, y: cy + size * 0.875 };
-  // Middle right
-  const midR   = { x: cx + size * 0.75, y: cy + size * 0.875 };
-  // Centre (where all 3 faces meet = the corner pointing at camera)
-  const centre = { x: cx, y: cy };
+  // 7 key points of an isometric half-cube
+  const pts = {
+    top:    { x: cx,       y: cy - s*1.3  },  // top vertex
+    tl:     { x: cx - s,   y: cy - s*0.55 },  // top-left
+    tr:     { x: cx + s,   y: cy - s*0.55 },  // top-right
+    ml:     { x: cx - s,   y: cy + s*0.55 },  // mid-left
+    mr:     { x: cx + s,   y: cy + s*0.55 },  // mid-right
+    bl:     { x: cx - s*0.5, y: cy + s*1.05},  // bottom-left
+    br:     { x: cx + s*0.5, y: cy + s*1.05},  // bottom-right
+    centre: { x: cx,       y: cy          },  // front corner
+  };
 
-  // Fill each face with a very subtle tint
-  // Top face
-  c.beginPath();
-  c.moveTo(top.x, top.y);
-  c.lineTo(centre.x + (left.x-cx)*0.5, centre.y + (left.y-cy)*0.5);
-  c.lineTo(centre.x, centre.y);
-  c.lineTo(centre.x + (right.x-cx)*0.5, centre.y + (right.y-cy)*0.5);
-  c.closePath();
+  // Subtle face fills
+  const faces = [
+    [pts.top, pts.tr, pts.centre, pts.tl, "rgba(200,241,53,0.07)"],   // top face
+    [pts.tl,  pts.centre, pts.bl, pts.ml, "rgba(100,200,255,0.07)"],  // left face
+    [pts.centre, pts.tr, pts.mr, pts.br,  "rgba(255,150,50,0.07)"],   // right face (fixed: bl→br)
+  ];
 
-  // Actually use proper corners
-  // TOP face: top → topLeft → centre → topRight
-  const topLeft  = { x: (top.x + left.x)/2,  y: (top.y + left.y)/2  };
-  const topRight = { x: (top.x + right.x)/2, y: (top.y + right.y)/2 };
+  faces.forEach(([a,b,d,e,fill]) => {
+    c.beginPath();
+    c.moveTo(a.x, a.y);
+    c.lineTo(b.x, b.y);
+    c.lineTo(d.x, d.y);
+    c.lineTo(e.x, e.y);
+    c.closePath();
+    c.fillStyle = fill;
+    c.fill();
+  });
 
-  // Draw top face
-  c.beginPath();
-  c.moveTo(top.x,      top.y);
-  c.lineTo(topLeft.x,  topLeft.y);
-  c.lineTo(centre.x,   centre.y);
-  c.lineTo(topRight.x, topRight.y);
-  c.closePath();
-  c.fillStyle = "rgba(200,241,53,0.08)";
-  c.fill();
-
-  // Left face: topLeft → left → midL → centre
-  c.beginPath();
-  c.moveTo(topLeft.x, topLeft.y);
-  c.lineTo(left.x,    left.y);
-  c.lineTo(midL.x,    midL.y);
-  c.lineTo(centre.x,  centre.y);
-  c.closePath();
-  c.fillStyle = "rgba(53,200,241,0.06)";
-  c.fill();
-
-  // Right face: topRight → centre → midR → right
-  c.beginPath();
-  c.moveTo(topRight.x, topRight.y);
-  c.lineTo(centre.x,   centre.y);
-  c.lineTo(midR.x,     midR.y);
-  c.lineTo(right.x,    right.y);
-  c.closePath();
-  c.fillStyle = "rgba(241,100,53,0.06)";
-  c.fill();
-
-  // Now draw the 4x4 grid lines on each face
-  c.lineWidth   = 1;
-  c.strokeStyle = "rgba(200,241,53,0.6)";
-
-  // Helper: draw grid on a parallelogram
-  // corners: A (top-left), B (top-right), C (bottom-right), D (bottom-left)
-  function drawFaceGrid(A, B, C, D, divisions) {
-    for(let i = 1; i < divisions; i++){
-      const t = i / divisions;
-      // Horizontal lines (A→B side to D→C side)
-      const p1 = { x: A.x + (D.x-A.x)*t, y: A.y + (D.y-A.y)*t };
-      const p2 = { x: B.x + (C.x-B.x)*t, y: B.y + (C.y-B.y)*t };
-      c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.stroke();
-      // Vertical lines (A→D side to B→C side)
-      const p3 = { x: A.x + (B.x-A.x)*t, y: A.y + (B.y-A.y)*t };
-      const p4 = { x: D.x + (C.x-D.x)*t, y: D.y + (C.y-D.y)*t };
-      c.beginPath(); c.moveTo(p3.x, p3.y); c.lineTo(p4.x, p4.y); c.stroke();
+  // Grid helper — draw 4x4 grid on a parallelogram (4 corners A,B,C,D)
+  function grid4(A, B, C, D) {
+    c.strokeStyle = "rgba(200,241,53,0.55)";
+    c.lineWidth   = 0.8;
+    for(let i=1; i<4; i++){
+      const t = i/4;
+      // lines parallel to AB
+      const p1 = {x: A.x+(D.x-A.x)*t, y: A.y+(D.y-A.y)*t};
+      const p2 = {x: B.x+(C.x-B.x)*t, y: B.y+(C.y-B.y)*t};
+      c.beginPath(); c.moveTo(p1.x,p1.y); c.lineTo(p2.x,p2.y); c.stroke();
+      // lines parallel to AD
+      const p3 = {x: A.x+(B.x-A.x)*t, y: A.y+(B.y-A.y)*t};
+      const p4 = {x: D.x+(C.x-D.x)*t, y: D.y+(C.y-D.y)*t};
+      c.beginPath(); c.moveTo(p3.x,p3.y); c.lineTo(p4.x,p4.y); c.stroke();
     }
   }
 
-  // Top face grid: top → topRight → centre → topLeft
-  drawFaceGrid(top, topRight, centre, topLeft, 4);
-  // Left face grid: topLeft → centre → midL → left
-  drawFaceGrid(topLeft, centre, midL, left, 4);
-  // Right face grid: centre → topRight → right → midR
-  drawFaceGrid(centre, topRight, right, midR, 4);
+  // Top face:   top → tr → centre → tl
+  grid4(pts.top, pts.tr, pts.centre, pts.tl);
+  // Left face:  tl → centre → bl → ml  (fixed winding)
+  grid4(pts.tl, pts.centre, pts.br, pts.ml);
+  // Right face: tr → mr → br → centre  (fixed winding)
+  grid4(pts.tr, pts.mr, pts.br, pts.centre);
 
-  // Draw bold outline edges
+  // Bold outlines
   c.strokeStyle = "#c8f135";
   c.lineWidth   = 2.5;
   c.lineJoin    = "round";
   c.lineCap     = "round";
 
-  // Outer silhouette
+  // Top face outline
   c.beginPath();
-  c.moveTo(top.x,    top.y);
-  c.lineTo(topLeft.x,  topLeft.y);
-  c.lineTo(left.x,   left.y);
-  c.lineTo(midL.x,   midL.y);
-  c.lineTo(bottom.x, bottom.y);
-  c.lineTo(midR.x,   midR.y);
-  c.lineTo(right.x,  right.y);
-  c.lineTo(topRight.x, topRight.y);
-  c.lineTo(top.x,    top.y);
+  c.moveTo(pts.top.x,    pts.top.y);
+  c.lineTo(pts.tr.x,     pts.tr.y);
+  c.lineTo(pts.centre.x, pts.centre.y);
+  c.lineTo(pts.tl.x,     pts.tl.y);
+  c.closePath();
   c.stroke();
 
-  // 3 inner edges from centre
-  [[centre, top], [centre, left], [centre, right]].forEach(([a,b]) => {
-    // only draw to halfway point (the silhouette edges already drawn)
-    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
-  });
+  // Left face outline
+  c.beginPath();
+  c.moveTo(pts.tl.x,     pts.tl.y);
+  c.lineTo(pts.centre.x, pts.centre.y);
+  c.lineTo(pts.bl.x,     pts.bl.y);  // fixed
+  c.lineTo(pts.ml.x,     pts.ml.y);
+  c.closePath();
+  c.stroke();
 
-  // Bottom edges
-  c.beginPath(); c.moveTo(left.x, left.y); c.lineTo(midL.x, midL.y); c.stroke();
-  c.beginPath(); c.moveTo(right.x, right.y); c.lineTo(midR.x, midR.y); c.stroke();
-  c.beginPath(); c.moveTo(midL.x, midL.y); c.lineTo(bottom.x, bottom.y); c.stroke();
-  c.beginPath(); c.moveTo(midR.x, midR.y); c.lineTo(bottom.x, bottom.y); c.stroke();
+  // Right face outline
+  c.beginPath();
+  c.moveTo(pts.centre.x, pts.centre.y);
+  c.lineTo(pts.tr.x,     pts.tr.y);
+  c.lineTo(pts.mr.x,     pts.mr.y);
+  c.lineTo(pts.br.x,     pts.br.y);  // fixed
+  c.closePath();
+  c.stroke();
 
   // Centre dot
-  c.beginPath(); c.arc(centre.x, centre.y, 6, 0, Math.PI*2);
+  c.beginPath(); c.arc(pts.centre.x, pts.centre.y, 6, 0, Math.PI*2);
   c.fillStyle = "#fff"; c.fill();
-  c.beginPath(); c.arc(centre.x, centre.y, 3.5, 0, Math.PI*2);
+  c.beginPath(); c.arc(pts.centre.x, pts.centre.y, 3.5, 0, Math.PI*2);
   c.fillStyle = "#c8f135"; c.fill();
 
   // Labels
   c.fillStyle    = "#c8f135";
-  c.font         = `bold ${Math.floor(W*0.033)}px DM Sans,sans-serif`;
+  c.font         = `bold ${Math.floor(W*0.032)}px DM Sans,sans-serif`;
   c.textAlign    = "center";
   c.textBaseline = "middle";
-  c.fillText("TOP",   top.x,   top.y   - 18);
-  c.fillText("LEFT",  left.x  - 28, left.y);
-  c.fillText("RIGHT", right.x + 30, right.y);
+  c.fillText("TOP",   pts.top.x,    pts.top.y - 16);
+  c.fillText("LEFT",  pts.ml.x - 30, (pts.tl.y+pts.ml.y)/2);
+  c.fillText("RIGHT", pts.mr.x + 30, (pts.tr.y+pts.mr.y)/2);
 
   // Instruction
   c.fillStyle    = "rgba(255,255,255,0.8)";
-  c.font         = `${Math.floor(W*0.033)}px DM Sans,sans-serif`;
+  c.font         = `${Math.floor(W*0.032)}px DM Sans,sans-serif`;
   c.textAlign    = "center";
   c.textBaseline = "bottom";
-  c.fillText("Align your cube to match this outline", W/2, H - 10);
+  c.fillText("Align cube to this outline", W/2, H - 10);
 
   requestAnimationFrame(drawYGuide);
 }
@@ -339,20 +318,15 @@ captureBtn.addEventListener("click", takePhoto);
 captureBtn.addEventListener("touchend",e=>{e.preventDefault();takePhoto();});
 
 async function takePhoto(){
-  if(isAnalysing) return;  // block during analysis
-  const btn       = document.getElementById("capture-btn");
-  const shotNum   = document.getElementById("shot-num");
-  const titleEl   = document.getElementById("main-title");
-  const descEl    = document.getElementById("main-desc");
-  const slot0     = document.getElementById("photo-slot-0");
-  const slot1     = document.getElementById("photo-slot-1");
-  const editRowEl = document.getElementById("edit-row");
-  const solveRowEl= document.getElementById("solve-row");
-  const vidEl     = document.getElementById("camera");
+  if(isAnalysing) return;
+  const btn     = document.getElementById("capture-btn");
+  const vidEl   = document.getElementById("camera");
+  const slot0   = document.getElementById("photo-slot-0");
+  const slot1   = document.getElementById("photo-slot-1");
 
   if(currentShot >= 2) return;
 
-  // Capture frame — resize to max 800px to keep payload small
+  // Capture and compress frame
   const snap = document.createElement("canvas");
   const maxW = 800;
   const scale = Math.min(1, maxW / (vidEl.videoWidth || 1280));
@@ -361,98 +335,101 @@ async function takePhoto(){
   snap.getContext("2d").drawImage(vidEl, 0, 0, snap.width, snap.height);
   const b64 = snap.toDataURL("image/jpeg", 0.8).split(",")[1];
 
-  // Save and show preview
   const shotIndex = currentShot;
   photosTaken[shotIndex] = b64;
+
+  // Show preview
   const slot = shotIndex === 0 ? slot0 : slot1;
   slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Corner ${shotIndex+1}</div>`;
   slot.classList.add("done");
 
-  // Fully lock button AND capture btn in HTML during analysis
-  isAnalysing = true;
-  btn.disabled  = true;
-  btn.textContent = "⏳ Analysing...";
-  btn.style.opacity = "0.5";
-  btn.style.pointerEvents = "none";
+  if(shotIndex === 0){
+    // First photo taken — just save it, ask for second
+    currentShot = 1;
+    document.getElementById("shot-num").textContent = "2";
+    markStep(0,"done"); markStep(1,"active");
+    document.getElementById("main-title").textContent = "NOW FLIP THE CUBE";
+    document.getElementById("main-desc").textContent  = "Flip to the opposite corner so the other 3 faces are visible. Take the second photo.";
+    showBanner("✅ Photo 1 saved! Flip the cube and take photo 2.");
+    btn.disabled    = false;
+    btn.textContent = "📸 Take Photo 2";
+    btn.onclick     = takePhoto;
+    if(typeof switchGuideToShot2 === "function") switchGuideToShot2();
 
-  showBanner(`🤖 Gemini is reading photo ${shotIndex+1}...`);
+  } else {
+    // Both photos taken — send BOTH to Gemini in one request
+    currentShot = 2;
+    isAnalysing = true;
+    btn.disabled        = true;
+    btn.textContent     = "⏳ Analysing both photos...";
+    btn.style.opacity   = "0.5";
+    btn.style.pointerEvents = "none";
+    showBanner("🤖 Gemini is reading all 6 faces at once...");
 
-  const cornerType = shotIndex === 0 ? "first" : "second";
-
-  try {
-    // 20 second timeout
     const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 50000);
-    const res  = await fetch("/analyze-corner", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({image:b64, corner:cornerType}),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    const data = await res.json();
+    const timeoutId  = setTimeout(() => controller.abort(), 90000);
 
-    if(!data.ok){
-      showBanner(`⚠️ ${data.error}`, "error");
+    try {
+      const res = await fetch("/analyze-both", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ image1: photosTaken[0], image2: photosTaken[1] }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+
+      if(!data.ok){
+        showBanner(`⚠️ ${data.error}`, "error");
+        isAnalysing = false;
+        btn.disabled = false;
+        btn.textContent = "📸 Retake Photo 2";
+        btn.style.opacity = "1";
+        btn.style.pointerEvents = "auto";
+        btn.onclick = takePhoto;
+        currentShot = 1; // allow retake
+        return;
+      }
+
+      // Map Gemini response to faceColors
+      // photo1: top→U(0), left→L(4), right→F(1)
+      // photo2: bottom→D(5), left→R(2), right→B(3)
+      const p1map = { top:0, left:4, right:1 };
+      const p2map = { bottom:5, left:2, right:3 };
+
+      for(const [key,idx] of Object.entries(p1map)){
+        if(data.photo1[key] && data.photo1[key].length===16)
+          faceColors[idx] = data.photo1[key].map(c=>c.toLowerCase().trim());
+      }
+      for(const [key,idx] of Object.entries(p2map)){
+        if(data.photo2[key] && data.photo2[key].length===16)
+          faceColors[idx] = data.photo2[key].map(c=>c.toLowerCase().trim());
+      }
+
+      if(typeof updateThreeCube==="function") updateThreeCube();
+
+      markStep(1,"done"); markStep(2,"active");
+      document.getElementById("main-title").textContent = "ALL FACES SCANNED";
+      document.getElementById("main-desc").innerHTML    = "Both photos analysed. Review colours if needed, then press Solve.";
+      showBanner("✅ All 6 faces read in one shot! Review then hit Solve.");
+      btn.style.display = "none";
+      document.getElementById("edit-row").style.display  = "flex";
+      document.getElementById("solve-row").style.display = "flex";
+      if(typeof hideGuideShowCubeState==="function") hideGuideShowCubeState();
+      if(document.getElementById("cube-viewer-label"))
+        document.getElementById("cube-viewer-label").textContent = "All 6 faces scanned";
+
+    } catch(err){
+      clearTimeout(timeoutId);
+      showBanner(`⚠️ Error: ${err.message}`, "error");
       isAnalysing = false;
       btn.disabled = false;
-      btn.textContent = "📸 Retake Photo";
+      btn.textContent = "📸 Retake Photo 2";
       btn.style.opacity = "1";
       btn.style.pointerEvents = "auto";
       btn.onclick = takePhoto;
-      return;
-    }
-
-    // Map colours to faceColors
-    const map = GEMINI_MAP[cornerType];
-    for(const [key, faceIdx] of Object.entries(map)){
-      const cols = data.faces[key];
-      if(cols && cols.length === 16){
-        faceColors[faceIdx] = cols.map(c => c.toLowerCase().trim());
-      }
-    }
-
-    if(typeof updateThreeCube === "function") updateThreeCube();
-
-    if(shotIndex === 0){
-      // Move to shot 2
       currentShot = 1;
-      shotNum.textContent = "2";
-      markStep(0,"done"); markStep(1,"active");
-      titleEl.textContent = "NOW FLIP THE CUBE";
-      descEl.textContent  = "Flip your cube to the opposite corner so the other 3 faces are visible. Then take the second photo.";
-      showBanner("✅ Photo 1 done! Now flip and shoot the opposite corner.");
-      isAnalysing = false;
-      btn.disabled   = false;
-      btn.textContent= "📸 Take Photo 2";
-      btn.style.opacity = "1";
-      btn.style.pointerEvents = "auto";
-      btn.onclick    = takePhoto;
-      if(typeof switchGuideToShot2 === "function") switchGuideToShot2();
-    } else {
-      // Both done
-      currentShot = 2;
-      markStep(1,"done"); markStep(2,"active");
-      titleEl.textContent = "ALL FACES SCANNED";
-      descEl.innerHTML    = "Both photos taken. Review colours if needed, then press Solve.";
-      showBanner("✅ Done! Both photos analysed. Hit Solve when ready.");
-      btn.style.display   = "none";
-      editRowEl.style.display  = "flex";
-      solveRowEl.style.display = "flex";
-      if(typeof hideGuideShowCubeState === "function") hideGuideShowCubeState();
     }
-
-    if(document.getElementById("cube-viewer-label"))
-      document.getElementById("cube-viewer-label").textContent = currentShot >= 2 ? "All 6 faces scanned" : `${currentShot} of 2 photos taken`;
-
-  } catch(err){
-    showBanner(`⚠️ Error: ${err.message}`, "error");
-    isAnalysing = false;
-    btn.disabled   = false;
-    btn.textContent= "📸 Retake Photo";
-    btn.style.opacity = "1";
-    btn.style.pointerEvents = "auto";
-    btn.onclick    = takePhoto;
   }
 }
 
