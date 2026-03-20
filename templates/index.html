@@ -578,6 +578,57 @@
       .sidebar-tip { display: none; }
       .main { padding: 1.5rem 1rem; }
     }
+    /* ── FACE EDITORS ── */
+    .face-editor {
+      margin-bottom: 1.2rem;
+    }
+    .face-editor-title {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .editor-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      max-width: 200px;
+    }
+    .editor-cell {
+      aspect-ratio: 1;
+      border-radius: 5px;
+      border: 2px solid rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .editor-cell:hover {
+      transform: scale(1.12);
+      border-color: var(--accent);
+    }
+
+    /* ── COLOR POPOVER ── */
+    .color-popover {
+      position: absolute;
+      z-index: 9999;
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .color-swatch {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .color-swatch:hover   { transform: scale(1.15); }
+    .color-swatch.selected { border-color: #fff; }
+
   </style>
 </head>
 <body>
@@ -607,12 +658,8 @@
       <div>
         <div class="sidebar-section-label">Progress</div>
         <div class="face-steps" id="face-steps">
-          <div class="face-step active" data-i="0"><div class="dot"></div><span class="step-name">⬜ White — Top</span></div>
-          <div class="face-step"        data-i="1"><div class="dot"></div><span class="step-name">🟩 Green — Front</span></div>
-          <div class="face-step"        data-i="2"><div class="dot"></div><span class="step-name">🟥 Red — Right</span></div>
-          <div class="face-step"        data-i="3"><div class="dot"></div><span class="step-name">🟦 Blue — Back</span></div>
-          <div class="face-step"        data-i="4"><div class="dot"></div><span class="step-name">🟧 Orange — Left</span></div>
-          <div class="face-step"        data-i="5"><div class="dot"></div><span class="step-name">🟨 Yellow — Bottom</span></div>
+          <div class="face-step active" data-i="0"><div class="dot"></div><span class="step-name">📸 Shot 1 — Top corner</span></div>
+          <div class="face-step"        data-i="1"><div class="dot"></div><span class="step-name">📸 Shot 2 — Bottom corner</span></div>
         </div>
       </div>
 
@@ -626,8 +673,8 @@
     <main class="main">
 
       <div class="main-header">
-        <h2 id="main-title">SCAN FACE 1 OF 6</h2>
-        <p id="main-desc">Hold the <strong>White (Top)</strong> face up to the camera so the stickers fill the yellow grid, then press Capture.</p>
+        <h2 id="main-title">SHOT 1 OF 2</h2>
+        <p id="main-desc">Hold cube so <strong>Top, Front &amp; Right</strong> faces are visible — align the corner to the dot.</p>
       </div>
 
       <!-- Reference diagram: 4×4 isometric cube -->
@@ -655,14 +702,14 @@
           </div>
         </div>
         <div class="camera-footer">
-          <div class="face-label-text">Scanning: <strong id="face-name">White (Top)</strong></div>
-          <div class="face-counter"><span id="face-num">0</span>/6 captured</div>
+          <div class="face-label-text">Scanning: <strong id="face-name">Top corner</strong></div>
+          <div class="face-counter"><span id="face-num">0</span>/2 captured</div>
         </div>
       </div>
 
       <!-- Controls -->
       <div class="btn-row">
-        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Capture Face</button>
+        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Capture Shot 1</button>
         <button class="btn btn-ghost"   id="reset-btn"   style="flex:0;padding:0.75rem 1.2rem;display:none">↺ Reset</button>
       </div>
 
