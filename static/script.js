@@ -183,132 +183,120 @@ function drawYGuide(){
   const H = ov.height || 400;
   c.clearRect(0, 0, W, H);
 
-  // Simple isometric cube — 3 faces visible from front corner
-  // Think of it like this:
+  // Isometric cube — all edges meet at the front corner (centre dot)
+  // 
+  //         top
+  //        /    \
+  //      tl      tr
+  //      |  \  /  |
+  //      |   fc   |   ← fc = front corner (ALL lines meet here)
+  //      |  /  \  |
+  //      bl      br
   //
-  //        top
-  //       /      //    tl        tr
-  //    | \      / |
-  //    |  centre  |
-  //    |  /    \  |
-  //    bl        br
-  //       \    /
-  //        bottom (not drawn — only 3 faces)
-  //
-  // We only draw top face + left face + right face
+  // fc is the single front corner point — no triangle, just one dot
 
-  const s  = Math.min(W,H) * 0.28; // half-size of cube face
-  const cx = W * 0.5;
-  const cy = H * 0.5;
+  const s  = Math.min(W, H) * 0.30;
+  const cx = W * 0.50;
+  const cy = H * 0.50;
 
-  // 7 key points of an isometric half-cube
-  const pts = {
-    top:    { x: cx,       y: cy - s*1.3  },  // top vertex
-    tl:     { x: cx - s,   y: cy - s*0.55 },  // top-left
-    tr:     { x: cx + s,   y: cy - s*0.55 },  // top-right
-    ml:     { x: cx - s,   y: cy + s*0.55 },  // mid-left
-    mr:     { x: cx + s,   y: cy + s*0.55 },  // mid-right
-    bl:     { x: cx - s*0.5, y: cy + s*1.05},  // bottom-left
-    br:     { x: cx + s*0.5, y: cy + s*1.05},  // bottom-right
-    centre: { x: cx,       y: cy          },  // front corner
-  };
+  // All 7 points of the isometric cube outline
+  const fc = { x: cx,         y: cy };              // front corner — centre
+  const t  = { x: cx,         y: cy - s * 1.2 };   // top
+  const tl = { x: cx - s,     y: cy - s * 0.5 };   // top-left
+  const tr = { x: cx + s,     y: cy - s * 0.5 };   // top-right
+  const bl = { x: cx - s,     y: cy + s * 0.5 };   // bottom-left
+  const br = { x: cx + s,     y: cy + s * 0.5 };   // bottom-right
+  const b  = { x: cx,         y: cy + s * 1.2 };   // bottom (not visible, just for reference)
 
-  // Subtle face fills
-  const faces = [
-    [pts.top, pts.tr, pts.centre, pts.tl, "rgba(200,241,53,0.07)"],   // top face
-    [pts.tl,  pts.centre, pts.bl, pts.ml, "rgba(100,200,255,0.07)"],  // left face
-    [pts.centre, pts.tr, pts.mr, pts.br,  "rgba(255,150,50,0.07)"],   // right face (fixed: bl→br)
-  ];
+  // The 3 faces:
+  // TOP face:   t → tr → fc → tl   (rhombus on top)
+  // LEFT face:  tl → fc → bl → ???  wait — tl, fc, bl, and the far-left point
+  // RIGHT face: tr → ??? → br → fc
 
-  faces.forEach(([a,b,d,e,fill]) => {
+  // Actually for a proper isometric cube front-corner view:
+  // Top face:   t,  tr, fc, tl
+  // Left face:  tl, fc, bl, leftFar   where leftFar = tl + (bl-fc)
+  // Right face: tr, rightFar, br, fc  where rightFar = tr + (br-fc)
+
+  // Simpler: just use these 6 outer points + fc
+  // Top face rhombus:   t, tr, fc, tl
+  // Left face rhombus:  tl, fc, bl, { tl.x+(bl.x-fc.x), tl.y+(bl.y-fc.y) }
+  // Right face rhombus: tr, { tr.x+(br.x-fc.x), tr.y+(br.y-fc.y) }, br, fc
+
+  const ll = { x: tl.x + (bl.x - fc.x), y: tl.y + (bl.y - fc.y) }; // far-left
+  const rr = { x: tr.x + (br.x - fc.x), y: tr.y + (br.y - fc.y) }; // far-right
+
+  // Face fills
+  function fillFace(pts, color){
     c.beginPath();
-    c.moveTo(a.x, a.y);
-    c.lineTo(b.x, b.y);
-    c.lineTo(d.x, d.y);
-    c.lineTo(e.x, e.y);
+    c.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(p => c.lineTo(p.x, p.y));
     c.closePath();
-    c.fillStyle = fill;
+    c.fillStyle = color;
     c.fill();
-  });
+  }
 
-  // Grid helper — draw 4x4 grid on a parallelogram (4 corners A,B,C,D)
-  function grid4(A, B, C, D) {
+  fillFace([t, tr, fc, tl], "rgba(200,241,53,0.07)");   // top
+  fillFace([tl, fc, bl, ll], "rgba(100,200,255,0.07)"); // left
+  fillFace([fc, tr, rr, br], "rgba(255,150,50,0.07)");  // right
+
+  // Grid on each face
+  function grid4(A, B, CC, D){
     c.strokeStyle = "rgba(200,241,53,0.55)";
     c.lineWidth   = 0.8;
-    for(let i=1; i<4; i++){
+    for(let i = 1; i < 4; i++){
       const t = i/4;
-      // lines parallel to AB
-      const p1 = {x: A.x+(D.x-A.x)*t, y: A.y+(D.y-A.y)*t};
-      const p2 = {x: B.x+(C.x-B.x)*t, y: B.y+(C.y-B.y)*t};
+      // Lines parallel to AB-DC
+      const p1 = {x:A.x+(D.x-A.x)*t, y:A.y+(D.y-A.y)*t};
+      const p2 = {x:B.x+(CC.x-B.x)*t, y:B.y+(CC.y-B.y)*t};
       c.beginPath(); c.moveTo(p1.x,p1.y); c.lineTo(p2.x,p2.y); c.stroke();
-      // lines parallel to AD
-      const p3 = {x: A.x+(B.x-A.x)*t, y: A.y+(B.y-A.y)*t};
-      const p4 = {x: D.x+(C.x-D.x)*t, y: D.y+(C.y-D.y)*t};
+      // Lines parallel to AD-BC
+      const p3 = {x:A.x+(B.x-A.x)*t, y:A.y+(B.y-A.y)*t};
+      const p4 = {x:D.x+(CC.x-D.x)*t, y:D.y+(CC.y-D.y)*t};
       c.beginPath(); c.moveTo(p3.x,p3.y); c.lineTo(p4.x,p4.y); c.stroke();
     }
   }
 
-  // Top face:   top → tr → centre → tl
-  grid4(pts.top, pts.tr, pts.centre, pts.tl);
-  // Left face:  tl → centre → bl → ml  (fixed winding)
-  grid4(pts.tl, pts.centre, pts.br, pts.ml);
-  // Right face: tr → mr → br → centre  (fixed winding)
-  grid4(pts.tr, pts.mr, pts.br, pts.centre);
+  grid4(t,  tr, fc, tl);   // top face
+  grid4(tl, fc, bl, ll);   // left face
+  grid4(fc, tr, rr, br);   // right face
 
-  // Bold outlines
+  // Bold outline edges
   c.strokeStyle = "#c8f135";
   c.lineWidth   = 2.5;
   c.lineJoin    = "round";
   c.lineCap     = "round";
 
-  // Top face outline
-  c.beginPath();
-  c.moveTo(pts.top.x,    pts.top.y);
-  c.lineTo(pts.tr.x,     pts.tr.y);
-  c.lineTo(pts.centre.x, pts.centre.y);
-  c.lineTo(pts.tl.x,     pts.tl.y);
-  c.closePath();
-  c.stroke();
+  // Top face
+  c.beginPath(); c.moveTo(t.x,t.y); c.lineTo(tl.x,tl.y); c.lineTo(fc.x,fc.y); c.lineTo(tr.x,tr.y); c.closePath(); c.stroke();
 
-  // Left face outline
-  c.beginPath();
-  c.moveTo(pts.tl.x,     pts.tl.y);
-  c.lineTo(pts.centre.x, pts.centre.y);
-  c.lineTo(pts.bl.x,     pts.bl.y);  // fixed
-  c.lineTo(pts.ml.x,     pts.ml.y);
-  c.closePath();
-  c.stroke();
+  // Left face
+  c.beginPath(); c.moveTo(tl.x,tl.y); c.lineTo(ll.x,ll.y); c.lineTo(bl.x,bl.y); c.lineTo(fc.x,fc.y); c.closePath(); c.stroke();
 
-  // Right face outline
-  c.beginPath();
-  c.moveTo(pts.centre.x, pts.centre.y);
-  c.lineTo(pts.tr.x,     pts.tr.y);
-  c.lineTo(pts.mr.x,     pts.mr.y);
-  c.lineTo(pts.br.x,     pts.br.y);  // fixed
-  c.closePath();
-  c.stroke();
+  // Right face
+  c.beginPath(); c.moveTo(tr.x,tr.y); c.lineTo(rr.x,rr.y); c.lineTo(br.x,br.y); c.lineTo(fc.x,fc.y); c.closePath(); c.stroke();
 
-  // Centre dot
-  c.beginPath(); c.arc(pts.centre.x, pts.centre.y, 6, 0, Math.PI*2);
+  // Centre dot — the front corner where all faces meet
+  c.beginPath(); c.arc(fc.x, fc.y, 7, 0, Math.PI*2);
   c.fillStyle = "#fff"; c.fill();
-  c.beginPath(); c.arc(pts.centre.x, pts.centre.y, 3.5, 0, Math.PI*2);
+  c.beginPath(); c.arc(fc.x, fc.y, 4, 0, Math.PI*2);
   c.fillStyle = "#c8f135"; c.fill();
 
   // Labels
   c.fillStyle    = "#c8f135";
-  c.font         = `bold ${Math.floor(W*0.032)}px DM Sans,sans-serif`;
+  c.font         = `bold ${Math.floor(W*0.033)}px DM Sans,sans-serif`;
   c.textAlign    = "center";
   c.textBaseline = "middle";
-  c.fillText("TOP",   pts.top.x,    pts.top.y - 16);
-  c.fillText("LEFT",  pts.ml.x - 30, (pts.tl.y+pts.ml.y)/2);
-  c.fillText("RIGHT", pts.mr.x + 30, (pts.tr.y+pts.mr.y)/2);
+  c.fillText("TOP",   t.x,       t.y  - 18);
+  c.fillText("LEFT",  ll.x - 20, (tl.y+ll.y)/2);
+  c.fillText("RIGHT", rr.x + 20, (tr.y+rr.y)/2);
 
   // Instruction
   c.fillStyle    = "rgba(255,255,255,0.8)";
   c.font         = `${Math.floor(W*0.032)}px DM Sans,sans-serif`;
   c.textAlign    = "center";
   c.textBaseline = "bottom";
-  c.fillText("Align cube to this outline", W/2, H - 10);
+  c.fillText("Align cube corner to the dot", W/2, H - 10);
 
   requestAnimationFrame(drawYGuide);
 }
