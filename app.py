@@ -24,23 +24,11 @@ def is_rate_limited(ip):
     request_counts[ip].append(now)
     return False
 
-# ── IMAGE COMPRESSION (Pillow) ────────────────────────────
+# ── IMAGE COMPRESSION (no external libraries) ────────────
+# The browser already resizes to 800px before sending,
+# so server-side we just pass through as-is
 def compress_image(b64_str, max_size=800):
-    try:
-        import base64
-        from io import BytesIO
-        from PIL import Image
-        img_bytes = base64.b64decode(b64_str)
-        img = Image.open(BytesIO(img_bytes)).convert("RGB")
-        w, h = img.size
-        if max(w, h) > max_size:
-            ratio = max_size / max(w, h)
-            img = img.resize((int(w*ratio), int(h*ratio)), Image.LANCZOS)
-        buf = BytesIO()
-        img.save(buf, format='JPEG', quality=85, optimize=True)
-        return base64.b64encode(buf.getvalue()).decode('utf-8')
-    except Exception:
-        return b64_str
+    return b64_str  # compression handled client-side in JavaScript
 
 @app.route("/")
 def index():
