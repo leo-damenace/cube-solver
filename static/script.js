@@ -183,128 +183,139 @@ function drawYGuide(){
   const H = ov.height || 400;
   c.clearRect(0, 0, W, H);
 
-  // Slight dark vignette outside guide area
-  c.fillStyle = "rgba(0,0,0,0.25)";
-  c.fillRect(0, 0, W, H);
+  // The cube corner points UP toward the camera.
+  // Y-shape:  top arm = top face (pointing up-centre)
+  //           bottom-left arm  = left face
+  //           bottom-right arm = right face
+  // Centre dot = the cube's top corner = sits at ~38% down, centre across
 
-  // ── Y-GUIDE GEOMETRY ──────────────────────────────────
-  // The Y centre point sits at 55% down, 50% across
   const cx = W * 0.50;
-  const cy = H * 0.52;
+  const cy = H * 0.38;   // corner sits upper-centre
+  const arm = Math.min(W, H) * 0.44;
 
-  // Three arms of the Y:
-  //  Top-left  → upper-left corner  (left face)
-  //  Top-right → upper-right corner (right face)
-  //  Bottom    → bottom centre      (top face going away)
-  const armLen = Math.min(W, H) * 0.42;
-
-  const arms = [
-    { angle: -150 * Math.PI/180, label: "LEFT FACE"  },
-    { angle:  -30 * Math.PI/180, label: "RIGHT FACE" },
-    { angle:   90 * Math.PI/180, label: "TOP FACE"   },
+  // Arm angles (0 = right, angles go clockwise in canvas)
+  // Top face:   straight up   = -90°
+  // Left face:  down-left     = 210° (= -150°)
+  // Right face: down-right    = -30° (= 330°)
+  const ARMS = [
+    { angle: -90  * Math.PI/180, label: "TOP"   },
+    { angle: 210  * Math.PI/180, label: "LEFT"  },
+    { angle: -30  * Math.PI/180, label: "RIGHT" },
   ];
 
-  const tips = arms.map(a => ({
-    x: cx + Math.cos(a.angle) * armLen,
-    y: cy + Math.sin(a.angle) * armLen,
+  const tips = ARMS.map(a => ({
+    x: cx + Math.cos(a.angle) * arm,
+    y: cy + Math.sin(a.angle) * arm,
     label: a.label,
     angle: a.angle,
   }));
 
-  // Draw dim background triangles for each face
-  const faceColors = ["rgba(200,241,53,0.04)", "rgba(53,241,176,0.04)", "rgba(255,255,255,0.03)"];
-  for(let i=0; i<3; i++){
-    const t1 = tips[i];
-    const t2 = tips[(i+1)%3];
-    // extend corners outward
-    const ex1 = cx + (t1.x-cx)*1.6, ey1 = cy + (t1.y-cy)*1.6;
-    const ex2 = cx + (t2.x-cx)*1.6, ey2 = cy + (t2.y-cy)*1.6;
+  // Dim outside
+  c.fillStyle = "rgba(0,0,0,0.3)";
+  c.fillRect(0, 0, W, H);
+
+  // Draw face regions (subtle tinted triangles)
+  const faceAlpha = ["rgba(200,241,53,0.05)", "rgba(53,200,241,0.05)", "rgba(241,53,200,0.05)"];
+  tips.forEach((tip, i) => {
+    const next = tips[(i+1)%3];
     c.beginPath();
     c.moveTo(cx, cy);
-    c.lineTo(ex1, ey1);
-    c.lineTo(ex2, ey2);
+    c.lineTo(cx + (tip.x-cx)*1.5,  cy + (tip.y-cy)*1.5);
+    c.lineTo(cx + (next.x-cx)*1.5, cy + (next.y-cy)*1.5);
     c.closePath();
-    c.fillStyle = faceColors[i];
+    c.fillStyle = faceAlpha[i];
     c.fill();
-  }
+  });
 
-  // Draw the 3 Y arms as thick glowing lines
+  // Draw each arm with grid lines
   c.lineCap  = "round";
   c.lineJoin = "round";
 
-  arms.forEach((a, i) => {
+  ARMS.forEach((arm_info, i) => {
     const tip = tips[i];
-    // Glow
+    const dx  = tip.x - cx;
+    const dy  = tip.y - cy;
+    const len = Math.sqrt(dx*dx + dy*dy);
+
+    // Perpendicular direction
+    const px = -dy/len;
+    const py =  dx/len;
+
+    // Face width at tip (60° total wedge = 30° each side)
+    const halfW = len * Math.tan(30 * Math.PI/180);
+
+    // Draw main arm (glow + solid)
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(tip.x, tip.y);
+    c.strokeStyle = "rgba(200,241,53,0.3)"; c.lineWidth = 8; c.stroke();
+    c.beginPath(); c.moveTo(cx, cy); c.lineTo(tip.x, tip.y);
+    c.strokeStyle = "#c8f135"; c.lineWidth = 2; c.stroke();
+
+    // 3 row lines across the arm (dividing into 4 rows)
+    for(let r = 1; r <= 3; r++){
+      const t  = r / 4;
+      const rx = cx + dx * t;
+      const ry = cy + dy * t;
+      const hw = halfW * t;  // width scales with distance
+      c.beginPath();
+      c.moveTo(rx - px*hw, ry - py*hw);
+      c.lineTo(rx + px*hw, ry + py*hw);
+      c.strokeStyle = "rgba(200,241,53,0.5)";
+      c.lineWidth   = 1;
+      c.stroke();
+    }
+
+    // 3 column lines along the arm (dividing into 4 columns)
+    for(let col = 1; col <= 3; col++){
+      const frac = (col/4) - 0.5;  // -0.375, -0.125, +0.125, +0.375 → just 3 dividers
+      const colFrac = (col - 2) / 4; // -0.25, 0, +0.25
+      // line from near centre to tip edge
+      const ox = px * halfW * (col/4 * 2 - 1);  // spread evenly
+      const oy = py * halfW * (col/4 * 2 - 1);
+      // Actually: col offset at tip, 0 at centre
+      const offX = px * halfW * ((col/4)*2 - 1);
+      const offY = py * halfW * ((col/4)*2 - 1);
+      c.beginPath();
+      c.moveTo(cx, cy);
+      c.lineTo(tip.x + offX, tip.y + offY);
+      c.strokeStyle = "rgba(200,241,53,0.3)";
+      c.lineWidth   = 1;
+      c.stroke();
+    }
+
+    // Tip edge line
     c.beginPath();
-    c.moveTo(cx, cy);
-    c.lineTo(tip.x, tip.y);
-    c.strokeStyle = "rgba(200,241,53,0.25)";
-    c.lineWidth   = 10;
-    c.stroke();
-    // Main line
-    c.beginPath();
-    c.moveTo(cx, cy);
-    c.lineTo(tip.x, tip.y);
+    c.moveTo(tip.x - px*halfW, tip.y - py*halfW);
+    c.lineTo(tip.x + px*halfW, tip.y + py*halfW);
     c.strokeStyle = "#c8f135";
     c.lineWidth   = 2;
     c.stroke();
 
-    // Draw 4x4 grid lines along this face
-    // Each face occupies a 60° wedge — draw 3 dividers (creating 4 columns)
-    // and 3 row lines perpendicular to the arm
-    const perpAngle = a.angle + Math.PI/2;
-    const faceW = armLen * Math.tan(Math.PI/6); // width at the tip
-
-    for(let div = 1; div <= 3; div++){
-      // Row lines — parallel to tip edge, at 1/4, 2/4, 3/4 along the arm
-      const t  = div / 4;
-      const rx = cx + Math.cos(a.angle) * armLen * t;
-      const ry = cy + Math.sin(a.angle) * armLen * t;
-      const hw = faceW * t; // half-width at this distance
-      c.beginPath();
-      c.moveTo(rx - Math.cos(perpAngle)*hw, ry - Math.sin(perpAngle)*hw);
-      c.lineTo(rx + Math.cos(perpAngle)*hw, ry + Math.sin(perpAngle)*hw);
-      c.strokeStyle = "rgba(200,241,53,0.35)";
-      c.lineWidth   = 1;
-      c.stroke();
-
-      // Column lines — from arm line outward at 1/4, 2/4, 3/4 of face width
-      const cw = (faceW * div) / 4;  // NOT t, fixed column spacing at tip
-      // Draw from centre arm to tip edge on both sides
-      [1, -1].forEach(side => {
-        const ox = Math.cos(perpAngle) * cw * side;
-        const oy = Math.sin(perpAngle) * cw * side;
-        c.beginPath();
-        c.moveTo(cx + ox*0.05, cy + oy*0.05);
-        c.lineTo(tips[i].x + ox, tips[i].y + oy);
-        c.strokeStyle = "rgba(200,241,53,0.3)";
-        c.lineWidth   = 1;
-        c.stroke();
-      });
-    }
-
-    // Face label at tip
-    c.fillStyle  = "#c8f135";
-    c.font       = `bold ${Math.floor(W*0.03)}px DM Sans, sans-serif`;
-    c.textAlign  = "center";
-    c.textBaseline = "middle";
-    const lx = cx + Math.cos(a.angle) * (armLen + W*0.06);
-    const ly = cy + Math.sin(a.angle) * (armLen + W*0.06);
+    // Face label beyond tip
+    const lx = cx + (dx/len) * (len + W*0.07);
+    const ly = cy + (dy/len) * (len + W*0.07);
+    c.fillStyle     = "#c8f135";
+    c.font          = `bold ${Math.floor(W*0.032)}px DM Sans,sans-serif`;
+    c.textAlign     = "center";
+    c.textBaseline  = "middle";
     c.fillText(tip.label, lx, ly);
   });
 
-  // Centre dot
+  // Centre dot — bright, easy to align to
   c.beginPath();
-  c.arc(cx, cy, 5, 0, Math.PI*2);
+  c.arc(cx, cy, 7, 0, Math.PI*2);
+  c.fillStyle = "#fff";
+  c.fill();
+  c.beginPath();
+  c.arc(cx, cy, 4, 0, Math.PI*2);
   c.fillStyle = "#c8f135";
   c.fill();
 
-  // Instruction text at bottom
-  c.fillStyle    = "rgba(255,255,255,0.7)";
-  c.font         = `${Math.floor(W*0.032)}px DM Sans, sans-serif`;
-  c.textAlign    = "center";
-  c.textBaseline = "bottom";
-  c.fillText("Align cube corner with centre dot", W/2, H - 12);
+  // Instruction
+  c.fillStyle     = "rgba(255,255,255,0.75)";
+  c.font          = `${Math.floor(W*0.033)}px DM Sans,sans-serif`;
+  c.textAlign     = "center";
+  c.textBaseline  = "bottom";
+  c.fillText("Point cube corner at the dot ↑", W/2, H - 10);
 
   requestAnimationFrame(drawYGuide);
 }
