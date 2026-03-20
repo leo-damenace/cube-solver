@@ -123,78 +123,129 @@ async function startCamera() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  GRID OVERLAY — isometric 3-face corner guide
+//  GRID OVERLAY — clean isometric cube like shutterstock ref
+//  Individual rounded sticker cells, bold outer edges
 // ══════════════════════════════════════════════════════════
 function drawGrid() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
   const N    = 4;
-  const cell = Math.min(w, h) * 0.10;
+  // Cell size — tuned so cube fills ~60% of the shorter dimension
+  const cell = Math.min(w, h) * 0.108;
+  // Cube sits centered horizontally, slightly above vertical center
   const cx   = w / 2;
-  const cy   = h * 0.50;
+  const cy   = h * 0.48;
 
-  // Iso axes
-  const rx = cell,  ry = cell * 0.5;
-  const lx = -cell, ly = cell * 0.5;
-  const dy = cell;
+  // ── Isometric axes ───────────────────────────────────
+  // Standard iso: 30° angle from horizontal
+  // Right-face axis:  (cos30, sin30)  = (√3/2, 0.5) * cell
+  // Left-face  axis:  (-cos30, sin30) = (-√3/2, 0.5) * cell
+  // Vertical (side faces go down):     (0, 1) * cell
+  const cos30 = Math.sqrt(3) / 2;   // ≈ 0.866
+  const sin30 = 0.5;
 
-  // Top face goes up from (cx,cy), side faces go down
-  function tp(c, r) { return [cx + c*rx + r*lx,  cy + c*ry - r*ly - N*dy + N*ly]; }
-  function rp(c, r) { return [cx + c*rx,          cy + c*ry + r*dy]; }
-  function lp(c, r) { return [cx + c*lx,          cy + c*ly + r*dy]; }
+  const Rx = cos30 * cell,  Ry = sin30 * cell;   // right axis
+  const Lx = -cos30 * cell, Ly = sin30 * cell;   // left axis (back direction on top)
+  const Dy = cell;                                 // down axis for side faces
 
-  // Recalculate: front corner where faces meet = (cx, cy)
-  // Top face: front point = (cx,cy), right = tp(N,0), back = tp(N,N), left = tp(0,N)
-  // Use clean vectors: top face right-vec=(rx,-ry), back-vec=(lx,-ly) → goes upward
-  function top(c, r) { return [cx + c*rx  + r*lx,  cy - c*ry - r*ly]; }
-  function rit(c, r) { return [cx + c*rx,           cy + c*ry + r*dy]; }
-  function lft(c, r) { return [cx + c*lx,           cy + c*ly + r*dy]; }
+  // ── Face point functions ─────────────────────────────
+  // Origin = front corner of cube (where all 3 faces meet) = (cx, cy)
+  //
+  // TOP face:   goes up-right (R axis) and up-left (L axis) from origin
+  //   top(c,r): c steps right, r steps left, both going UP (negate Y)
+  function top(c, r) {
+    return [
+      cx + c * Rx + r * Lx,
+      cy - c * Ry - r * Ly
+    ];
+  }
 
-  const ACCENT = "#c8f135";
-  const SGLOW  = "rgba(200,241,53,0.65)";
+  // RIGHT face: goes right (R axis) and down from origin
+  //   rit(c,r): c steps right-down, r steps down
+  function rit(c, r) {
+    return [
+      cx + c * Rx,
+      cy + c * Ry + r * Dy
+    ];
+  }
 
-  function drawSticker(corners) {
-    const inset = 0.12;
-    const mcx = corners.reduce((s,p)=>s+p[0],0)/4;
-    const mcy = corners.reduce((s,p)=>s+p[1],0)/4;
-    const pts = corners.map(([x,y]) => [x+(mcx-x)*inset, y+(mcy-y)*inset]);
+  // LEFT face:  goes left (L axis) and down from origin
+  //   lft(c,r): c steps left-down, r steps down
+  function lft(c, r) {
+    return [
+      cx + c * Lx,
+      cy + c * Ly + r * Dy
+    ];
+  }
+
+  const ACCENT     = "#c8f135";
+  const CELL_COLOR = "rgba(200,241,53,0.55)";
+  const INSET      = 0.10;   // gap between stickers (fraction toward center)
+
+  // Draw one sticker as an inset parallelogram
+  function drawSticker(tl, tr, br, bl) {
+    const mcx = (tl[0]+tr[0]+br[0]+bl[0]) / 4;
+    const mcy = (tl[1]+tr[1]+br[1]+bl[1]) / 4;
+    function pull(p) {
+      return [p[0] + (mcx - p[0]) * INSET, p[1] + (mcy - p[1]) * INSET];
+    }
+    const [a, b, c, d] = [tl, tr, br, bl].map(pull);
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i=1; i<4; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.moveTo(a[0], a[1]);
+    ctx.lineTo(b[0], b[1]);
+    ctx.lineTo(c[0], c[1]);
+    ctx.lineTo(d[0], d[1]);
     ctx.closePath();
-    ctx.strokeStyle = SGLOW;
-    ctx.lineWidth   = 1.3;
+    ctx.strokeStyle = CELL_COLOR;
+    ctx.lineWidth   = 1.5;
     ctx.stroke();
   }
 
-  for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
-    drawSticker([top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1)]);
-    drawSticker([rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1)]);
-    drawSticker([lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1)]);
+  // ── Draw sticker grids on all 3 faces ────────────────
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      // Top face
+      drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
+      // Right face
+      drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
+      // Left face
+      drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
+    }
   }
 
-  // Bold edges
+  // ── Bold outer edges ──────────────────────────────────
   ctx.strokeStyle = ACCENT;
-  ctx.lineWidth   = 2.5;
+  ctx.lineWidth   = 2.8;
   ctx.lineJoin    = "round";
   ctx.lineCap     = "round";
 
-  function edge(a,b,c,d) {
+  function face(a, b, c, d) {
     ctx.beginPath();
     ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
     ctx.lineTo(c[0],c[1]); ctx.lineTo(d[0],d[1]);
-    ctx.closePath(); ctx.stroke();
+    ctx.closePath();
+    ctx.stroke();
   }
-  edge(top(0,0), top(N,0), top(N,N), top(0,N));
-  edge(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
-  edge(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
 
-  // Center dot
-  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2);
-  ctx.fillStyle = ACCENT; ctx.fill();
-  ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(200,241,53,0.3)"; ctx.lineWidth=1.5; ctx.stroke();
+  // Top face outline: front→right-corner→back→left-corner
+  face(top(0,0), top(N,0), top(N,N), top(0,N));
+  // Right face outline: top-left→top-right→bottom-right→bottom-left
+  face(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
+  // Left face outline
+  face(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
+
+  // ── Center alignment dot at front corner ─────────────
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = ACCENT;
+  ctx.fill();
+  // Outer ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(200,241,53,0.35)";
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
 
   requestAnimationFrame(drawGrid);
 }
