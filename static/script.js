@@ -183,139 +183,153 @@ function drawYGuide(){
   const H = ov.height || 400;
   c.clearRect(0, 0, W, H);
 
-  // The cube corner points UP toward the camera.
-  // Y-shape:  top arm = top face (pointing up-centre)
-  //           bottom-left arm  = left face
-  //           bottom-right arm = right face
-  // Centre dot = the cube's top corner = sits at ~38% down, centre across
+  // Draw a simple isometric half-cube outline
+  // 3 faces: top, left, right
+  // The cube is centred, takes up ~70% of the frame
 
-  const cx = W * 0.50;
-  const cy = H * 0.38;   // corner sits upper-centre
-  const arm = Math.min(W, H) * 0.44;
+  const size = Math.min(W, H) * 0.32; // half-width of one face
+  const cx = W * 0.5;
+  const cy = H * 0.48;
 
-  // Arm angles (0 = right, angles go clockwise in canvas)
-  // Top face:   straight up   = -90°
-  // Left face:  down-left     = 210° (= -150°)
-  // Right face: down-right    = -30° (= 330°)
-  const ARMS = [
-    { angle: -90  * Math.PI/180, label: "TOP"   },
-    { angle: 210  * Math.PI/180, label: "LEFT"  },
-    { angle: -30  * Math.PI/180, label: "RIGHT" },
-  ];
+  // Isometric cube corner points:
+  // Top corner (top of cube)
+  const top    = { x: cx,          y: cy - size * 1.15 };
+  // Left corner
+  const left   = { x: cx - size * 1.5, y: cy + size * 0.2  };
+  // Right corner
+  const right  = { x: cx + size * 1.5, y: cy + size * 0.2  };
+  // Bottom corner (front bottom)
+  const bottom = { x: cx,          y: cy + size * 1.5  };
+  // Middle left (where top-left face meets left-front face)
+  const midL   = { x: cx - size * 0.75, y: cy + size * 0.875 };
+  // Middle right
+  const midR   = { x: cx + size * 0.75, y: cy + size * 0.875 };
+  // Centre (where all 3 faces meet = the corner pointing at camera)
+  const centre = { x: cx, y: cy };
 
-  const tips = ARMS.map(a => ({
-    x: cx + Math.cos(a.angle) * arm,
-    y: cy + Math.sin(a.angle) * arm,
-    label: a.label,
-    angle: a.angle,
-  }));
+  // Fill each face with a very subtle tint
+  // Top face
+  c.beginPath();
+  c.moveTo(top.x, top.y);
+  c.lineTo(centre.x + (left.x-cx)*0.5, centre.y + (left.y-cy)*0.5);
+  c.lineTo(centre.x, centre.y);
+  c.lineTo(centre.x + (right.x-cx)*0.5, centre.y + (right.y-cy)*0.5);
+  c.closePath();
 
-  // Dim outside
-  c.fillStyle = "rgba(0,0,0,0.3)";
-  c.fillRect(0, 0, W, H);
+  // Actually use proper corners
+  // TOP face: top → topLeft → centre → topRight
+  const topLeft  = { x: (top.x + left.x)/2,  y: (top.y + left.y)/2  };
+  const topRight = { x: (top.x + right.x)/2, y: (top.y + right.y)/2 };
 
-  // Draw face regions (subtle tinted triangles)
-  const faceAlpha = ["rgba(200,241,53,0.05)", "rgba(53,200,241,0.05)", "rgba(241,53,200,0.05)"];
-  tips.forEach((tip, i) => {
-    const next = tips[(i+1)%3];
-    c.beginPath();
-    c.moveTo(cx, cy);
-    c.lineTo(cx + (tip.x-cx)*1.5,  cy + (tip.y-cy)*1.5);
-    c.lineTo(cx + (next.x-cx)*1.5, cy + (next.y-cy)*1.5);
-    c.closePath();
-    c.fillStyle = faceAlpha[i];
-    c.fill();
+  // Draw top face
+  c.beginPath();
+  c.moveTo(top.x,      top.y);
+  c.lineTo(topLeft.x,  topLeft.y);
+  c.lineTo(centre.x,   centre.y);
+  c.lineTo(topRight.x, topRight.y);
+  c.closePath();
+  c.fillStyle = "rgba(200,241,53,0.08)";
+  c.fill();
+
+  // Left face: topLeft → left → midL → centre
+  c.beginPath();
+  c.moveTo(topLeft.x, topLeft.y);
+  c.lineTo(left.x,    left.y);
+  c.lineTo(midL.x,    midL.y);
+  c.lineTo(centre.x,  centre.y);
+  c.closePath();
+  c.fillStyle = "rgba(53,200,241,0.06)";
+  c.fill();
+
+  // Right face: topRight → centre → midR → right
+  c.beginPath();
+  c.moveTo(topRight.x, topRight.y);
+  c.lineTo(centre.x,   centre.y);
+  c.lineTo(midR.x,     midR.y);
+  c.lineTo(right.x,    right.y);
+  c.closePath();
+  c.fillStyle = "rgba(241,100,53,0.06)";
+  c.fill();
+
+  // Now draw the 4x4 grid lines on each face
+  c.lineWidth   = 1;
+  c.strokeStyle = "rgba(200,241,53,0.6)";
+
+  // Helper: draw grid on a parallelogram
+  // corners: A (top-left), B (top-right), C (bottom-right), D (bottom-left)
+  function drawFaceGrid(A, B, C, D, divisions) {
+    for(let i = 1; i < divisions; i++){
+      const t = i / divisions;
+      // Horizontal lines (A→B side to D→C side)
+      const p1 = { x: A.x + (D.x-A.x)*t, y: A.y + (D.y-A.y)*t };
+      const p2 = { x: B.x + (C.x-B.x)*t, y: B.y + (C.y-B.y)*t };
+      c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.stroke();
+      // Vertical lines (A→D side to B→C side)
+      const p3 = { x: A.x + (B.x-A.x)*t, y: A.y + (B.y-A.y)*t };
+      const p4 = { x: D.x + (C.x-D.x)*t, y: D.y + (C.y-D.y)*t };
+      c.beginPath(); c.moveTo(p3.x, p3.y); c.lineTo(p4.x, p4.y); c.stroke();
+    }
+  }
+
+  // Top face grid: top → topRight → centre → topLeft
+  drawFaceGrid(top, topRight, centre, topLeft, 4);
+  // Left face grid: topLeft → centre → midL → left
+  drawFaceGrid(topLeft, centre, midL, left, 4);
+  // Right face grid: centre → topRight → right → midR
+  drawFaceGrid(centre, topRight, right, midR, 4);
+
+  // Draw bold outline edges
+  c.strokeStyle = "#c8f135";
+  c.lineWidth   = 2.5;
+  c.lineJoin    = "round";
+  c.lineCap     = "round";
+
+  // Outer silhouette
+  c.beginPath();
+  c.moveTo(top.x,    top.y);
+  c.lineTo(topLeft.x,  topLeft.y);
+  c.lineTo(left.x,   left.y);
+  c.lineTo(midL.x,   midL.y);
+  c.lineTo(bottom.x, bottom.y);
+  c.lineTo(midR.x,   midR.y);
+  c.lineTo(right.x,  right.y);
+  c.lineTo(topRight.x, topRight.y);
+  c.lineTo(top.x,    top.y);
+  c.stroke();
+
+  // 3 inner edges from centre
+  [[centre, top], [centre, left], [centre, right]].forEach(([a,b]) => {
+    // only draw to halfway point (the silhouette edges already drawn)
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
   });
 
-  // Draw each arm with grid lines
-  c.lineCap  = "round";
-  c.lineJoin = "round";
+  // Bottom edges
+  c.beginPath(); c.moveTo(left.x, left.y); c.lineTo(midL.x, midL.y); c.stroke();
+  c.beginPath(); c.moveTo(right.x, right.y); c.lineTo(midR.x, midR.y); c.stroke();
+  c.beginPath(); c.moveTo(midL.x, midL.y); c.lineTo(bottom.x, bottom.y); c.stroke();
+  c.beginPath(); c.moveTo(midR.x, midR.y); c.lineTo(bottom.x, bottom.y); c.stroke();
 
-  ARMS.forEach((arm_info, i) => {
-    const tip = tips[i];
-    const dx  = tip.x - cx;
-    const dy  = tip.y - cy;
-    const len = Math.sqrt(dx*dx + dy*dy);
+  // Centre dot
+  c.beginPath(); c.arc(centre.x, centre.y, 6, 0, Math.PI*2);
+  c.fillStyle = "#fff"; c.fill();
+  c.beginPath(); c.arc(centre.x, centre.y, 3.5, 0, Math.PI*2);
+  c.fillStyle = "#c8f135"; c.fill();
 
-    // Perpendicular direction
-    const px = -dy/len;
-    const py =  dx/len;
-
-    // Face width at tip (60° total wedge = 30° each side)
-    const halfW = len * Math.tan(30 * Math.PI/180);
-
-    // Draw main arm (glow + solid)
-    c.beginPath(); c.moveTo(cx, cy); c.lineTo(tip.x, tip.y);
-    c.strokeStyle = "rgba(200,241,53,0.3)"; c.lineWidth = 8; c.stroke();
-    c.beginPath(); c.moveTo(cx, cy); c.lineTo(tip.x, tip.y);
-    c.strokeStyle = "#c8f135"; c.lineWidth = 2; c.stroke();
-
-    // 3 row lines across the arm (dividing into 4 rows)
-    for(let r = 1; r <= 3; r++){
-      const t  = r / 4;
-      const rx = cx + dx * t;
-      const ry = cy + dy * t;
-      const hw = halfW * t;  // width scales with distance
-      c.beginPath();
-      c.moveTo(rx - px*hw, ry - py*hw);
-      c.lineTo(rx + px*hw, ry + py*hw);
-      c.strokeStyle = "rgba(200,241,53,0.5)";
-      c.lineWidth   = 1;
-      c.stroke();
-    }
-
-    // 3 column lines along the arm (dividing into 4 columns)
-    for(let col = 1; col <= 3; col++){
-      const frac = (col/4) - 0.5;  // -0.375, -0.125, +0.125, +0.375 → just 3 dividers
-      const colFrac = (col - 2) / 4; // -0.25, 0, +0.25
-      // line from near centre to tip edge
-      const ox = px * halfW * (col/4 * 2 - 1);  // spread evenly
-      const oy = py * halfW * (col/4 * 2 - 1);
-      // Actually: col offset at tip, 0 at centre
-      const offX = px * halfW * ((col/4)*2 - 1);
-      const offY = py * halfW * ((col/4)*2 - 1);
-      c.beginPath();
-      c.moveTo(cx, cy);
-      c.lineTo(tip.x + offX, tip.y + offY);
-      c.strokeStyle = "rgba(200,241,53,0.3)";
-      c.lineWidth   = 1;
-      c.stroke();
-    }
-
-    // Tip edge line
-    c.beginPath();
-    c.moveTo(tip.x - px*halfW, tip.y - py*halfW);
-    c.lineTo(tip.x + px*halfW, tip.y + py*halfW);
-    c.strokeStyle = "#c8f135";
-    c.lineWidth   = 2;
-    c.stroke();
-
-    // Face label beyond tip
-    const lx = cx + (dx/len) * (len + W*0.07);
-    const ly = cy + (dy/len) * (len + W*0.07);
-    c.fillStyle     = "#c8f135";
-    c.font          = `bold ${Math.floor(W*0.032)}px DM Sans,sans-serif`;
-    c.textAlign     = "center";
-    c.textBaseline  = "middle";
-    c.fillText(tip.label, lx, ly);
-  });
-
-  // Centre dot — bright, easy to align to
-  c.beginPath();
-  c.arc(cx, cy, 7, 0, Math.PI*2);
-  c.fillStyle = "#fff";
-  c.fill();
-  c.beginPath();
-  c.arc(cx, cy, 4, 0, Math.PI*2);
-  c.fillStyle = "#c8f135";
-  c.fill();
+  // Labels
+  c.fillStyle    = "#c8f135";
+  c.font         = `bold ${Math.floor(W*0.033)}px DM Sans,sans-serif`;
+  c.textAlign    = "center";
+  c.textBaseline = "middle";
+  c.fillText("TOP",   top.x,   top.y   - 18);
+  c.fillText("LEFT",  left.x  - 28, left.y);
+  c.fillText("RIGHT", right.x + 30, right.y);
 
   // Instruction
-  c.fillStyle     = "rgba(255,255,255,0.75)";
-  c.font          = `${Math.floor(W*0.033)}px DM Sans,sans-serif`;
-  c.textAlign     = "center";
-  c.textBaseline  = "bottom";
-  c.fillText("Point cube corner at the dot ↑", W/2, H - 10);
+  c.fillStyle    = "rgba(255,255,255,0.8)";
+  c.font         = `${Math.floor(W*0.033)}px DM Sans,sans-serif`;
+  c.textAlign    = "center";
+  c.textBaseline = "bottom";
+  c.fillText("Align your cube to match this outline", W/2, H - 10);
 
   requestAnimationFrame(drawYGuide);
 }
