@@ -1,30 +1,20 @@
 // ═══════════════════════════════════════════════════
 //  CubeSolve — script.js
-//  2-shot corner flow · Gemini vision · live 3D cube
+//  6-face scan · one Gemini call per face · live 3D cube
 // ═══════════════════════════════════════════════════
 
-// Face order: U=top F=front R=right B=back L=left D=bottom
-const FACE_NAMES = {
-  U:"Top (White)",  F:"Front (Green)", R:"Right (Red)",
-  B:"Back (Blue)",  L:"Left (Orange)", D:"Bottom (Yellow)"
-};
+// Face scan order and display info
+const FACES = [
+  { key:"U", label:"Top",    color:"⬜", hint:"Hold the cube with the TOP face flat toward the camera." },
+  { key:"F", label:"Front",  color:"🟩", hint:"Rotate cube — now point the FRONT face at the camera." },
+  { key:"R", label:"Right",  color:"🟥", hint:"Rotate cube — now point the RIGHT face at the camera." },
+  { key:"B", label:"Back",   color:"🟦", hint:"Rotate cube — now point the BACK face at the camera." },
+  { key:"L", label:"Left",   color:"🟧", hint:"Rotate cube — now point the LEFT face at the camera." },
+  { key:"D", label:"Bottom", color:"🟨", hint:"Flip cube — point the BOTTOM face at the camera." },
+];
 
-// Shot → which 3 faces it covers
-const SHOT_FACES = {
-  1: ["U","F","R"],
-  2: ["D","B","L"],
-};
-
-const SHOT_INSTRUCTIONS = {
-  1: "Hold cube so <strong>Top, Front & Right</strong> faces are visible — align the corner to the dot.",
-  2: "Flip cube. Hold so <strong>Bottom, Back & Left</strong> faces are visible — align that corner to the dot.",
-};
-
-// cubing.js face order for solve string
-const CUBING_ORDER     = ["U","R","F","D","L","B"];
-const COLOR_TO_FACE    = {
-  white:"U", red:"R", green:"F", yellow:"D", orange:"L", blue:"B"
-};
+const CUBING_ORDER  = ["U","R","F","D","L","B"];
+const COLOR_TO_FACE = { white:"U", red:"R", green:"F", yellow:"D", orange:"L", blue:"B" };
 
 const CUBE_COLORS = {
   white:  { hex:"#f0f0f0" },
@@ -35,23 +25,22 @@ const CUBE_COLORS = {
   green:  { hex:"#009b2d" },
 };
 const ALL_COLORS  = Object.keys(CUBE_COLORS);
-const DEFAULT_HEX = "#222";
+const DEFAULT_HEX = "#2a2a2a";
 
-// ── STATE ────────────────────────────────────────────────
-let currentShot = 1;   // 1 or 2
-let analyzing   = false;
+// ── STATE ─────────────────────────────────────────────────
+let currentFaceIdx = 0;
+let analyzing      = false;
 
-// faceData[faceKey] = array of 16 color name strings
-const faceData = { U:null, F:null, R:null, B:null, L:null, D:null };
+// faceData[key] = [16 color strings]
+const faceData = {};
 
 // faceHexGrid[faceIdx][row][col] for 3D renderer
-// Face index: 0=U 1=F 2=R 3=B 4=L 5=D
-const FACE_IDX = { U:0, F:1, R:2, B:3, L:4, D:5 };
+const FACE_3D_IDX = { U:0, F:1, R:2, B:3, L:4, D:5 };
 let faceHexGrid = Array.from({length:6}, () =>
   Array.from({length:4}, () => Array(4).fill(DEFAULT_HEX))
 );
 
-// ── DOM refs ─────────────────────────────────────────────
+// ── DOM ───────────────────────────────────────────────────
 const gateEl       = document.getElementById("gate");
 const appEl        = document.getElementById("app");
 const codeInput    = document.getElementById("code-input");
@@ -71,7 +60,7 @@ const faceNumEl    = document.getElementById("face-num");
 const mainTitle    = document.getElementById("main-title");
 const mainDesc     = document.getElementById("main-desc");
 
-// ── INVITE GATE ──────────────────────────────────────────
+// ── GATE ──────────────────────────────────────────────────
 async function checkCode() {
   const code = codeInput.value.trim().toUpperCase();
   if (!code) return;
@@ -89,14 +78,14 @@ async function checkCode() {
       startCamera();
       startCubePreview();
     } else {
-      gateError.textContent = "Invalid code — check with whoever sent it to you.";
+      gateError.textContent = "Invalid code.";
       codeInput.classList.add("shake");
       codeInput.addEventListener("animationend", () => codeInput.classList.remove("shake"), {once:true});
       enterBtn.disabled    = false;
       enterBtn.textContent = "Enter";
     }
   } catch {
-    gateError.textContent = "Network error — try again.";
+    gateError.textContent = "Network error.";
     enterBtn.disabled    = false;
     enterBtn.textContent = "Enter";
   }
@@ -105,7 +94,7 @@ enterBtn.addEventListener("click", checkCode);
 codeInput.addEventListener("keydown", e => { if (e.key==="Enter") checkCode(); });
 codeInput.addEventListener("input",   () => { gateError.textContent = ""; });
 
-// ── CAMERA ───────────────────────────────────────────────
+// ── CAMERA ────────────────────────────────────────────────
 async function startCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -115,71 +104,64 @@ async function startCamera() {
     video.addEventListener("loadedmetadata", () => {
       overlay.width  = video.videoWidth  || video.clientWidth;
       overlay.height = video.videoHeight || video.clientHeight;
-      drawGrid();
+      drawOverlay();
     });
   } catch {
-    alert("Camera access denied. Please allow camera permissions and reload.");
+    alert("Camera access denied. Please allow camera and reload.");
   }
 }
 
-// ══════════════════════════════════════════════════════════
-//  CAMERA OVERLAY — simple corner bracket guide, no wireframe
-// ══════════════════════════════════════════════════════════
-function drawGrid() {
+// ── OVERLAY — clean square guide, no isometric nonsense ───
+function drawOverlay() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
-  const ACCENT = "#c8f135";
-
-  // Dark vignette around edges to focus attention center
-  const grad = ctx.createRadialGradient(w/2, h/2, h*0.25, w/2, h/2, h*0.7);
+  // Vignette
+  const grad = ctx.createRadialGradient(w/2,h/2,h*0.22,w/2,h/2,h*0.65);
   grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.45)");
+  grad.addColorStop(1, "rgba(0,0,0,0.5)");
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0,0,w,h);
 
-  // Corner bracket size
-  const bSize = Math.min(w, h) * 0.12;
-  const pad   = Math.min(w, h) * 0.12;
-  const lw    = 3;
+  // Square scan zone
+  const size = Math.min(w,h) * 0.72;
+  const sx   = (w - size) / 2;
+  const sy   = (h - size) / 2;
 
-  ctx.strokeStyle = ACCENT;
-  ctx.lineWidth   = lw;
+  // Dimmed area outside square
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.fillRect(0,0,w,sy);
+  ctx.fillRect(0,sy+size,w,h-sy-size);
+  ctx.fillRect(0,sy,sx,size);
+  ctx.fillRect(sx+size,sy,w-sx-size,size);
+
+  // 4×4 grid lines inside square
+  const cell = size / 4;
+  ctx.strokeStyle = "rgba(200,241,53,0.4)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath(); ctx.moveTo(sx+i*cell, sy); ctx.lineTo(sx+i*cell, sy+size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy+i*cell); ctx.lineTo(sx+size, sy+i*cell); ctx.stroke();
+  }
+
+  // Bold corner brackets
+  const bL = size * 0.08;
+  ctx.strokeStyle = "#c8f135";
+  ctx.lineWidth   = 3;
   ctx.lineCap     = "round";
-
-  // Draw L-shaped bracket at each corner
-  const corners = [
-    [pad,   pad,    1,  1],   // top-left
-    [w-pad, pad,   -1,  1],   // top-right
-    [pad,   h-pad,  1, -1],   // bottom-left
-    [w-pad, h-pad, -1, -1],   // bottom-right
-  ];
-  corners.forEach(([x, y, dx, dy]) => {
-    ctx.beginPath();
-    ctx.moveTo(x + dx*bSize, y);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x, y + dy*bSize);
-    ctx.stroke();
+  [
+    [sx,      sy,       1, 1],
+    [sx+size, sy,      -1, 1],
+    [sx,      sy+size,  1,-1],
+    [sx+size, sy+size, -1,-1],
+  ].forEach(([x,y,dx,dy]) => {
+    ctx.beginPath(); ctx.moveTo(x+dx*bL,y); ctx.lineTo(x,y); ctx.lineTo(x,y+dy*bL); ctx.stroke();
   });
 
-  // Center crosshair dot
-  const cx = w/2, cy = h/2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5, 0, Math.PI*2);
-  ctx.fillStyle = ACCENT;
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 10, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(200,241,53,0.4)";
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-
-  requestAnimationFrame(drawGrid);
+  requestAnimationFrame(drawOverlay);
 }
 
-// ══════════════════════════════════════════════════════════
-//  ROTATING 4×4 CUBE PREVIEW
-// ══════════════════════════════════════════════════════════
+// ── ROTATING 4×4 CUBE PREVIEW ────────────────────────────
 let cubeAngle = 0.5;
 
 function startCubePreview() {
@@ -194,234 +176,185 @@ function startCubePreview() {
 }
 
 function drawRotatingCube(rc, W, H, angle) {
-  rc.clearRect(0, 0, W, H);
-  const N     = 4;
-  const scale = Math.min(W, H) * 0.155;
-  const cx    = W * 0.5, cy = H * 0.52;
-  const tiltX = 0.50;
-  const half  = N / 2;
-  const INSET = 0.08;
+  rc.clearRect(0,0,W,H);
+  const N=4, scale=Math.min(W,H)*0.155, cx=W*0.5, cy=H*0.52, tiltX=0.50, half=N/2, INSET=0.08;
 
-  function project(x, y, z) {
-    const x1 =  x*Math.cos(angle) + z*Math.sin(angle);
-    const z1 = -x*Math.sin(angle) + z*Math.cos(angle);
-    const y2 =  y*Math.cos(tiltX) - z1*Math.sin(tiltX);
-    const z2 =  y*Math.sin(tiltX) + z1*Math.cos(tiltX);
-    return { sx: cx + x1*scale, sy: cy - y2*scale, depth: z2 };
+  function project(x,y,z) {
+    const x1=x*Math.cos(angle)+z*Math.sin(angle), z1=-x*Math.sin(angle)+z*Math.cos(angle);
+    const y2=y*Math.cos(tiltX)-z1*Math.sin(tiltX), z2=y*Math.sin(tiltX)+z1*Math.cos(tiltX);
+    return {sx:cx+x1*scale, sy:cy-y2*scale, depth:z2};
   }
-
-  function faceVisible(nx, ny, nz) {
-    const nx1 =  nx*Math.cos(angle) + nz*Math.sin(angle);
-    const nz1 = -nx*Math.sin(angle) + nz*Math.cos(angle);
-    const ny2 =  ny*Math.cos(tiltX) - nz1*Math.sin(tiltX);
-    const nz2 =  ny*Math.sin(tiltX) + nz1*Math.cos(tiltX);
-    return -nz2 > 0.04;
+  function faceVisible(nx,ny,nz) {
+    const nx1=nx*Math.cos(angle)+nz*Math.sin(angle), nz1=-nx*Math.sin(angle)+nz*Math.cos(angle);
+    const ny2=ny*Math.cos(tiltX)-nz1*Math.sin(tiltX), nz2=ny*Math.sin(tiltX)+nz1*Math.cos(tiltX);
+    return -nz2>0.04;
   }
-
   const faceDefs = [
-    { fi:0, nx:0,  ny:1,  nz:0,
-      q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)] },
-    { fi:1, nx:0,  ny:0,  nz:1,
-      q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)] },
-    { fi:2, nx:1,  ny:0,  nz:0,
-      q:(c,r)=>[project(+half,+half-r,-half+c),project(+half,+half-r,-half+c+1),project(+half,+half-r-1,-half+c+1),project(+half,+half-r-1,-half+c)] },
-    { fi:3, nx:0,  ny:0,  nz:-1,
-      q:(c,r)=>[project(+half-c,+half-r,-half),project(+half-c-1,+half-r,-half),project(+half-c-1,+half-r-1,-half),project(+half-c,+half-r-1,-half)] },
-    { fi:4, nx:-1, ny:0,  nz:0,
-      q:(c,r)=>[project(-half,+half-r,+half-c),project(-half,+half-r,+half-c-1),project(-half,+half-r-1,+half-c-1),project(-half,+half-r-1,+half-c)] },
-    { fi:5, nx:0,  ny:-1, nz:0,
-      q:(c,r)=>[project(-half+c,-half,+half-r),project(-half+c+1,-half,+half-r),project(-half+c+1,-half,+half-r-1),project(-half+c,-half,+half-r-1)] },
+    {fi:0,nx:0,ny:1,nz:0,   q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)]},
+    {fi:1,nx:0,ny:0,nz:1,   q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)]},
+    {fi:2,nx:1,ny:0,nz:0,   q:(c,r)=>[project(+half,+half-r,-half+c),project(+half,+half-r,-half+c+1),project(+half,+half-r-1,-half+c+1),project(+half,+half-r-1,-half+c)]},
+    {fi:3,nx:0,ny:0,nz:-1,  q:(c,r)=>[project(+half-c,+half-r,-half),project(+half-c-1,+half-r,-half),project(+half-c-1,+half-r-1,-half),project(+half-c,+half-r-1,-half)]},
+    {fi:4,nx:-1,ny:0,nz:0,  q:(c,r)=>[project(-half,+half-r,+half-c),project(-half,+half-r,+half-c-1),project(-half,+half-r-1,+half-c-1),project(-half,+half-r-1,+half-c)]},
+    {fi:5,nx:0,ny:-1,nz:0,  q:(c,r)=>[project(-half+c,-half,+half-r),project(-half+c+1,-half,+half-r),project(-half+c+1,-half,+half-r-1),project(-half+c,-half,+half-r-1)]},
   ];
-
-  const allQuads = [];
+  const allQuads=[];
   for (const fd of faceDefs) {
-    if (!faceVisible(fd.nx, fd.ny, fd.nz)) continue;
-    for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
-      const pts = fd.q(c, r);
-      const depth = pts.reduce((s,p)=>s+p.depth,0)/4;
-      allQuads.push({ pts, depth, hex: faceHexGrid[fd.fi][r][c] });
+    if (!faceVisible(fd.nx,fd.ny,fd.nz)) continue;
+    for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
+      const pts=fd.q(c,r);
+      allQuads.push({pts, depth:pts.reduce((s,p)=>s+p.depth,0)/4, hex:faceHexGrid[fd.fi][r][c]});
     }
   }
-  allQuads.sort((a,b) => a.depth - b.depth);
-
-  for (const { pts, hex } of allQuads) {
-    const [p0,p1,p2,p3] = pts;
-    rc.beginPath();
-    rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy);
-    rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy);
-    rc.closePath(); rc.fillStyle = "#0d0d0d"; rc.fill();
-
+  allQuads.sort((a,b)=>a.depth-b.depth);
+  for (const {pts,hex} of allQuads) {
+    const [p0,p1,p2,p3]=pts;
+    rc.beginPath(); rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy); rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy); rc.closePath();
+    rc.fillStyle="#0d0d0d"; rc.fill();
     const mcx=(p0.sx+p1.sx+p2.sx+p3.sx)/4, mcy=(p0.sy+p1.sy+p2.sy+p3.sy)/4;
     function lerp(a,b,t){return{sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t};}
     const C={sx:mcx,sy:mcy};
     const i0=lerp(p0,C,INSET),i1=lerp(p1,C,INSET),i2=lerp(p2,C,INSET),i3=lerp(p3,C,INSET);
-    rc.beginPath();
-    rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy);
-    rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy);
-    rc.closePath(); rc.fillStyle = hex; rc.fill();
-    if (hex !== DEFAULT_HEX) {
-      rc.strokeStyle="rgba(255,255,255,0.15)"; rc.lineWidth=0.5; rc.stroke();
-    }
+    rc.beginPath(); rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy); rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy); rc.closePath();
+    rc.fillStyle=hex; rc.fill();
+    if (hex!==DEFAULT_HEX){rc.strokeStyle="rgba(255,255,255,0.15)";rc.lineWidth=0.5;rc.stroke();}
   }
 }
 
-function updateCubeFromFaceData(faceKey, colors16) {
-  const fi = FACE_IDX[faceKey];
-  for (let r=0; r<4; r++) for (let c=0; c<4; c++) {
-    const name = colors16[r*4+c];
-    faceHexGrid[fi][r][c] = CUBE_COLORS[name]?.hex || DEFAULT_HEX;
-  }
+function updateCubeColors(faceKey, colors16) {
+  const fi = FACE_3D_IDX[faceKey];
+  for (let r=0;r<4;r++) for (let c=0;c<4;c++)
+    faceHexGrid[fi][r][c] = CUBE_COLORS[colors16[r*4+c]]?.hex || DEFAULT_HEX;
 }
 
-// ══════════════════════════════════════════════════════════
-//  CAPTURE + GEMINI ANALYSIS
-// ══════════════════════════════════════════════════════════
+// ── CAPTURE ───────────────────────────────────────────────
 captureBtn.addEventListener("click", async () => {
   if (analyzing) return;
   analyzing = true;
   captureBtn.disabled  = true;
   captureBtn.innerHTML = '<span class="spinner"></span> Analyzing...';
 
-  // Snapshot current frame as JPEG base64
+  // Snapshot
   const snap = document.createElement("canvas");
   snap.width  = video.videoWidth  || 640;
   snap.height = video.videoHeight || 480;
-  snap.getContext("2d").drawImage(video, 0, 0);
-  const snapDataURL = snap.toDataURL("image/jpeg", 0.85);
-  const imageB64    = snapDataURL.split(",")[1];
+  snap.getContext("2d").drawImage(video,0,0);
+
+  // Crop to the square scan zone (same math as overlay)
+  const sw = snap.width, sh = snap.height;
+  const size = Math.min(sw,sh) * 0.72;
+  const sx   = (sw-size)/2, sy=(sh-size)/2;
+
+  // Crop canvas
+  const crop = document.createElement("canvas");
+  crop.width = crop.height = 480; // fixed size for Gemini
+  crop.getContext("2d").drawImage(snap, sx,sy,size,size, 0,0,480,480);
+  const imageB64 = crop.toDataURL("image/jpeg",0.90).split(",")[1];
+  const photoURL = crop.toDataURL("image/jpeg",0.80);
+
+  const face = FACES[currentFaceIdx];
 
   try {
-    const res  = await fetch("/analyze-shot", {
+    const res  = await fetch("/analyze-face", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ shot: currentShot, image: imageB64 })
+      body: JSON.stringify({ image: imageB64 })
     });
     const data = await res.json();
-
     if (data.error) throw new Error(data.error);
 
-    // Store + update 3D cube for each returned face
-    for (const [faceKey, colors] of Object.entries(data)) {
-      faceData[faceKey] = colors;
-      updateCubeFromFaceData(faceKey, colors);
+    const colors = data.colors;
+    faceData[face.key] = colors;
+    updateCubeColors(face.key, colors);
+
+    // Show face result card
+    showFaceResult(face, colors, photoURL, currentFaceIdx);
+
+    // Update sidebar
+    const steps = document.querySelectorAll(".face-step");
+    if (steps[currentFaceIdx]) {
+      steps[currentFaceIdx].classList.remove("active");
+      steps[currentFaceIdx].classList.add("done");
     }
 
-    // Show photo thumbnail + editable sticker grids
-    showFaceEditors(SHOT_FACES[currentShot], data, currentShot, snapDataURL);
+    currentFaceIdx++;
+    faceNumEl.textContent = currentFaceIdx;
 
-    // Advance to next shot or finish
-    if (currentShot === 1) {
-      currentShot = 2;
-      updateShotUI();
-      captureBtn.disabled  = false;
-      captureBtn.textContent = "📸  Capture Shot 2";
+    if (currentFaceIdx < 6) {
+      const nextFace = FACES[currentFaceIdx];
+      if (steps[currentFaceIdx]) steps[currentFaceIdx].classList.add("active");
+      mainTitle.textContent  = `FACE ${currentFaceIdx+1} OF 6 — ${nextFace.label.toUpperCase()}`;
+      mainDesc.textContent   = nextFace.hint;
+      faceNameEl.textContent = nextFace.label;
+      captureBtn.disabled    = false;
+      captureBtn.textContent = `📸  Scan ${nextFace.label} Face`;
     } else {
-      // Both shots done
-      captureBtn.disabled  = true;
-      captureBtn.textContent = "✅  Both shots captured!";
+      captureBtn.disabled    = true;
+      captureBtn.textContent = "✅  All faces scanned!";
       solveRow.style.display = "flex";
       resetBtn.style.display = "block";
       mainTitle.textContent  = "READY TO SOLVE";
-      mainDesc.textContent   = "All faces scanned. Check the cube above then press Solve.";
+      mainDesc.textContent   = "Check the 3D cube — tap any wrong sticker to fix it, then press Solve.";
       faceNameEl.textContent = "—";
-      const badge = document.getElementById("shot-badge");
-      if (badge) { badge.textContent="ALL DONE"; badge.style.background="var(--accent2)"; }
     }
 
   } catch (err) {
-    showError("Gemini couldn't read the faces: " + err.message);
+    showError("Gemini error: " + err.message);
     captureBtn.disabled  = false;
-    captureBtn.textContent = `📸  Retry Shot ${currentShot}`;
+    captureBtn.textContent = `📸  Retry ${face.label} Face`;
   }
-
   analyzing = false;
 });
 
-function updateShotUI() {
-  mainTitle.textContent = "SHOT 2 OF 2";
-  mainDesc.innerHTML    = SHOT_INSTRUCTIONS[2];
-  faceNameEl.textContent = "Bottom corner";
-  faceNumEl.textContent  = "1";
-  const badge = document.getElementById("shot-badge");
-  if (badge) badge.textContent = "SHOT 2 OF 2";
-  // Swap guide panels
-  const g1 = document.getElementById("guide-shot1");
-  const g2 = document.getElementById("guide-shot2");
-  if (g1) g1.style.display = "none";
-  if (g2) g2.style.display = "block";
-}
+// ── FACE RESULT CARD ──────────────────────────────────────
+function showFaceResult(face, colors, photoURL, idx) {
+  // Remove old card for this face if retrying
+  const old = document.getElementById(`face-card-${face.key}`);
+  if (old) old.remove();
 
-// ── EDITABLE FACE GRIDS (tap to fix) + shot thumbnail ────
-function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
-  // Remove old content for this shot
-  document.querySelectorAll(`[data-shot="${shotNum}"]`).forEach(el => el.remove());
-  document.querySelectorAll(`[data-shot-label="${shotNum}"]`).forEach(el => el.remove());
+  const card = document.createElement("div");
+  card.id        = `face-card-${face.key}`;
+  card.className = "face-result-card";
 
-  // Shot header
-  const shotLabel = document.createElement("div");
-  shotLabel.className = "section-label";
-  shotLabel.setAttribute("data-shot-label", shotNum);
-  shotLabel.setAttribute("data-shot", shotNum);
-  shotLabel.textContent = `SHOT ${shotNum} — TAP ANY STICKER TO CORRECT`;
-  facesRow.appendChild(shotLabel);
+  // Header
+  const hdr = document.createElement("div");
+  hdr.className   = "face-result-hdr";
+  hdr.textContent = `${face.color} ${face.label} Face`;
+  card.appendChild(hdr);
+
+  // Body: photo + grid side by side
+  const body = document.createElement("div");
+  body.className = "face-result-body";
 
   // Photo thumbnail
-  if (photoDataURL) {
-    const thumbWrap = document.createElement("div");
-    thumbWrap.className = "shot-thumb-wrap";
-    thumbWrap.setAttribute("data-shot", shotNum);
-    const img = document.createElement("img");
-    img.src = photoDataURL;
-    img.className = "shot-thumb";
-    img.alt = `Shot ${shotNum}`;
-    thumbWrap.appendChild(img);
-    const lbl = document.createElement("div");
-    lbl.className = "shot-thumb-label";
-    lbl.textContent = `Shot ${shotNum} photo`;
-    thumbWrap.appendChild(lbl);
-    facesRow.appendChild(thumbWrap);
-  }
+  const img = document.createElement("img");
+  img.src       = photoURL;
+  img.className = "face-result-photo";
+  body.appendChild(img);
 
-  // Face grids
-  faceKeys.forEach(fk => {
-    const colors = data[fk] || Array(16).fill("white");
-    const wrap = document.createElement("div");
-    wrap.className    = "face-editor";
-    wrap.setAttribute("data-shot", shotNum);
-    wrap.dataset.face = fk;
-
-    const title = document.createElement("div");
-    title.className   = "face-editor-title";
-    title.textContent = FACE_NAMES[fk];
-    wrap.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.className = "editor-grid";
-
-    colors.forEach((colorName, idx) => {
-      const cell = document.createElement("div");
-      cell.className = "editor-cell";
-      cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
-      cell.dataset.idx   = idx;
-      cell.dataset.color = colorName;
-      cell.addEventListener("pointerdown", (e) => { e.stopPropagation(); openColorPicker(cell, fk, idx); });
-      grid.appendChild(cell);
+  // 4×4 editable sticker grid
+  const grid = document.createElement("div");
+  grid.className = "editor-grid";
+  colors.forEach((colorName, i) => {
+    const cell = document.createElement("div");
+    cell.className = "editor-cell";
+    cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
+    cell.dataset.color = colorName;
+    cell.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      openColorPicker(cell, face.key, i);
     });
-
-    wrap.appendChild(grid);
-    facesRow.appendChild(wrap);
+    grid.appendChild(cell);
   });
+  body.appendChild(grid);
+  card.appendChild(body);
+  facesRow.appendChild(card);
 }
 
-// ── COLOR PICKER POPOVER ──────────────────────────────────
+// ── COLOR PICKER ──────────────────────────────────────────
 let activePopover = null;
 let pickerOpenTime = 0;
 
 function openColorPicker(cell, faceKey, idx) {
-  // If same cell tapped twice, just close
-  if (activePopover && activePopover._cell === cell) {
-    closeColorPicker();
-    return;
-  }
+  if (activePopover && activePopover._cell === cell) { closeColorPicker(); return; }
   closeColorPicker();
   pickerOpenTime = Date.now();
 
@@ -430,32 +363,26 @@ function openColorPicker(cell, faceKey, idx) {
   pop._cell = cell;
 
   ALL_COLORS.forEach(colorName => {
-    const swatch = document.createElement("div");
-    swatch.className = "color-swatch";
-    swatch.style.background = CUBE_COLORS[colorName].hex;
-    swatch.title = colorName;
-    if (colorName === cell.dataset.color) swatch.classList.add("selected");
-
-    swatch.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      // Update cell visual
+    const sw = document.createElement("div");
+    sw.className = "color-swatch";
+    sw.style.background = CUBE_COLORS[colorName].hex;
+    sw.title = colorName;
+    if (colorName === cell.dataset.color) sw.classList.add("selected");
+    sw.addEventListener("pointerdown", (e) => {
+      e.stopPropagation(); e.preventDefault();
       cell.style.background  = CUBE_COLORS[colorName].hex;
       cell.dataset.color     = colorName;
-      // Update data
-      faceData[faceKey][idx] = colorName;
-      // Update 3D cube
-      const r = Math.floor(idx / 4), c = idx % 4;
-      faceHexGrid[FACE_IDX[faceKey]][r][c] = CUBE_COLORS[colorName].hex;
+      if (faceData[faceKey]) faceData[faceKey][idx] = colorName;
+      const r=Math.floor(idx/4), c=idx%4;
+      faceHexGrid[FACE_3D_IDX[faceKey]][r][c] = CUBE_COLORS[colorName].hex;
       closeColorPicker();
     });
-    pop.appendChild(swatch);
+    pop.appendChild(sw);
   });
 
-  // Position popover below cell, keep on screen
   const rect = cell.getBoundingClientRect();
   const popW = ALL_COLORS.length * 36 + 16;
-  let left = rect.left + window.scrollX;
+  let left   = rect.left + window.scrollX;
   if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
   pop.style.top  = (rect.bottom + window.scrollY + 8) + "px";
   pop.style.left = Math.max(8, left) + "px";
@@ -467,25 +394,23 @@ function closeColorPicker() {
   if (activePopover) { activePopover.remove(); activePopover = null; }
 }
 
-// Close picker when tapping outside — but only if it's been open >200ms
 document.addEventListener("pointerdown", (e) => {
   if (!activePopover) return;
   if (Date.now() - pickerOpenTime < 200) return;
   if (!activePopover.contains(e.target)) closeColorPicker();
 });
 
-// ── ERROR BOX ─────────────────────────────────────────────
+// ── ERROR ─────────────────────────────────────────────────
 function showError(msg) {
   let box = document.getElementById("err-box");
   if (!box) {
     box = document.createElement("div");
-    box.id = "err-box";
-    box.className = "error-box";
+    box.id = "err-box"; box.className = "error-box";
     facesRow.before(box);
   }
   box.innerHTML = `<strong>Error:</strong> ${msg}`;
   box.style.display = "block";
-  setTimeout(() => { if (box) box.style.display="none"; }, 6000);
+  setTimeout(() => { if(box) box.style.display="none"; }, 7000);
 }
 
 // ── SOLVE ─────────────────────────────────────────────────
@@ -496,8 +421,11 @@ solveBtn.addEventListener("click", async () => {
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const colors = faceData[letter];
-    if (!colors) { showError(`Face ${letter} not scanned yet.`); solveBtn.innerHTML="✅  Solve"; solveBtn.disabled=false; return; }
-    for (const colorName of colors) stateStr += COLOR_TO_FACE[colorName];
+    if (!colors) {
+      showError(`Face ${letter} not scanned.`);
+      solveBtn.innerHTML = "✅  Solve the Cube!"; solveBtn.disabled = false; return;
+    }
+    for (const c of colors) stateStr += COLOR_TO_FACE[c];
   }
 
   try {
@@ -505,17 +433,12 @@ solveBtn.addEventListener("click", async () => {
     const solution = await experimental4x4x4Solve(stateStr);
     showSolution(solution.toString());
   } catch (err) {
-    console.error(err);
     solutionArea.style.display = "block";
-    document.getElementById("moves-wrap").innerHTML = "";
+    document.getElementById("moves-wrap").innerHTML =
+      `<div class="error-box"><strong>Could not solve.</strong><br>Check sticker colours and try again.</div>`;
     document.getElementById("twisty-wrap").style.display = "none";
-    document.getElementById("move-count").textContent   = "";
-    const errBox = document.createElement("div");
-    errBox.className = "error-box";
-    errBox.innerHTML = `<strong>Could not solve — colours may be wrong.</strong><br><br>Check the 3D cube above and tap any wrong sticker to fix it, then try Solve again.`;
-    document.getElementById("moves-wrap").appendChild(errBox);
-    solveBtn.innerHTML = "✅  Solve the Cube!";
-    solveBtn.disabled  = false;
+    document.getElementById("move-count").textContent = "";
+    solveBtn.innerHTML = "✅  Solve the Cube!"; solveBtn.disabled = false;
   }
 });
 
@@ -532,44 +455,35 @@ function showSolution(algString) {
   document.getElementById("twisty").setAttribute("alg", algString);
   document.getElementById("twisty-wrap").style.display = "block";
   solutionArea.style.display = "block";
-  solutionArea.scrollIntoView({ behavior:"smooth" });
+  solutionArea.scrollIntoView({behavior:"smooth"});
 }
 
 // ── RESET ─────────────────────────────────────────────────
 resetBtn.addEventListener("click", () => {
-  currentShot = 1;
-  analyzing   = false;
-  Object.keys(faceData).forEach(k => faceData[k] = null);
-  faceHexGrid = Array.from({length:6}, () =>
-    Array.from({length:4}, () => Array(4).fill(DEFAULT_HEX))
-  );
+  currentFaceIdx = 0; analyzing = false;
+  Object.keys(faceData).forEach(k => delete faceData[k]);
+  faceHexGrid = Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill(DEFAULT_HEX)));
 
   document.querySelectorAll(".face-step").forEach((s,i) => {
     s.classList.remove("active","done");
     if (i===0) s.classList.add("active");
   });
 
-  faceNameEl.textContent = "Top corner";
+  mainTitle.textContent  = "FACE 1 OF 6 — TOP";
+  mainDesc.textContent   = FACES[0].hint;
+  faceNameEl.textContent = "Top";
   faceNumEl.textContent  = "0";
-  mainTitle.textContent  = "SHOT 1 OF 2";
-  mainDesc.innerHTML     = SHOT_INSTRUCTIONS[1];
 
   captureBtn.disabled    = false;
-  captureBtn.textContent = "📸  Capture Shot 1";
+  captureBtn.textContent = "📸  Scan Top Face";
   solveRow.style.display = "none";
   solutionArea.style.display = "none";
   resetBtn.style.display = "none";
-  solveBtn.innerHTML     = "✅  Solve the Cube!";
-  solveBtn.disabled      = false;
+  solveBtn.innerHTML     = "✅  Solve the Cube!"; solveBtn.disabled = false;
 
   document.getElementById("twisty-wrap").style.display = "block";
   document.getElementById("move-count").textContent    = "";
-  document.querySelectorAll(".face-editor, [data-shot-label], .shot-thumb-wrap, [data-shot]").forEach(el => el.remove());
-
-  const badge = document.getElementById("shot-badge");
-  if (badge) { badge.textContent="SHOT 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
-  const g1 = document.getElementById("guide-shot1");
-  const g2 = document.getElementById("guide-shot2");
-  if (g1) g1.style.display = "block";
-  if (g2) g2.style.display = "none";
+  document.querySelectorAll(".face-result-card").forEach(el=>el.remove());
+  const errBox = document.getElementById("err-box");
+  if (errBox) errBox.style.display = "none";
 });
