@@ -123,86 +123,74 @@ async function startCamera() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  GRID OVERLAY — proper isometric cube, all 3 faces fan out
+//  GRID OVERLAY — isometric cube matching reference image
+//  Top face = diamond, right face fans right, left face fans left
 // ══════════════════════════════════════════════════════════
 function drawGrid() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
-  const N    = 4;
-  const cell = Math.min(w, h) * 0.108;
-  const cx   = w / 2;
-  const cy   = h * 0.50;
+  const N  = 4;
+  // Size of one cell. Total cube width = N*2*cellW across the widest point
+  const cW = Math.min(w, h) * 0.095;   // cell width projected
+  const cH = cW * 0.5;                  // cell height on top face (iso = half width)
+  const sH = cW * 0.9;                  // cell height on side faces
 
-  // True isometric axes (30° from horizontal)
-  const cos30 = Math.sqrt(3) / 2;
-  const sin30 = 0.5;
+  // The top-front corner (the pointy front tip of the top face) sits at:
+  const ox = w / 2;
+  const oy = h * 0.47;
 
-  // 3 edge directions of an isometric cube:
-  // A: straight up       → (0, -1)         * cell  [the vertical center line]
-  // B: down-right        → (cos30, sin30)   * cell  [right edge]
-  // C: down-left         → (-cos30, sin30)  * cell  [left edge]
-  const Ax = 0,             Ay = -cell;           // up
-  const Bx = cos30 * cell,  By = sin30 * cell;    // down-right
-  const Cx = -cos30 * cell, Cy = sin30 * cell;    // down-left
-
-  // The front corner (top of line A, where all 3 faces meet at the TOP) = (cx, cy - N*cell)
-  // So the cube's top-front-corner is above center, and the cube hangs down from it.
-  // Actually: let's place the MIDDLE front-vertical-edge center at (cx, cy).
-  // Front vertical edge goes from (cx, cy - N*cell/2... ) — just anchor at top corner.
-
-  // Anchor: top-front corner of the cube at (cx, cy - N*|Ay|/2)
-  // Simpler: place the very front-top corner at (cx, cy)
-  // Then:
-  //   Top face    → goes back-right (+B) and back-left (+C) from top corner
-  //   Right face  → goes back-right (+B) and down (-A, i.e. +cell in Y) from top corner
-  //   Left face   → goes back-left  (+C) and down from top corner
-
-  // Top-front corner of cube:
-  const ox = cx;
-  const oy = cy - N * cell * 0.3; // sit cube slightly above center
-
-  // Point generators — origin is top-front corner of cube
-  // Top face: spread along B (back-right) and C (back-left)
+  // ── 3 point functions, all relative to front-top corner ──
+  //
+  // TOP face:  from front corner, going back-right = (+cW, +cH) per step
+  //                               going back-left  = (-cW, +cH) per step
+  //   top(c, r): c = steps right-back, r = steps left-back
   function top(c, r) {
-    return [ ox + c*Bx + r*Cx,  oy + c*By + r*Cy ];
-  }
-  // Right face: spread along B (back-right) and down (−A = positive Y)
-  function rit(c, r) {
-    return [ ox + c*Bx,  oy + c*By - r*Ay ];  // -Ay = +cell (down)
-  }
-  // Left face: spread along C (back-left) and down
-  function lft(c, r) {
-    return [ ox + c*Cx,  oy + c*Cy - r*Ay ];
+    return [ox + c*cW - r*cW,  oy + c*cH + r*cH];
   }
 
-  const ACCENT     = "#c8f135";
-  const CELL_COLOR = "rgba(200,241,53,0.6)";
-  const INSET      = 0.10;
+  // RIGHT face: from front corner, going right = (+cW, +cH) per col step
+  //                                going down  = (0, +sH) per row step
+  function rit(c, r) {
+    return [ox + c*cW,  oy + c*cH + r*sH];
+  }
+
+  // LEFT face: from front corner, going left = (-cW, +cH) per col step
+  //                               going down = (0, +sH) per row step
+  function lft(c, r) {
+    return [ox - c*cW,  oy + c*cH + r*sH];
+  }
+
+  const ACCENT = "#c8f135";
+  const GRID_C = "rgba(200,241,53,0.6)";
+  const INSET  = 0.10;
 
   function drawSticker(tl, tr, br, bl) {
-    const mcx = (tl[0]+tr[0]+br[0]+bl[0]) / 4;
-    const mcy = (tl[1]+tr[1]+br[1]+bl[1]) / 4;
-    const pts = [tl,tr,br,bl].map(([x,y]) => [
-      x + (mcx-x)*INSET, y + (mcy-y)*INSET
-    ]);
+    const mx = (tl[0]+tr[0]+br[0]+bl[0])/4;
+    const my = (tl[1]+tr[1]+br[1]+bl[1])/4;
+    const pts = [tl,tr,br,bl].map(([x,y]) => [x+(mx-x)*INSET, y+(my-y)*INSET]);
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    ctx.lineTo(pts[1][0], pts[1][1]);
-    ctx.lineTo(pts[2][0], pts[2][1]);
-    ctx.lineTo(pts[3][0], pts[3][1]);
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    ctx.lineTo(pts[1][0],pts[1][1]);
+    ctx.lineTo(pts[2][0],pts[2][1]);
+    ctx.lineTo(pts[3][0],pts[3][1]);
     ctx.closePath();
-    ctx.strokeStyle = CELL_COLOR;
+    ctx.strokeStyle = GRID_C;
     ctx.lineWidth   = 1.5;
     ctx.stroke();
   }
 
-  for (let r = 0; r < N; r++) {
-    for (let c = 0; c < N; c++) {
-      drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
-      drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
-      drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
-    }
+  // Top face: col goes right-back, row goes left-back
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
+  }
+  // Right face: col goes right, row goes down
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
+  }
+  // Left face: col goes left, row goes down
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
   }
 
   // Bold outer edges
@@ -210,18 +198,17 @@ function drawGrid() {
   ctx.lineWidth   = 2.8;
   ctx.lineJoin    = "round";
   ctx.lineCap     = "round";
-
-  function outline(a,b,c,d) {
+  function edge(a,b,c,d) {
     ctx.beginPath();
     ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
     ctx.lineTo(c[0],c[1]); ctx.lineTo(d[0],d[1]);
     ctx.closePath(); ctx.stroke();
   }
-  outline(top(0,0), top(N,0), top(N,N), top(0,N));
-  outline(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
-  outline(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
+  edge(top(0,0), top(N,0), top(N,N), top(0,N));
+  edge(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
+  edge(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
 
-  // Center alignment dot at top-front corner
+  // Alignment dot at front corner
   ctx.beginPath(); ctx.arc(ox, oy, 4.5, 0, Math.PI*2);
   ctx.fillStyle = ACCENT; ctx.fill();
   ctx.beginPath(); ctx.arc(ox, oy, 8, 0, Math.PI*2);
@@ -340,7 +327,8 @@ captureBtn.addEventListener("click", async () => {
   snap.width  = video.videoWidth  || 640;
   snap.height = video.videoHeight || 480;
   snap.getContext("2d").drawImage(video, 0, 0);
-  const imageB64 = snap.toDataURL("image/jpeg", 0.85).split(",")[1];
+  const snapDataURL = snap.toDataURL("image/jpeg", 0.85);
+  const imageB64    = snapDataURL.split(",")[1];
 
   try {
     const res  = await fetch("/analyze-shot", {
@@ -357,8 +345,8 @@ captureBtn.addEventListener("click", async () => {
       updateCubeFromFaceData(faceKey, colors);
     }
 
-    // Show editable sticker grids for this shot's faces
-    showFaceEditors(SHOT_FACES[currentShot], data, currentShot);
+    // Show photo thumbnail + editable sticker grids
+    showFaceEditors(SHOT_FACES[currentShot], data, currentShot, snapDataURL);
 
     // Advance to next shot or finish
     if (currentShot === 1) {
@@ -398,26 +386,43 @@ function updateShotUI() {
 }
 
 // ── EDITABLE FACE GRIDS (tap to fix) + shot thumbnail ────
-function showFaceEditors(faceKeys, data, shotNum) {
-  // Remove old editors for this shot
-  document.querySelectorAll(`.face-editor[data-shot="${shotNum}"]`).forEach(el => el.remove());
+function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
+  // Remove old content for this shot
+  document.querySelectorAll(`[data-shot="${shotNum}"]`).forEach(el => el.remove());
+  document.querySelectorAll(`[data-shot-label="${shotNum}"]`).forEach(el => el.remove());
 
-  // Shot label
+  // Shot header
   const shotLabel = document.createElement("div");
   shotLabel.className = "section-label";
-  shotLabel.dataset.shot = shotNum;
   shotLabel.setAttribute("data-shot-label", shotNum);
+  shotLabel.setAttribute("data-shot", shotNum);
   shotLabel.textContent = `SHOT ${shotNum} — TAP ANY STICKER TO CORRECT`;
-  // Remove old label if re-scanning same shot
-  document.querySelectorAll(`[data-shot-label="${shotNum}"]`).forEach(el => el.remove());
   facesRow.appendChild(shotLabel);
 
+  // Photo thumbnail
+  if (photoDataURL) {
+    const thumbWrap = document.createElement("div");
+    thumbWrap.className = "shot-thumb-wrap";
+    thumbWrap.setAttribute("data-shot", shotNum);
+    const img = document.createElement("img");
+    img.src = photoDataURL;
+    img.className = "shot-thumb";
+    img.alt = `Shot ${shotNum}`;
+    thumbWrap.appendChild(img);
+    const lbl = document.createElement("div");
+    lbl.className = "shot-thumb-label";
+    lbl.textContent = `Shot ${shotNum} photo`;
+    thumbWrap.appendChild(lbl);
+    facesRow.appendChild(thumbWrap);
+  }
+
+  // Face grids
   faceKeys.forEach(fk => {
     const colors = data[fk] || Array(16).fill("white");
     const wrap = document.createElement("div");
     wrap.className    = "face-editor";
+    wrap.setAttribute("data-shot", shotNum);
     wrap.dataset.face = fk;
-    wrap.dataset.shot = shotNum;
 
     const title = document.createElement("div");
     title.className   = "face-editor-title";
@@ -577,7 +582,7 @@ resetBtn.addEventListener("click", () => {
 
   document.getElementById("twisty-wrap").style.display = "block";
   document.getElementById("move-count").textContent    = "";
-  document.querySelectorAll(".face-editor, [data-shot-label]").forEach(el => el.remove());
+  document.querySelectorAll(".face-editor, [data-shot-label], .shot-thumb-wrap, [data-shot]").forEach(el => el.remove());
 
   const badge = document.getElementById("shot-badge");
   if (badge) { badge.textContent="PHOTO 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
