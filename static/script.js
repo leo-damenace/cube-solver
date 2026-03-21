@@ -123,95 +123,56 @@ async function startCamera() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  GRID OVERLAY — isometric cube matching reference image
+//  CAMERA OVERLAY — simple corner bracket guide, no wireframe
 // ══════════════════════════════════════════════════════════
 function drawGrid() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
-  const N  = 4;
-  const cW = Math.min(w, h) * 0.095;  // half-width of one cell
-  const cH = cW * 0.55;               // iso height drop per cell (top face)
-  const sH = cW * 1.0;                // height of one cell on side faces
-
-  // Front corner — where all 3 faces meet
-  const ox = w / 2;
-  const oy = h * 0.50;
-
-  // TOP face:
-  //   from front corner, each step RIGHT goes (+cW, -cH)  [up-right]
-  //   each step BACK    goes (-cW, -cH)  [up-left]
-  //   so top(0,0)=front corner, top(N,0)=far right, top(0,N)=far left, top(N,N)=back apex
-  function top(c, r) {
-    return [ox + c*cW - r*cW,  oy - c*cH - r*cH];
-  }
-
-  // RIGHT face:
-  //   from front corner, each col step goes (+cW, +cH)  [down-right along iso]
-  //   each row step goes (0, +sH)  [straight down]
-  function rit(c, r) {
-    return [ox + c*cW,  oy + c*cH + r*sH];
-  }
-
-  // LEFT face:
-  //   from front corner, each col step goes (-cW, +cH)  [down-left along iso]
-  //   each row step goes (0, +sH)  [straight down]
-  function lft(c, r) {
-    return [ox - c*cW,  oy + c*cH + r*sH];
-  }
-
   const ACCENT = "#c8f135";
-  const GRID_C = "rgba(200,241,53,0.6)";
-  const INSET  = 0.10;
 
-  function drawSticker(tl, tr, br, bl) {
-    const mx = (tl[0]+tr[0]+br[0]+bl[0])/4;
-    const my = (tl[1]+tr[1]+br[1]+bl[1])/4;
-    const pts = [tl,tr,br,bl].map(([x,y]) => [x+(mx-x)*INSET, y+(my-y)*INSET]);
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0],pts[0][1]);
-    ctx.lineTo(pts[1][0],pts[1][1]);
-    ctx.lineTo(pts[2][0],pts[2][1]);
-    ctx.lineTo(pts[3][0],pts[3][1]);
-    ctx.closePath();
-    ctx.strokeStyle = GRID_C;
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
-  }
+  // Dark vignette around edges to focus attention center
+  const grad = ctx.createRadialGradient(w/2, h/2, h*0.25, w/2, h/2, h*0.7);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.45)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
 
-  // Top face: c=right col, r=left col (going back)
-  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-    drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
-  }
-  // Right face: c=col going right, r=row going down
-  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-    drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
-  }
-  // Left face: c=col going left, r=row going down
-  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-    drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
-  }
+  // Corner bracket size
+  const bSize = Math.min(w, h) * 0.12;
+  const pad   = Math.min(w, h) * 0.12;
+  const lw    = 3;
 
-  // Bold outer edges
   ctx.strokeStyle = ACCENT;
-  ctx.lineWidth   = 2.8;
-  ctx.lineJoin    = "round";
+  ctx.lineWidth   = lw;
   ctx.lineCap     = "round";
-  function edge(a,b,c,d) {
-    ctx.beginPath();
-    ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
-    ctx.lineTo(c[0],c[1]); ctx.lineTo(d[0],d[1]);
-    ctx.closePath(); ctx.stroke();
-  }
-  edge(top(0,0), top(N,0), top(N,N), top(0,N));
-  edge(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
-  edge(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
 
-  // Alignment dot at front corner
-  ctx.beginPath(); ctx.arc(ox, oy, 4.5, 0, Math.PI*2);
-  ctx.fillStyle = ACCENT; ctx.fill();
-  ctx.beginPath(); ctx.arc(ox, oy, 8, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(200,241,53,0.3)"; ctx.lineWidth=1.5; ctx.stroke();
+  // Draw L-shaped bracket at each corner
+  const corners = [
+    [pad,   pad,    1,  1],   // top-left
+    [w-pad, pad,   -1,  1],   // top-right
+    [pad,   h-pad,  1, -1],   // bottom-left
+    [w-pad, h-pad, -1, -1],   // bottom-right
+  ];
+  corners.forEach(([x, y, dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(x + dx*bSize, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + dy*bSize);
+    ctx.stroke();
+  });
+
+  // Center crosshair dot
+  const cx = w/2, cy = h/2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI*2);
+  ctx.fillStyle = ACCENT;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 10, 0, Math.PI*2);
+  ctx.strokeStyle = "rgba(200,241,53,0.4)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
   requestAnimationFrame(drawGrid);
 }
@@ -381,7 +342,12 @@ function updateShotUI() {
   faceNameEl.textContent = "Bottom corner";
   faceNumEl.textContent  = "1";
   const badge = document.getElementById("shot-badge");
-  if (badge) badge.textContent = "PHOTO 2 OF 2";
+  if (badge) badge.textContent = "SHOT 2 OF 2";
+  // Swap guide panels
+  const g1 = document.getElementById("guide-shot1");
+  const g2 = document.getElementById("guide-shot2");
+  if (g1) g1.style.display = "none";
+  if (g2) g2.style.display = "block";
 }
 
 // ── EDITABLE FACE GRIDS (tap to fix) + shot thumbnail ────
@@ -437,7 +403,7 @@ function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
       cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
       cell.dataset.idx   = idx;
       cell.dataset.color = colorName;
-      cell.addEventListener("click", () => openColorPicker(cell, fk, idx));
+      cell.addEventListener("pointerdown", (e) => { e.stopPropagation(); openColorPicker(cell, fk, idx); });
       grid.appendChild(cell);
     });
 
@@ -448,12 +414,20 @@ function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
 
 // ── COLOR PICKER POPOVER ──────────────────────────────────
 let activePopover = null;
+let pickerOpenTime = 0;
 
 function openColorPicker(cell, faceKey, idx) {
+  // If same cell tapped twice, just close
+  if (activePopover && activePopover._cell === cell) {
+    closeColorPicker();
+    return;
+  }
   closeColorPicker();
+  pickerOpenTime = Date.now();
 
   const pop = document.createElement("div");
   pop.className = "color-popover";
+  pop._cell = cell;
 
   ALL_COLORS.forEach(colorName => {
     const swatch = document.createElement("div");
@@ -462,12 +436,13 @@ function openColorPicker(cell, faceKey, idx) {
     swatch.title = colorName;
     if (colorName === cell.dataset.color) swatch.classList.add("selected");
 
-    swatch.addEventListener("click", (e) => {
+    swatch.addEventListener("pointerdown", (e) => {
       e.stopPropagation();
-      // Update cell
-      cell.style.background = CUBE_COLORS[colorName].hex;
-      cell.dataset.color    = colorName;
-      // Update state
+      e.preventDefault();
+      // Update cell visual
+      cell.style.background  = CUBE_COLORS[colorName].hex;
+      cell.dataset.color     = colorName;
+      // Update data
       faceData[faceKey][idx] = colorName;
       // Update 3D cube
       const r = Math.floor(idx / 4), c = idx % 4;
@@ -477,19 +452,27 @@ function openColorPicker(cell, faceKey, idx) {
     pop.appendChild(swatch);
   });
 
-  // Position below cell
+  // Position popover below cell, keep on screen
   const rect = cell.getBoundingClientRect();
-  pop.style.top  = (rect.bottom + window.scrollY + 6) + "px";
-  pop.style.left = (rect.left   + window.scrollX)     + "px";
+  const popW = ALL_COLORS.length * 36 + 16;
+  let left = rect.left + window.scrollX;
+  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+  pop.style.top  = (rect.bottom + window.scrollY + 8) + "px";
+  pop.style.left = Math.max(8, left) + "px";
   document.body.appendChild(pop);
   activePopover = pop;
-
-  setTimeout(() => document.addEventListener("click", closeColorPicker, {once:true}), 0);
 }
 
 function closeColorPicker() {
   if (activePopover) { activePopover.remove(); activePopover = null; }
 }
+
+// Close picker when tapping outside — but only if it's been open >200ms
+document.addEventListener("pointerdown", (e) => {
+  if (!activePopover) return;
+  if (Date.now() - pickerOpenTime < 200) return;
+  if (!activePopover.contains(e.target)) closeColorPicker();
+});
 
 // ── ERROR BOX ─────────────────────────────────────────────
 function showError(msg) {
@@ -584,5 +567,9 @@ resetBtn.addEventListener("click", () => {
   document.querySelectorAll(".face-editor, [data-shot-label], .shot-thumb-wrap, [data-shot]").forEach(el => el.remove());
 
   const badge = document.getElementById("shot-badge");
-  if (badge) { badge.textContent="PHOTO 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
+  if (badge) { badge.textContent="SHOT 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
+  const g1 = document.getElementById("guide-shot1");
+  const g2 = document.getElementById("guide-shot2");
+  if (g1) g1.style.display = "block";
+  if (g2) g2.style.display = "none";
 });
