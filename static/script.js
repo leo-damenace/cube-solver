@@ -124,39 +124,38 @@ async function startCamera() {
 
 // ══════════════════════════════════════════════════════════
 //  GRID OVERLAY — isometric cube matching reference image
-//  Top face = diamond, right face fans right, left face fans left
 // ══════════════════════════════════════════════════════════
 function drawGrid() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
   const N  = 4;
-  // Size of one cell. Total cube width = N*2*cellW across the widest point
-  const cW = Math.min(w, h) * 0.095;   // cell width projected
-  const cH = cW * 0.5;                  // cell height on top face (iso = half width)
-  const sH = cW * 0.9;                  // cell height on side faces
+  const cW = Math.min(w, h) * 0.095;  // half-width of one cell
+  const cH = cW * 0.55;               // iso height drop per cell (top face)
+  const sH = cW * 1.0;                // height of one cell on side faces
 
-  // The top-front corner (the pointy front tip of the top face) sits at:
+  // Front corner — where all 3 faces meet
   const ox = w / 2;
-  const oy = h * 0.47;
+  const oy = h * 0.50;
 
-  // ── 3 point functions, all relative to front-top corner ──
-  //
-  // TOP face:  from front corner, going back-right = (+cW, +cH) per step
-  //                               going back-left  = (-cW, +cH) per step
-  //   top(c, r): c = steps right-back, r = steps left-back
+  // TOP face:
+  //   from front corner, each step RIGHT goes (+cW, -cH)  [up-right]
+  //   each step BACK    goes (-cW, -cH)  [up-left]
+  //   so top(0,0)=front corner, top(N,0)=far right, top(0,N)=far left, top(N,N)=back apex
   function top(c, r) {
-    return [ox + c*cW - r*cW,  oy + c*cH + r*cH];
+    return [ox + c*cW - r*cW,  oy - c*cH - r*cH];
   }
 
-  // RIGHT face: from front corner, going right = (+cW, +cH) per col step
-  //                                going down  = (0, +sH) per row step
+  // RIGHT face:
+  //   from front corner, each col step goes (+cW, +cH)  [down-right along iso]
+  //   each row step goes (0, +sH)  [straight down]
   function rit(c, r) {
     return [ox + c*cW,  oy + c*cH + r*sH];
   }
 
-  // LEFT face: from front corner, going left = (-cW, +cH) per col step
-  //                               going down = (0, +sH) per row step
+  // LEFT face:
+  //   from front corner, each col step goes (-cW, +cH)  [down-left along iso]
+  //   each row step goes (0, +sH)  [straight down]
   function lft(c, r) {
     return [ox - c*cW,  oy + c*cH + r*sH];
   }
@@ -180,15 +179,15 @@ function drawGrid() {
     ctx.stroke();
   }
 
-  // Top face: col goes right-back, row goes left-back
+  // Top face: c=right col, r=left col (going back)
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
   }
-  // Right face: col goes right, row goes down
+  // Right face: c=col going right, r=row going down
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
   }
-  // Left face: col goes left, row goes down
+  // Left face: c=col going left, r=row going down
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
   }
