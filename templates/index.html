@@ -708,17 +708,45 @@
         <p id="main-desc">Hold cube so <strong>Top, Front &amp; Right</strong> faces are visible — align the corner to the dot.</p>
       </div>
 
-      <!-- Reference diagram: 4×4 isometric cube -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.2rem;">
+      <!-- Reference guide -->
+      <div id="shot-guide" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.2rem;">
         <div style="padding:0.7rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);">Reference — align your cube to this angle</span>
-          <span id="shot-badge" style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:600;letter-spacing:2px;padding:3px 10px;border-radius:20px;">PHOTO 1 OF 2</span>
+          <span style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);">How to hold your cube</span>
+          <span id="shot-badge" style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:600;letter-spacing:2px;padding:3px 10px;border-radius:20px;">SHOT 1 OF 2</span>
         </div>
-        <div style="display:flex;justify-content:center;align-items:center;padding:1.2rem;background:#111;">
-          <canvas id="ref-cube" width="300" height="240" style="display:block;max-width:100%;"></canvas>
+
+        <!-- Shot 1 guide -->
+        <div id="guide-shot1" style="padding:1rem 1.2rem;">
+          <div style="display:flex;gap:1rem;align-items:flex-start;">
+            <canvas id="ref-cube" width="120" height="100" style="flex-shrink:0;border-radius:8px;background:#111;"></canvas>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:0.5rem;">Shot 1 — Top-Front-Right corner</div>
+              <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;">
+                Hold cube so you can see <strong style="color:var(--accent)">3 faces</strong> at once — like looking at a corner from above.<br><br>
+                ✅ Top face pointing up<br>
+                ✅ Front face facing you<br>
+                ✅ Right face on the right<br><br>
+                Aim the <strong style="color:var(--accent)">front corner</strong> at the center dot.
+              </div>
+            </div>
+          </div>
         </div>
-        <div style="padding:0.6rem 1.2rem;font-size:0.78rem;color:var(--muted);text-align:center;">
-          Hold cube so <strong style="color:var(--text)">3 faces are visible</strong> — align the front corner to the dot in the camera
+
+        <!-- Shot 2 guide (hidden until shot 2) -->
+        <div id="guide-shot2" style="padding:1rem 1.2rem;display:none;">
+          <div style="display:flex;gap:1rem;align-items:flex-start;">
+            <div style="flex-shrink:0;width:120px;height:100px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;font-size:2rem;">🔄</div>
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:0.5rem;">Shot 2 — Bottom-Back-Left corner</div>
+              <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;">
+                Flip the cube to the <strong style="color:var(--accent)">opposite corner</strong>.<br><br>
+                ✅ Bottom face now facing up toward you<br>
+                ✅ Back face visible<br>
+                ✅ Left face on the left<br><br>
+                Basically: flip it upside-down and rotate 180°.
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
