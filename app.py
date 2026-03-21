@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import os, base64, json, re
+import os, json, re, time, random
 import urllib.request, urllib.error
 
 app = Flask(__name__)
@@ -15,12 +15,13 @@ VALID_CODES = [
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
+    "gemini-2.5-flash-preview-04-17:generateContent?key=" + GEMINI_API_KEY
 )
 
-# ── Which faces are visible in each corner shot ───────────
-# Shot 1: top corner  → U (top), F (front), R (right)
-# Shot 2: bottom corner → D (bottom), B (back), L (left)
+# ── Rate limiting: track last request time globally ───────
+_last_request_time = 0
+_MIN_GAP = 4.0   # minimum seconds between Gemini calls
+
 SHOT_FACES = {
     1: ["U", "F", "R"],
     2: ["D", "B", "L"],
@@ -57,46 +58,62 @@ FACE_PROMPTS = {
 VALID_COLORS = {"white", "yellow", "red", "orange", "blue", "green"}
 
 
-def call_gemini(image_b64: str, shot: int, retries: int = 4) -> dict:
-    prompt = FACE_PROMPTS[shot]
+def call_gemini(image_b64: str, shot: int) -> dict:
+    global _last_request_time
+
+    # Enforce minimum gap between requests to avoid 429s
+    elapsed = time.time() - _last_request_time
+    if elapsed < _MIN_GAP:
+        time.sleep(_MIN_GAP - elapsed + random.uniform(0.2, 0.8))
+
+    prompt  = FACE_PROMPTS[shot]
     payload = json.dumps({
         "contents": [{
             "parts": [
                 {"text": prompt},
                 {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
             ]
-        }]
+        }],
+        "generationConfig": {"temperature": 0.1}
     }).encode()
 
-    import time
-    wait = 2  # initial backoff seconds
-    for attempt in range(retries):
+    wait = 5   # start with 5s backoff on 429
+    for attempt in range(5):
         try:
+            _last_request_time = time.time()
             req = urllib.request.Request(
                 GEMINI_URL,
                 data=payload,
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 body = json.loads(resp.read())
+
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
             return json.loads(raw)
 
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < retries - 1:
-                time.sleep(wait)
-                wait *= 2   # exponential backoff: 2s, 4s, 8s, 16s
+            if e.code == 429 and attempt < 4:
+                jitter = random.uniform(1, 3)
+                time.sleep(wait + jitter)
+                wait *= 2   # 5 → 10 → 20 → 40s
                 continue
-            raise
-        except Exception:
-            raise
+            # Read error body for better message
+            try:
+                err_body = json.loads(e.read())
+                msg = err_body.get("error", {}).get("message", str(e))
+            except Exception:
+                msg = str(e)
+            raise RuntimeError(f"Gemini API error {e.code}: {msg}")
+
+        except Exception as ex:
+            raise RuntimeError(str(ex))
 
 
 def validate_face(colors: list) -> list:
-    """Ensure 16 valid colour strings; replace invalid with 'white'."""
     out = []
     for c in (colors or []):
         c = str(c).lower().strip()
@@ -122,12 +139,8 @@ def verify_code():
 
 @app.route("/analyze-shot", methods=["POST"])
 def analyze_shot():
-    """
-    Accepts { shot: 1|2, image: "<base64 jpeg>" }
-    Returns { U:[16], F:[16], R:[16] }  or  { D:[16], B:[16], L:[16] }
-    """
     if not GEMINI_API_KEY:
-        return jsonify({"error": "GEMINI_API_KEY not set"}), 500
+        return jsonify({"error": "GEMINI_API_KEY not set on server"}), 500
 
     data  = request.get_json()
     shot  = int(data.get("shot", 1))
@@ -143,7 +156,6 @@ def analyze_shot():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    # Validate each expected face
     output = {}
     for face_key in SHOT_FACES[shot]:
         output[face_key] = validate_face(result.get(face_key, []))
