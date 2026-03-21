@@ -123,129 +123,109 @@ async function startCamera() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  GRID OVERLAY — clean isometric cube like shutterstock ref
-//  Individual rounded sticker cells, bold outer edges
+//  GRID OVERLAY — proper isometric cube, all 3 faces fan out
 // ══════════════════════════════════════════════════════════
 function drawGrid() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
   const N    = 4;
-  // Cell size — tuned so cube fills ~60% of the shorter dimension
   const cell = Math.min(w, h) * 0.108;
-  // Cube sits centered horizontally, slightly above vertical center
   const cx   = w / 2;
-  const cy   = h * 0.48;
+  const cy   = h * 0.50;
 
-  // ── Isometric axes ───────────────────────────────────
-  // Standard iso: 30° angle from horizontal
-  // Right-face axis:  (cos30, sin30)  = (√3/2, 0.5) * cell
-  // Left-face  axis:  (-cos30, sin30) = (-√3/2, 0.5) * cell
-  // Vertical (side faces go down):     (0, 1) * cell
-  const cos30 = Math.sqrt(3) / 2;   // ≈ 0.866
+  // True isometric axes (30° from horizontal)
+  const cos30 = Math.sqrt(3) / 2;
   const sin30 = 0.5;
 
-  const Rx = cos30 * cell,  Ry = sin30 * cell;   // right axis
-  const Lx = -cos30 * cell, Ly = sin30 * cell;   // left axis (back direction on top)
-  const Dy = cell;                                 // down axis for side faces
+  // 3 edge directions of an isometric cube:
+  // A: straight up       → (0, -1)         * cell  [the vertical center line]
+  // B: down-right        → (cos30, sin30)   * cell  [right edge]
+  // C: down-left         → (-cos30, sin30)  * cell  [left edge]
+  const Ax = 0,             Ay = -cell;           // up
+  const Bx = cos30 * cell,  By = sin30 * cell;    // down-right
+  const Cx = -cos30 * cell, Cy = sin30 * cell;    // down-left
 
-  // ── Face point functions ─────────────────────────────
-  // Origin = front corner of cube (where all 3 faces meet) = (cx, cy)
-  //
-  // TOP face:   goes up-right (R axis) and up-left (L axis) from origin
-  //   top(c,r): c steps right, r steps left, both going UP (negate Y)
+  // The front corner (top of line A, where all 3 faces meet at the TOP) = (cx, cy - N*cell)
+  // So the cube's top-front-corner is above center, and the cube hangs down from it.
+  // Actually: let's place the MIDDLE front-vertical-edge center at (cx, cy).
+  // Front vertical edge goes from (cx, cy - N*cell/2... ) — just anchor at top corner.
+
+  // Anchor: top-front corner of the cube at (cx, cy - N*|Ay|/2)
+  // Simpler: place the very front-top corner at (cx, cy)
+  // Then:
+  //   Top face    → goes back-right (+B) and back-left (+C) from top corner
+  //   Right face  → goes back-right (+B) and down (-A, i.e. +cell in Y) from top corner
+  //   Left face   → goes back-left  (+C) and down from top corner
+
+  // Top-front corner of cube:
+  const ox = cx;
+  const oy = cy - N * cell * 0.3; // sit cube slightly above center
+
+  // Point generators — origin is top-front corner of cube
+  // Top face: spread along B (back-right) and C (back-left)
   function top(c, r) {
-    return [
-      cx + c * Rx + r * Lx,
-      cy - c * Ry - r * Ly
-    ];
+    return [ ox + c*Bx + r*Cx,  oy + c*By + r*Cy ];
   }
-
-  // RIGHT face: goes right (R axis) and down from origin
-  //   rit(c,r): c steps right-down, r steps down
+  // Right face: spread along B (back-right) and down (−A = positive Y)
   function rit(c, r) {
-    return [
-      cx + c * Rx,
-      cy + c * Ry + r * Dy
-    ];
+    return [ ox + c*Bx,  oy + c*By - r*Ay ];  // -Ay = +cell (down)
   }
-
-  // LEFT face:  goes left (L axis) and down from origin
-  //   lft(c,r): c steps left-down, r steps down
+  // Left face: spread along C (back-left) and down
   function lft(c, r) {
-    return [
-      cx + c * Lx,
-      cy + c * Ly + r * Dy
-    ];
+    return [ ox + c*Cx,  oy + c*Cy - r*Ay ];
   }
 
   const ACCENT     = "#c8f135";
-  const CELL_COLOR = "rgba(200,241,53,0.55)";
-  const INSET      = 0.10;   // gap between stickers (fraction toward center)
+  const CELL_COLOR = "rgba(200,241,53,0.6)";
+  const INSET      = 0.10;
 
-  // Draw one sticker as an inset parallelogram
   function drawSticker(tl, tr, br, bl) {
     const mcx = (tl[0]+tr[0]+br[0]+bl[0]) / 4;
     const mcy = (tl[1]+tr[1]+br[1]+bl[1]) / 4;
-    function pull(p) {
-      return [p[0] + (mcx - p[0]) * INSET, p[1] + (mcy - p[1]) * INSET];
-    }
-    const [a, b, c, d] = [tl, tr, br, bl].map(pull);
+    const pts = [tl,tr,br,bl].map(([x,y]) => [
+      x + (mcx-x)*INSET, y + (mcy-y)*INSET
+    ]);
     ctx.beginPath();
-    ctx.moveTo(a[0], a[1]);
-    ctx.lineTo(b[0], b[1]);
-    ctx.lineTo(c[0], c[1]);
-    ctx.lineTo(d[0], d[1]);
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    ctx.lineTo(pts[1][0], pts[1][1]);
+    ctx.lineTo(pts[2][0], pts[2][1]);
+    ctx.lineTo(pts[3][0], pts[3][1]);
     ctx.closePath();
     ctx.strokeStyle = CELL_COLOR;
     ctx.lineWidth   = 1.5;
     ctx.stroke();
   }
 
-  // ── Draw sticker grids on all 3 faces ────────────────
   for (let r = 0; r < N; r++) {
     for (let c = 0; c < N; c++) {
-      // Top face
       drawSticker(top(c,r), top(c+1,r), top(c+1,r+1), top(c,r+1));
-      // Right face
       drawSticker(rit(c,r), rit(c+1,r), rit(c+1,r+1), rit(c,r+1));
-      // Left face
       drawSticker(lft(c,r), lft(c+1,r), lft(c+1,r+1), lft(c,r+1));
     }
   }
 
-  // ── Bold outer edges ──────────────────────────────────
+  // Bold outer edges
   ctx.strokeStyle = ACCENT;
   ctx.lineWidth   = 2.8;
   ctx.lineJoin    = "round";
   ctx.lineCap     = "round";
 
-  function face(a, b, c, d) {
+  function outline(a,b,c,d) {
     ctx.beginPath();
     ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
     ctx.lineTo(c[0],c[1]); ctx.lineTo(d[0],d[1]);
-    ctx.closePath();
-    ctx.stroke();
+    ctx.closePath(); ctx.stroke();
   }
+  outline(top(0,0), top(N,0), top(N,N), top(0,N));
+  outline(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
+  outline(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
 
-  // Top face outline: front→right-corner→back→left-corner
-  face(top(0,0), top(N,0), top(N,N), top(0,N));
-  // Right face outline: top-left→top-right→bottom-right→bottom-left
-  face(rit(0,0), rit(N,0), rit(N,N), rit(0,N));
-  // Left face outline
-  face(lft(0,0), lft(N,0), lft(N,N), lft(0,N));
-
-  // ── Center alignment dot at front corner ─────────────
-  ctx.beginPath();
-  ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-  ctx.fillStyle = ACCENT;
-  ctx.fill();
-  // Outer ring
-  ctx.beginPath();
-  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(200,241,53,0.35)";
-  ctx.lineWidth   = 1.5;
-  ctx.stroke();
+  // Center alignment dot at top-front corner
+  ctx.beginPath(); ctx.arc(ox, oy, 4.5, 0, Math.PI*2);
+  ctx.fillStyle = ACCENT; ctx.fill();
+  ctx.beginPath(); ctx.arc(ox, oy, 8, 0, Math.PI*2);
+  ctx.strokeStyle = "rgba(200,241,53,0.3)"; ctx.lineWidth=1.5; ctx.stroke();
 
   requestAnimationFrame(drawGrid);
 }
@@ -378,7 +358,7 @@ captureBtn.addEventListener("click", async () => {
     }
 
     // Show editable sticker grids for this shot's faces
-    showFaceEditors(SHOT_FACES[currentShot], data);
+    showFaceEditors(SHOT_FACES[currentShot], data, currentShot);
 
     // Advance to next shot or finish
     if (currentShot === 1) {
@@ -417,18 +397,27 @@ function updateShotUI() {
   if (badge) badge.textContent = "PHOTO 2 OF 2";
 }
 
-// ── EDITABLE FACE GRIDS (tap to fix) ─────────────────────
-function showFaceEditors(faceKeys, data) {
+// ── EDITABLE FACE GRIDS (tap to fix) + shot thumbnail ────
+function showFaceEditors(faceKeys, data, shotNum) {
   // Remove old editors for this shot
-  document.querySelectorAll(".face-editor").forEach(el => {
-    if (faceKeys.includes(el.dataset.face)) el.remove();
-  });
+  document.querySelectorAll(`.face-editor[data-shot="${shotNum}"]`).forEach(el => el.remove());
+
+  // Shot label
+  const shotLabel = document.createElement("div");
+  shotLabel.className = "section-label";
+  shotLabel.dataset.shot = shotNum;
+  shotLabel.setAttribute("data-shot-label", shotNum);
+  shotLabel.textContent = `SHOT ${shotNum} — TAP ANY STICKER TO CORRECT`;
+  // Remove old label if re-scanning same shot
+  document.querySelectorAll(`[data-shot-label="${shotNum}"]`).forEach(el => el.remove());
+  facesRow.appendChild(shotLabel);
 
   faceKeys.forEach(fk => {
     const colors = data[fk] || Array(16).fill("white");
     const wrap = document.createElement("div");
-    wrap.className   = "face-editor";
+    wrap.className    = "face-editor";
     wrap.dataset.face = fk;
+    wrap.dataset.shot = shotNum;
 
     const title = document.createElement("div");
     title.className   = "face-editor-title";
@@ -444,7 +433,6 @@ function showFaceEditors(faceKeys, data) {
       cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
       cell.dataset.idx   = idx;
       cell.dataset.color = colorName;
-
       cell.addEventListener("click", () => openColorPicker(cell, fk, idx));
       grid.appendChild(cell);
     });
@@ -589,7 +577,7 @@ resetBtn.addEventListener("click", () => {
 
   document.getElementById("twisty-wrap").style.display = "block";
   document.getElementById("move-count").textContent    = "";
-  document.querySelectorAll(".face-editor").forEach(el => el.remove());
+  document.querySelectorAll(".face-editor, [data-shot-label]").forEach(el => el.remove());
 
   const badge = document.getElementById("shot-badge");
   if (badge) { badge.textContent="PHOTO 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
