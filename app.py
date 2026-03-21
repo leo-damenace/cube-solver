@@ -29,29 +29,36 @@ SHOT_FACES = {
 
 FACE_PROMPTS = {
     1: (
-        "This is a photo of a 4x4 Rubik's cube taken from the TOP-FRONT-RIGHT corner. "
-        "Three faces are visible: TOP (facing up), FRONT (facing you), RIGHT (facing right). "
-        "For each face, read the 4x4 grid of sticker colours left-to-right, top-to-bottom. "
-        "Return ONLY valid JSON, no markdown, no explanation:\n"
-        "{\n"
-        '  "U": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
-        '  "F": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
-        '  "R": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]\n'
-        "}\n"
-        "Each colour must be exactly one of: white, yellow, red, orange, blue, green"
+        "You are analyzing a 4x4 Rubik's cube photograph.\n"
+        "The cube is held so THREE faces are visible — the TOP, FRONT, and RIGHT faces.\n"
+        "The TOP face is the one facing upward (like the ceiling).\n"
+        "The FRONT face is the one facing directly toward the camera.\n"
+        "The RIGHT face is on the right side.\n\n"
+        "For EACH face, identify all 16 sticker colours in a 4x4 grid, "
+        "reading LEFT-TO-RIGHT, TOP-TO-BOTTOM, as if you were reading text.\n\n"
+        "IMPORTANT: Only use these exact colour names: white, yellow, red, orange, blue, green\n"
+        "Do NOT use: grey, gray, purple, pink, or any other colour.\n"
+        "If unsure between two colours, pick the closest one from the list.\n\n"
+        "Return ONLY this exact JSON with no markdown, no explanation, nothing else:\n"
+        '{"U":["","","","","","","","","","","","","","","",""],'
+        '"F":["","","","","","","","","","","","","","","",""],'
+        '"R":["","","","","","","","","","","","","","","",""]}'
     ),
     2: (
-        "This is a photo of a 4x4 Rubik's cube taken from the BOTTOM-BACK-LEFT corner. "
-        "Three faces are visible: BOTTOM (facing down / toward you), BACK (far face), LEFT (facing left). "
-        "For each face, read the 4x4 grid of sticker colours left-to-right, top-to-bottom "
-        "(orient each face as if looking directly at it). "
-        "Return ONLY valid JSON, no markdown, no explanation:\n"
-        "{\n"
-        '  "D": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
-        '  "B": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],\n'
-        '  "L": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]\n'
-        "}\n"
-        "Each colour must be exactly one of: white, yellow, red, orange, blue, green"
+        "You are analyzing a 4x4 Rubik's cube photograph.\n"
+        "The cube has been flipped to show THREE different faces — the BOTTOM, BACK, and LEFT faces.\n"
+        "The BOTTOM face is the one now facing upward toward the camera (it was the bottom before flipping).\n"
+        "The BACK face is the far face visible behind the cube.\n"
+        "The LEFT face is on the left side.\n\n"
+        "For EACH face, identify all 16 sticker colours in a 4x4 grid, "
+        "reading LEFT-TO-RIGHT, TOP-TO-BOTTOM as if looking directly at each face straight-on.\n\n"
+        "IMPORTANT: Only use these exact colour names: white, yellow, red, orange, blue, green\n"
+        "Do NOT use: grey, gray, purple, pink, or any other colour.\n"
+        "If unsure between two colours, pick the closest one from the list.\n\n"
+        "Return ONLY this exact JSON with no markdown, no explanation, nothing else:\n"
+        '{"D":["","","","","","","","","","","","","","","",""],'
+        '"B":["","","","","","","","","","","","","","","",""],'
+        '"L":["","","","","","","","","","","","","","","",""]}'
     ),
 }
 
