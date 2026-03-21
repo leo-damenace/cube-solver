@@ -15,7 +15,7 @@ VALID_CODES = [
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.5-flash-preview-04-17:generateContent?key=" + GEMINI_API_KEY
+    "gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY
 )
 
 # ── Rate limiting: track last request time globally ───────
