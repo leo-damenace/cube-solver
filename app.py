@@ -4,13 +4,7 @@ import urllib.request, urllib.error
 
 app = Flask(__name__)
 
-VALID_CODES = [
-    "CUBE-4829",
-    "CUBE-1147",
-    "CUBE-3301",
-    "CUBE-7755",
-    "CUBE-0042",
-]
+VALID_CODES = ["CUBE-4829","CUBE-1147","CUBE-3301","CUBE-7755","CUBE-0042"]
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = (
@@ -18,81 +12,45 @@ GEMINI_URL = (
     "gemini-2.5-flash:generateContent?key=" + GEMINI_API_KEY
 )
 
-# ── Rate limiting: track last request time globally ───────
 _last_request_time = 0
-_MIN_GAP = 4.0   # minimum seconds between Gemini calls
+_MIN_GAP = 3.0
 
-SHOT_FACES = {
-    1: ["U", "F", "R"],
-    2: ["D", "B", "L"],
-}
+# One face at a time — dead simple prompt
+FACE_PROMPT = (
+    "This is a photo of ONE face of a 4x4 Rubik's cube held flat toward the camera.\n"
+    "Read the 16 stickers in a 4x4 grid, left-to-right, top-to-bottom (like reading text).\n"
+    "Each sticker is exactly one of: white, yellow, red, orange, blue, green\n"
+    "Do NOT use any other colour names.\n\n"
+    "Return ONLY a JSON array of exactly 16 colour strings, nothing else:\n"
+    '["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]'
+)
 
-FACE_PROMPTS = {
-    1: (
-        "You are analyzing a 4x4 Rubik's cube photograph.\n"
-        "The cube is held so THREE faces are visible — the TOP, FRONT, and RIGHT faces.\n"
-        "The TOP face is the one facing upward (like the ceiling).\n"
-        "The FRONT face is the one facing directly toward the camera.\n"
-        "The RIGHT face is on the right side.\n\n"
-        "For EACH face, identify all 16 sticker colours in a 4x4 grid, "
-        "reading LEFT-TO-RIGHT, TOP-TO-BOTTOM, as if you were reading text.\n\n"
-        "IMPORTANT: Only use these exact colour names: white, yellow, red, orange, blue, green\n"
-        "Do NOT use: grey, gray, purple, pink, or any other colour.\n"
-        "If unsure between two colours, pick the closest one from the list.\n\n"
-        "Return ONLY this exact JSON with no markdown, no explanation, nothing else:\n"
-        '{"U":["","","","","","","","","","","","","","","",""],'
-        '"F":["","","","","","","","","","","","","","","",""],'
-        '"R":["","","","","","","","","","","","","","","",""]}'
-    ),
-    2: (
-        "You are analyzing a 4x4 Rubik's cube photograph.\n"
-        "The cube has been flipped to show THREE different faces — the BOTTOM, BACK, and LEFT faces.\n"
-        "The BOTTOM face is the one now facing upward toward the camera (it was the bottom before flipping).\n"
-        "The BACK face is the far face visible behind the cube.\n"
-        "The LEFT face is on the left side.\n\n"
-        "For EACH face, identify all 16 sticker colours in a 4x4 grid, "
-        "reading LEFT-TO-RIGHT, TOP-TO-BOTTOM as if looking directly at each face straight-on.\n\n"
-        "IMPORTANT: Only use these exact colour names: white, yellow, red, orange, blue, green\n"
-        "Do NOT use: grey, gray, purple, pink, or any other colour.\n"
-        "If unsure between two colours, pick the closest one from the list.\n\n"
-        "Return ONLY this exact JSON with no markdown, no explanation, nothing else:\n"
-        '{"D":["","","","","","","","","","","","","","","",""],'
-        '"B":["","","","","","","","","","","","","","","",""],'
-        '"L":["","","","","","","","","","","","","","","",""]}'
-    ),
-}
+VALID_COLORS = {"white","yellow","red","orange","blue","green"}
 
-VALID_COLORS = {"white", "yellow", "red", "orange", "blue", "green"}
-
-
-def call_gemini(image_b64: str, shot: int) -> dict:
+def call_gemini(image_b64: str) -> list:
     global _last_request_time
 
-    # Enforce minimum gap between requests to avoid 429s
     elapsed = time.time() - _last_request_time
     if elapsed < _MIN_GAP:
-        time.sleep(_MIN_GAP - elapsed + random.uniform(0.2, 0.8))
+        time.sleep(_MIN_GAP - elapsed + random.uniform(0.1, 0.5))
 
-    prompt  = FACE_PROMPTS[shot]
     payload = json.dumps({
         "contents": [{
             "parts": [
-                {"text": prompt},
+                {"text": FACE_PROMPT},
                 {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
             ]
         }],
-        "generationConfig": {"temperature": 0.1}
+        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 200}
     }).encode()
 
-    wait = 5   # start with 5s backoff on 429
+    wait = 5
     for attempt in range(5):
         try:
             _last_request_time = time.time()
             req = urllib.request.Request(
-                GEMINI_URL,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
+                GEMINI_URL, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST"
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
                 body = json.loads(resp.read())
@@ -100,75 +58,55 @@ def call_gemini(image_b64: str, shot: int) -> dict:
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
-            return json.loads(raw)
+            result = json.loads(raw)
+            if not isinstance(result, list):
+                raise ValueError("Expected a list")
+            return result
 
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 4:
-                jitter = random.uniform(1, 3)
-                time.sleep(wait + jitter)
-                wait *= 2   # 5 → 10 → 20 → 40s
+                time.sleep(wait + random.uniform(1, 3))
+                wait *= 2
                 continue
-            # Read error body for better message
             try:
-                err_body = json.loads(e.read())
-                msg = err_body.get("error", {}).get("message", str(e))
+                msg = json.loads(e.read()).get("error", {}).get("message", str(e))
             except Exception:
                 msg = str(e)
-            raise RuntimeError(f"Gemini API error {e.code}: {msg}")
-
+            raise RuntimeError(f"Gemini error {e.code}: {msg}")
         except Exception as ex:
             raise RuntimeError(str(ex))
 
-
-def validate_face(colors: list) -> list:
+def validate(colors):
     out = []
     for c in (colors or []):
         c = str(c).lower().strip()
         out.append(c if c in VALID_COLORS else "white")
-    while len(out) < 16:
-        out.append("white")
+    while len(out) < 16: out.append("white")
     return out[:16]
-
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-
 @app.route("/verify-code", methods=["POST"])
 def verify_code():
     data = request.get_json()
-    code = data.get("code", "").strip().upper()
-    if code in VALID_CODES:
-        return jsonify({"valid": True})
-    return jsonify({"valid": False})
+    code = data.get("code","").strip().upper()
+    return jsonify({"valid": code in VALID_CODES})
 
-
-@app.route("/analyze-shot", methods=["POST"])
-def analyze_shot():
+@app.route("/analyze-face", methods=["POST"])
+def analyze_face():
     if not GEMINI_API_KEY:
-        return jsonify({"error": "GEMINI_API_KEY not set on server"}), 500
-
+        return jsonify({"error": "GEMINI_API_KEY not set"}), 500
     data  = request.get_json()
-    shot  = int(data.get("shot", 1))
     image = data.get("image", "")
-
-    if shot not in (1, 2):
-        return jsonify({"error": "shot must be 1 or 2"}), 400
     if not image:
-        return jsonify({"error": "no image provided"}), 400
-
+        return jsonify({"error": "no image"}), 400
     try:
-        result = call_gemini(image, shot)
+        result = call_gemini(image)
+        return jsonify({"colors": validate(result)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    output = {}
-    for face_key in SHOT_FACES[shot]:
-        output[face_key] = validate_face(result.get(face_key, []))
-
-    return jsonify(output)
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
