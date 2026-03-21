@@ -10,7 +10,7 @@ const FACES = [
   { key:"R", label:"Right",  color:"🟥", hint:"Rotate cube — now point the RIGHT face at the camera." },
   { key:"B", label:"Back",   color:"🟦", hint:"Rotate cube — now point the BACK face at the camera." },
   { key:"L", label:"Left",   color:"🟧", hint:"Rotate cube — now point the LEFT face at the camera." },
-  { key:"D", label:"Bottom", color:"🟨", hint:"Flip cube — point the BOTTOM face at the camera." },
+  { key:"D", label:"Bottom", color:"🟨", hint:"Flip cube — point the BOTTOM face at the camera." }, 
 ];
 
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
