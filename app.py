@@ -4,6 +4,14 @@ import urllib.request, urllib.error
 
 app = Flask(__name__)
 
+@app.after_request
+def no_cache(response):
+    if "static" in response.headers.get("Content-Type","") or request.path.startswith("/static"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"]        = "no-cache"
+        response.headers["Expires"]       = "0"
+    return response
+
 VALID_CODES = ["CUBE-4829","CUBE-1147","CUBE-3301","CUBE-7755","CUBE-0042"]
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
