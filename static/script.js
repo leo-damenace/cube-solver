@@ -122,6 +122,130 @@ function drawOverlay() {
   requestAnimationFrame(drawOverlay);
 }
 
+// ── SHOT GUIDE DIAGRAM ────────────────────────────────────
+// Draws a static isometric 4x4 cube with highlighted faces
+// highlightFaces: array of face keys to highlight e.g. ["U","F","R"]
+// For band shots, show all 4 sides with highlight on specific ones
+
+const GUIDE_CONFIGS = [
+  {
+    faces: ["U","F","R"],
+    dim:   ["B","L","D"],
+    text:  "Point the <strong>top-front-right corner</strong> at the camera.<br>You should see 3 faces at once — like looking at a corner of a box.",
+  },
+  {
+    faces: ["D","B","L"],
+    dim:   ["U","F","R"],
+    text:  "Flip the cube to the <strong>opposite corner</strong>.<br>Bottom, Back and Left faces should all be visible.",
+  },
+  {
+    faces: ["F","R","B","L"],
+    dim:   ["U","D"],
+    text:  "Tilt the cube on its side so you see the <strong>band of 4 side faces</strong>.<br>Top and bottom are hidden — just the 4 sides going around.",
+  },
+  {
+    faces: ["F","R","B","L"],
+    dim:   ["U","D"],
+    text:  "Keep the band view but <strong>rotate 90°</strong>.<br>Same 4 side faces, different angle — gives Gemini a cross-reference.",
+  },
+];
+
+function drawGuide(shotIdx) {
+  const canvas = document.getElementById("guide-canvas");
+  const textEl = document.getElementById("guide-text");
+  if (!canvas || !textEl) return;
+
+  const cfg = GUIDE_CONFIGS[shotIdx];
+  textEl.innerHTML = cfg.text;
+
+  const rc  = canvas.getContext("2d");
+  const W   = canvas.width, H = canvas.height;
+  rc.clearRect(0, 0, W, H);
+
+  const N    = 4;
+  const cell = 10;   // px per cell
+  const cx   = W / 2, cy = H * 0.52;
+  const tilt = 0.52;
+  const yRot = shotIdx < 2 ? 0.6 : 0.0;  // corner shots angled, band shots straight-on
+
+  function project(x, y, z) {
+    const x1 = x*Math.cos(yRot) + z*Math.sin(yRot);
+    const z1 = -x*Math.sin(yRot) + z*Math.cos(yRot);
+    const y2 = y*Math.cos(tilt)  - z1*Math.sin(tilt);
+    const z2 = y*Math.sin(tilt)  + z1*Math.cos(tilt);
+    return { sx: cx + x1*cell, sy: cy - y2*cell, depth: z2 };
+  }
+
+  function faceVisible(nx, ny, nz) {
+    const nx1 = nx*Math.cos(yRot)+nz*Math.sin(yRot), nz1 = -nx*Math.sin(yRot)+nz*Math.cos(yRot);
+    const ny2 = ny*Math.cos(tilt)-nz1*Math.sin(tilt), nz2 = ny*Math.sin(tilt)+nz1*Math.cos(tilt);
+    return -nz2 > 0.04;
+  }
+
+  const half = N / 2;
+  const faceDefs = [
+    {key:"U", nx:0,  ny:1,  nz:0,  q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)]},
+    {key:"F", nx:0,  ny:0,  nz:1,  q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)]},
+    {key:"R", nx:1,  ny:0,  nz:0,  q:(c,r)=>[project(+half,+half-r,-half+c),project(+half,+half-r,-half+c+1),project(+half,+half-r-1,-half+c+1),project(+half,+half-r-1,-half+c)]},
+    {key:"B", nx:0,  ny:0,  nz:-1, q:(c,r)=>[project(+half-c,+half-r,-half),project(+half-c-1,+half-r,-half),project(+half-c-1,+half-r-1,-half),project(+half-c,+half-r-1,-half)]},
+    {key:"L", nx:-1, ny:0,  nz:0,  q:(c,r)=>[project(-half,+half-r,+half-c),project(-half,+half-r,+half-c-1),project(-half,+half-r-1,+half-c-1),project(-half,+half-r-1,+half-c)]},
+    {key:"D", nx:0,  ny:-1, nz:0,  q:(c,r)=>[project(-half+c,-half,+half-r),project(-half+c+1,-half,+half-r),project(-half+c+1,-half,+half-r-1),project(-half+c,-half,+half-r-1)]},
+  ];
+
+  const allQuads = [];
+  for (const fd of faceDefs) {
+    if (!faceVisible(fd.nx, fd.ny, fd.nz)) continue;
+    const highlighted = cfg.faces.includes(fd.key);
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const pts = fd.q(c, r);
+      allQuads.push({ pts, depth: pts.reduce((s,p)=>s+p.depth,0)/4, highlighted, key: fd.key });
+    }
+  }
+  allQuads.sort((a,b) => a.depth - b.depth);
+
+  for (const {pts, highlighted} of allQuads) {
+    const [p0,p1,p2,p3] = pts;
+    // Body
+    rc.beginPath();
+    rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy); rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy);
+    rc.closePath();
+    rc.fillStyle = highlighted ? "rgba(200,241,53,0.25)" : "#111";
+    rc.fill();
+    rc.strokeStyle = highlighted ? "#c8f135" : "#333";
+    rc.lineWidth = highlighted ? 1.2 : 0.5;
+    rc.stroke();
+  }
+}
+
+// ── PHOTO STRIP ───────────────────────────────────────────
+function addPhotoThumb(shotNum, dataURL) {
+  const strip = document.getElementById("photo-strip");
+  const thumbs = document.getElementById("photo-thumbs");
+  if (!strip || !thumbs) return;
+
+  strip.style.display = "block";
+
+  // Remove existing thumb for this shot if retrying
+  const existing = document.getElementById(`thumb-${shotNum}`);
+  if (existing) existing.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = `thumb-${shotNum}`;
+  wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:4px;";
+
+  const img = document.createElement("img");
+  img.src = dataURL;
+  img.style.cssText = "width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid var(--accent);";
+
+  const lbl = document.createElement("div");
+  lbl.style.cssText = "font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace;";
+  lbl.textContent = `Shot ${shotNum}`;
+
+  wrap.appendChild(img);
+  wrap.appendChild(lbl);
+  thumbs.appendChild(wrap);
+}
+
 // ── SHOT UI ───────────────────────────────────────────────
 function updateShotUI(idx) {
   const s = SHOTS[idx];
@@ -132,7 +256,11 @@ function updateShotUI(idx) {
   captureBtn.textContent = `📸  Take Shot ${idx+1}`;
   captureBtn.disabled    = false;
 
-  // Update sidebar steps
+  const badge = document.getElementById("shot-badge");
+  if (badge) badge.textContent = `${idx+1} / 4`;
+
+  drawGuide(idx);
+
   document.querySelectorAll(".face-step").forEach((el,i)=>{
     el.classList.remove("active","done");
     if (i < idx)  el.classList.add("done");
@@ -153,9 +281,13 @@ captureBtn.addEventListener("click", async ()=>{
   const crop=document.createElement("canvas");
   crop.width=crop.height=640;
   crop.getContext("2d").drawImage(snap,sx,sy,size,size,0,0,640,640);
-  const b64=crop.toDataURL("image/jpeg",0.9).split(",")[1];
+  const snapDataURL = crop.toDataURL("image/jpeg", 0.7);
+  const b64 = snapDataURL.split(",")[1];
 
   capturedImages[String(currentShot+1)] = b64;
+
+  // Show thumbnail immediately
+  addPhotoThumb(currentShot+1, snapDataURL);
 
   // Mark step done
   const steps=document.querySelectorAll(".face-step");
@@ -447,5 +579,7 @@ resetBtn.addEventListener("click",()=>{
   document.getElementById("twisty-wrap").style.display="block";
   document.getElementById("move-count").textContent="";
   const eb=document.getElementById("err-box"); if(eb)eb.style.display="none";
+  const strip=document.getElementById("photo-strip"), thumbs=document.getElementById("photo-thumbs");
+  if(strip)strip.style.display="none"; if(thumbs)thumbs.innerHTML="";
   closeColorPicker();
 });
