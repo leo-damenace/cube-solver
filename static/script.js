@@ -104,32 +104,19 @@ async function startCamera() {
   } catch { alert("Camera access denied. Please allow camera and reload."); }
 }
 
-// ── OVERLAY — simple square + corner brackets ─────────────
+// ── OVERLAY — corner brackets only, no dimming ────────────
 function drawOverlay() {
   const w=overlay.width, h=overlay.height;
   ctx.clearRect(0,0,w,h);
 
-  // Vignette
-  const g=ctx.createRadialGradient(w/2,h/2,h*0.22,w/2,h/2,h*0.65);
-  g.addColorStop(0,"rgba(0,0,0,0)");
-  g.addColorStop(1,"rgba(0,0,0,0.5)");
-  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+  const size=Math.min(w,h)*0.88, sx=(w-size)/2, sy=(h-size)/2;
+  const bL=size*0.07;
 
-  const size=Math.min(w,h)*0.78, sx=(w-size)/2, sy=(h-size)/2;
-
-  // Dim outside
-  ctx.fillStyle="rgba(0,0,0,0.25)";
-  ctx.fillRect(0,0,w,sy); ctx.fillRect(0,sy+size,w,h);
-  ctx.fillRect(0,sy,sx,size); ctx.fillRect(sx+size,sy,w-sx-size,size);
-
-  // Corner brackets
-  const bL=size*0.08;
   ctx.strokeStyle="#c8f135"; ctx.lineWidth=3; ctx.lineCap="round";
   [[sx,sy,1,1],[sx+size,sy,-1,1],[sx,sy+size,1,-1],[sx+size,sy+size,-1,-1]].forEach(([x,y,dx,dy])=>{
     ctx.beginPath(); ctx.moveTo(x+dx*bL,y); ctx.lineTo(x,y); ctx.lineTo(x,y+dy*bL); ctx.stroke();
   });
 
-  // Center dot
   ctx.beginPath(); ctx.arc(w/2,h/2,4,0,Math.PI*2); ctx.fillStyle="#c8f135"; ctx.fill();
 
   requestAnimationFrame(drawOverlay);
