@@ -14,7 +14,7 @@ GEMINI_URL = (
 
 _last_request_time = 0
 _MIN_GAP = 4.0
-
+ 
 SHOT_FACES = {
     1: ["U", "F", "R"],
     2: ["D", "B", "L"],
