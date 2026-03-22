@@ -23,44 +23,48 @@ GEMINI_URL = (
 _last_request_time = 0
 _MIN_GAP = 4.0
 
+# Single letter codes to keep Gemini response tiny — never truncates
+# W=white Y=yellow R=red O=orange B=blue G=green
+COLOR_DECODE = {"W":"white","Y":"yellow","R":"red","O":"orange","B":"blue","G":"green"}
+
 SHOT_PROMPTS = {
     1: (
         "4x4 Rubik's cube, TOP-FRONT-RIGHT corner view. 3 faces visible.\n"
-        "TOP face = facing up. FRONT face = facing camera. RIGHT face = on the right.\n"
+        "U=Top face(up) F=Front face(toward camera) R=Right face(right side).\n"
         "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Colors: white yellow red orange blue green ONLY.\n"
-        "Return ONLY JSON, no markdown:\n"
+        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
         '{"U":["","","","","","","","","","","","","","","",""],'
         '"F":["","","","","","","","","","","","","","","",""],'
         '"R":["","","","","","","","","","","","","","","",""]}'
     ),
     2: (
         "4x4 Rubik's cube, BOTTOM-BACK-LEFT corner view. 3 faces visible.\n"
-        "BOTTOM face = now facing up toward camera. BACK face = far face. LEFT face = on left.\n"
+        "D=Bottom face(now up toward camera) B=Back face(far) L=Left face(left side).\n"
         "Read each face 4x4 grid left-to-right top-to-bottom as if looking straight at each face.\n"
-        "Colors: white yellow red orange blue green ONLY.\n"
-        "Return ONLY JSON, no markdown:\n"
+        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
         '{"D":["","","","","","","","","","","","","","","",""],'
         '"B":["","","","","","","","","","","","","","","",""],'
         '"L":["","","","","","","","","","","","","","","",""]}'
     ),
     3: (
-        "4x4 Rubik's cube held horizontally showing the SIDE BAND.\n"
-        "All 4 side faces visible going around: FRONT, RIGHT, BACK, LEFT.\n"
+        "4x4 Rubik's cube held horizontally, SIDE BAND view. All 4 side faces visible.\n"
+        "F=Front R=Right B=Back L=Left — going around the band.\n"
         "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Colors: white yellow red orange blue green ONLY.\n"
-        "Return ONLY JSON, no markdown:\n"
+        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
         '{"F":["","","","","","","","","","","","","","","",""],'
         '"R":["","","","","","","","","","","","","","","",""],'
         '"B":["","","","","","","","","","","","","","","",""],'
         '"L":["","","","","","","","","","","","","","","",""]}'
     ),
     4: (
-        "4x4 Rubik's cube held horizontally showing the SIDE BAND, rotated 90 degrees from previous shot.\n"
-        "All 4 side faces visible: FRONT, RIGHT, BACK, LEFT from new angle.\n"
+        "4x4 Rubik's cube held horizontally, SIDE BAND view rotated 90 degrees.\n"
+        "F=Front R=Right B=Back L=Left — going around the band.\n"
         "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Colors: white yellow red orange blue green ONLY.\n"
-        "Return ONLY JSON, no markdown:\n"
+        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
         '{"F":["","","","","","","","","","","","","","","",""],'
         '"R":["","","","","","","","","","","","","","","",""],'
         '"B":["","","","","","","","","","","","","","","",""],'
@@ -123,8 +127,13 @@ def call_gemini(image_b64, shot):
 def validate(colors):
     out = []
     for c in (colors or []):
-        c = str(c).lower().strip()
-        out.append(c if c in VALID_COLORS else "white")
+        c = str(c).strip().upper()
+        # Accept single-letter code or full word
+        if c in COLOR_DECODE:
+            out.append(COLOR_DECODE[c])
+        else:
+            c_lower = c.lower()
+            out.append(c_lower if c_lower in {"white","yellow","red","orange","blue","green"} else "white")
     while len(out) < 16:
         out.append("white")
     return out[:16]
