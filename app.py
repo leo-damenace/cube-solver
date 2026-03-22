@@ -13,79 +13,38 @@ GEMINI_URL = (
 )
 
 _last_request_time = 0
-_MIN_GAP = 4.0
+_MIN_GAP = 3.0
 
-SHOT_FACES = {
-    1: ["U", "F", "R"],
-    2: ["D", "B", "L"],
-}
-
-FACE_PROMPTS = {
-    1: (
-        "You are a Rubik's cube color scanner. Analyze this photo of a 4x4 Rubik's cube.\n"
-        "The cube is held at a CORNER angle so THREE faces are visible:\n"
-        "  - U (Top face): the face pointing upward\n"
-        "  - F (Front face): the face pointing toward the camera\n"
-        "  - R (Right face): the face on the right side\n\n"
-        "For each face, read ALL 16 stickers in a 4x4 grid, left-to-right, top-to-bottom.\n\n"
-        "COLOR GUIDE — be very precise:\n"
-        "  white  = clearly white or very light cream\n"
-        "  yellow = bright yellow\n"
-        "  red    = red or dark red (NOT orange)\n"
-        "  orange = orange (warmer than red, NOT yellow)\n"
-        "  blue   = any shade of blue\n"
-        "  green  = any shade of green\n\n"
-        "RULES:\n"
-        "  - Every sticker MUST be exactly one of: white, yellow, red, orange, blue, green\n"
-        "  - Never output: grey, gray, purple, pink, brown, or anything else\n"
-        "  - Each face must have EXACTLY 16 values\n"
-        "  - A solved face has one dominant color — use that as a sanity check\n\n"
-        "Return ONLY this JSON, no markdown, no explanation:\n"
-        '{"U":["","","","","","","","","","","","","","","",""],'
-        '"F":["","","","","","","","","","","","","","","",""],'
-        '"R":["","","","","","","","","","","","","","","",""]}'
-    ),
-    2: (
-        "You are a Rubik's cube color scanner. Analyze this photo of a 4x4 Rubik's cube.\n"
-        "The cube has been flipped to show the OPPOSITE corner — THREE faces are visible:\n"
-        "  - D (Bottom face): was the bottom, now facing upward toward camera\n"
-        "  - B (Back face): the far face visible behind\n"
-        "  - L (Left face): the face on the left side\n\n"
-        "For each face, read ALL 16 stickers in a 4x4 grid, left-to-right, top-to-bottom,\n"
-        "oriented as if looking directly at each face straight-on.\n\n"
-        "COLOR GUIDE — be very precise:\n"
-        "  white  = clearly white or very light cream\n"
-        "  yellow = bright yellow\n"
-        "  red    = red or dark red (NOT orange)\n"
-        "  orange = orange (warmer than red, NOT yellow)\n"
-        "  blue   = any shade of blue\n"
-        "  green  = any shade of green\n\n"
-        "RULES:\n"
-        "  - Every sticker MUST be exactly one of: white, yellow, red, orange, blue, green\n"
-        "  - Never output: grey, gray, purple, pink, brown, or anything else\n"
-        "  - Each face must have EXACTLY 16 values\n"
-        "  - A solved face has one dominant color — use that as a sanity check\n\n"
-        "Return ONLY this JSON, no markdown, no explanation:\n"
-        '{"D":["","","","","","","","","","","","","","","",""],'
-        '"B":["","","","","","","","","","","","","","","",""],'
-        '"L":["","","","","","","","","","","","","","","",""]}'
-    ),
-}
+FACE_PROMPT = (
+    "This is a photo of ONE face of a 4x4 Rubik's cube held flat toward the camera.\n"
+    "Read the 16 stickers in a 4x4 grid, left-to-right, top-to-bottom (like reading text).\n\n"
+    "COLOR RULES:\n"
+    "  - Each sticker is EXACTLY one of: white, yellow, red, orange, blue, green\n"
+    "  - white  = clearly white or very light\n"
+    "  - yellow = bright yellow\n"
+    "  - red    = red (NOT orange)\n"
+    "  - orange = orange (NOT red, NOT yellow)\n"
+    "  - blue   = any blue\n"
+    "  - green  = any green\n"
+    "  - NEVER output: grey, gray, purple, pink, brown, or anything else\n\n"
+    "Return ONLY a JSON array of exactly 16 colour strings, nothing else, no markdown:\n"
+    '["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]'
+)
 
 VALID_COLORS = {"white","yellow","red","orange","blue","green"}
 
 
-def call_gemini(image_b64: str, shot: int) -> dict:
+def call_gemini(image_b64: str) -> list:
     global _last_request_time
 
     elapsed = time.time() - _last_request_time
     if elapsed < _MIN_GAP:
-        time.sleep(_MIN_GAP - elapsed + random.uniform(0.2, 0.8))
+        time.sleep(_MIN_GAP - elapsed + random.uniform(0.1, 0.5))
 
     payload = json.dumps({
         "contents": [{
             "parts": [
-                {"text": FACE_PROMPTS[shot]},
+                {"text": FACE_PROMPT},
                 {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
             ]
         }],
@@ -110,12 +69,12 @@ def call_gemini(image_b64: str, shot: int) -> dict:
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
             raw = raw.strip()
-            # Safety: close array if Gemini got cut off mid-response
+            # Safety: patch truncated array
             if raw.startswith("[") and not raw.endswith("]"):
                 raw = raw.rstrip(", \n") + "]"
             result = json.loads(raw)
             if not isinstance(result, list):
-                raise ValueError("Expected list")
+                raise ValueError("Gemini returned unexpected format")
             return result
 
         except urllib.error.HTTPError as e:
@@ -127,12 +86,12 @@ def call_gemini(image_b64: str, shot: int) -> dict:
                 msg = json.loads(e.read()).get("error", {}).get("message", str(e))
             except Exception:
                 msg = str(e)
-            raise RuntimeError(f"Gemini API error {e.code}: {msg}")
+            raise RuntimeError(f"Gemini error {e.code}: {msg}")
         except Exception as ex:
             raise RuntimeError(str(ex))
 
 
-def validate_face(colors: list) -> list:
+def validate(colors):
     out = []
     for c in (colors or []):
         c = str(c).lower().strip()
@@ -154,30 +113,21 @@ def verify_code():
     return jsonify({"valid": code in VALID_CODES})
 
 
-@app.route("/analyze-shot", methods=["POST"])
-def analyze_shot():
+@app.route("/analyze-face", methods=["POST"])
+def analyze_face():
     if not GEMINI_API_KEY:
         return jsonify({"error": "GEMINI_API_KEY not set on server"}), 500
 
     data  = request.get_json()
-    shot  = int(data.get("shot", 1))
     image = data.get("image", "")
-
-    if shot not in (1, 2):
-        return jsonify({"error": "shot must be 1 or 2"}), 400
     if not image:
         return jsonify({"error": "no image provided"}), 400
 
     try:
-        result = call_gemini(image, shot)
+        result = call_gemini(image)
+        return jsonify({"colors": validate(result)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    output = {}
-    for face_key in SHOT_FACES[shot]:
-        output[face_key] = validate_face(result.get(face_key, []))
-
-    return jsonify(output)
 
 
 if __name__ == "__main__":
