@@ -1,17 +1,22 @@
 // ═══════════════════════════════════════════════════
 //  CubeSolve — script.js
-//  6-face scan · one Gemini call per face · live 3D cube
+//  2-shot corner flow · Gemini vision · live 3D cube
 // ═══════════════════════════════════════════════════
 
-// Face scan order and display info
-const FACES = [
-  { key:"U", label:"Top",    color:"⬜", hint:"Hold the cube with the TOP face flat toward the camera." },
-  { key:"F", label:"Front",  color:"🟩", hint:"Rotate cube — now point the FRONT face at the camera." },
-  { key:"R", label:"Right",  color:"🟥", hint:"Rotate cube — now point the RIGHT face at the camera." },
-  { key:"B", label:"Back",   color:"🟦", hint:"Rotate cube — now point the BACK face at the camera." },
-  { key:"L", label:"Left",   color:"🟧", hint:"Rotate cube — now point the LEFT face at the camera." },
-  { key:"D", label:"Bottom", color:"🟨", hint:"Flip cube — point the BOTTOM face at the camera." },
-];
+const FACE_NAMES = {
+  U:"Top (White)",  F:"Front (Green)", R:"Right (Red)",
+  B:"Back (Blue)",  L:"Left (Orange)", D:"Bottom (Yellow)"
+};
+
+const SHOT_FACES = {
+  1: ["U","F","R"],
+  2: ["D","B","L"],
+};
+
+const SHOT_INSTRUCTIONS = {
+  1: "Hold cube so <strong>Top, Front & Right</strong> faces are visible — like looking at a corner from above.",
+  2: "Flip cube to the opposite corner — <strong>Bottom, Back & Left</strong> faces visible.",
+};
 
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const COLOR_TO_FACE = { white:"U", red:"R", green:"F", yellow:"D", orange:"L", blue:"B" };
@@ -25,17 +30,15 @@ const CUBE_COLORS = {
   green:  { hex:"#009b2d" },
 };
 const ALL_COLORS  = Object.keys(CUBE_COLORS);
-const DEFAULT_HEX = "#2a2a2a";
+const DEFAULT_HEX = "#222";
 
-// ── STATE ─────────────────────────────────────────────────
-let currentFaceIdx = 0;
-let analyzing      = false;
+// ── STATE ────────────────────────────────────────────────
+let currentShot = 1;
+let analyzing   = false;
 
-// faceData[key] = [16 color strings]
-const faceData = {};
+const faceData = { U:null, F:null, R:null, B:null, L:null, D:null };
 
-// faceHexGrid[faceIdx][row][col] for 3D renderer
-const FACE_3D_IDX = { U:0, F:1, R:2, B:3, L:4, D:5 };
+const FACE_IDX = { U:0, F:1, R:2, B:3, L:4, D:5 };
 let faceHexGrid = Array.from({length:6}, () =>
   Array.from({length:4}, () => Array(4).fill(DEFAULT_HEX))
 );
@@ -78,14 +81,14 @@ async function checkCode() {
       startCamera();
       startCubePreview();
     } else {
-      gateError.textContent = "Invalid code.";
+      gateError.textContent = "Invalid code — check with whoever sent it to you.";
       codeInput.classList.add("shake");
       codeInput.addEventListener("animationend", () => codeInput.classList.remove("shake"), {once:true});
       enterBtn.disabled    = false;
       enterBtn.textContent = "Enter";
     }
   } catch {
-    gateError.textContent = "Network error.";
+    gateError.textContent = "Network error — try again.";
     enterBtn.disabled    = false;
     enterBtn.textContent = "Enter";
   }
@@ -107,56 +110,44 @@ async function startCamera() {
       drawOverlay();
     });
   } catch {
-    alert("Camera access denied. Please allow camera and reload.");
+    alert("Camera access denied. Please allow camera permissions and reload.");
   }
 }
 
-// ── OVERLAY — clean square guide, no isometric nonsense ───
+// ── OVERLAY — corner brackets only, no grid ───────────────
 function drawOverlay() {
   const w = overlay.width, h = overlay.height;
   ctx.clearRect(0, 0, w, h);
 
-  // Vignette
-  const grad = ctx.createRadialGradient(w/2,h/2,h*0.22,w/2,h/2,h*0.65);
+  // Soft vignette
+  const grad = ctx.createRadialGradient(w/2,h/2,h*0.25,w/2,h/2,h*0.7);
   grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.5)");
+  grad.addColorStop(1, "rgba(0,0,0,0.45)");
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,w,h);
 
-  // Square scan zone
-  const size = Math.min(w,h) * 0.72;
-  const sx   = (w - size) / 2;
-  const sy   = (h - size) / 2;
-
-  // Dimmed area outside square
-  ctx.fillStyle = "rgba(0,0,0,0.3)";
-  ctx.fillRect(0,0,w,sy);
-  ctx.fillRect(0,sy+size,w,h-sy-size);
-  ctx.fillRect(0,sy,sx,size);
-  ctx.fillRect(sx+size,sy,w-sx-size,size);
-
-  // 4×4 grid lines inside square
-  const cell = size / 4;
-  ctx.strokeStyle = "rgba(200,241,53,0.4)";
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 4; i++) {
-    ctx.beginPath(); ctx.moveTo(sx+i*cell, sy); ctx.lineTo(sx+i*cell, sy+size); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(sx, sy+i*cell); ctx.lineTo(sx+size, sy+i*cell); ctx.stroke();
-  }
-
-  // Bold corner brackets
-  const bL = size * 0.08;
+  // Corner brackets
+  const pad  = Math.min(w,h) * 0.10;
+  const bLen = Math.min(w,h) * 0.10;
   ctx.strokeStyle = "#c8f135";
-  ctx.lineWidth   = 3;
+  ctx.lineWidth   = 3.5;
   ctx.lineCap     = "round";
   [
-    [sx,      sy,       1, 1],
-    [sx+size, sy,      -1, 1],
-    [sx,      sy+size,  1,-1],
-    [sx+size, sy+size, -1,-1],
+    [pad,   pad,    1,  1],
+    [w-pad, pad,   -1,  1],
+    [pad,   h-pad,  1, -1],
+    [w-pad, h-pad, -1, -1],
   ].forEach(([x,y,dx,dy]) => {
-    ctx.beginPath(); ctx.moveTo(x+dx*bL,y); ctx.lineTo(x,y); ctx.lineTo(x,y+dy*bL); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+dx*bLen, y); ctx.lineTo(x,y); ctx.lineTo(x, y+dy*bLen);
+    ctx.stroke();
   });
+
+  // Center dot
+  ctx.beginPath(); ctx.arc(w/2, h/2, 4, 0, Math.PI*2);
+  ctx.fillStyle = "#c8f135"; ctx.fill();
+  ctx.beginPath(); ctx.arc(w/2, h/2, 8, 0, Math.PI*2);
+  ctx.strokeStyle = "rgba(200,241,53,0.35)"; ctx.lineWidth=1.5; ctx.stroke();
 
   requestAnimationFrame(drawOverlay);
 }
@@ -189,6 +180,7 @@ function drawRotatingCube(rc, W, H, angle) {
     const ny2=ny*Math.cos(tiltX)-nz1*Math.sin(tiltX), nz2=ny*Math.sin(tiltX)+nz1*Math.cos(tiltX);
     return -nz2>0.04;
   }
+
   const faceDefs = [
     {fi:0,nx:0,ny:1,nz:0,   q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)]},
     {fi:1,nx:0,ny:0,nz:1,   q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)]},
@@ -197,6 +189,7 @@ function drawRotatingCube(rc, W, H, angle) {
     {fi:4,nx:-1,ny:0,nz:0,  q:(c,r)=>[project(-half,+half-r,+half-c),project(-half,+half-r,+half-c-1),project(-half,+half-r-1,+half-c-1),project(-half,+half-r-1,+half-c)]},
     {fi:5,nx:0,ny:-1,nz:0,  q:(c,r)=>[project(-half+c,-half,+half-r),project(-half+c+1,-half,+half-r),project(-half+c+1,-half,+half-r-1),project(-half+c,-half,+half-r-1)]},
   ];
+
   const allQuads=[];
   for (const fd of faceDefs) {
     if (!faceVisible(fd.nx,fd.ny,fd.nz)) continue;
@@ -206,22 +199,25 @@ function drawRotatingCube(rc, W, H, angle) {
     }
   }
   allQuads.sort((a,b)=>a.depth-b.depth);
+
   for (const {pts,hex} of allQuads) {
     const [p0,p1,p2,p3]=pts;
-    rc.beginPath(); rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy); rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy); rc.closePath();
+    rc.beginPath(); rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy);
+    rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy); rc.closePath();
     rc.fillStyle="#0d0d0d"; rc.fill();
     const mcx=(p0.sx+p1.sx+p2.sx+p3.sx)/4, mcy=(p0.sy+p1.sy+p2.sy+p3.sy)/4;
     function lerp(a,b,t){return{sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t};}
     const C={sx:mcx,sy:mcy};
     const i0=lerp(p0,C,INSET),i1=lerp(p1,C,INSET),i2=lerp(p2,C,INSET),i3=lerp(p3,C,INSET);
-    rc.beginPath(); rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy); rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy); rc.closePath();
+    rc.beginPath(); rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy);
+    rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy); rc.closePath();
     rc.fillStyle=hex; rc.fill();
     if (hex!==DEFAULT_HEX){rc.strokeStyle="rgba(255,255,255,0.15)";rc.lineWidth=0.5;rc.stroke();}
   }
 }
 
-function updateCubeColors(faceKey, colors16) {
-  const fi = FACE_3D_IDX[faceKey];
+function updateCubeFromFaceData(faceKey, colors16) {
+  const fi = FACE_IDX[faceKey];
   for (let r=0;r<4;r++) for (let c=0;c<4;c++)
     faceHexGrid[fi][r][c] = CUBE_COLORS[colors16[r*4+c]]?.hex || DEFAULT_HEX;
 }
@@ -233,123 +229,129 @@ captureBtn.addEventListener("click", async () => {
   captureBtn.disabled  = true;
   captureBtn.innerHTML = '<span class="spinner"></span> Analyzing...';
 
-  // Snapshot
   const snap = document.createElement("canvas");
   snap.width  = video.videoWidth  || 640;
   snap.height = video.videoHeight || 480;
   snap.getContext("2d").drawImage(video,0,0);
 
-  // Crop to the square scan zone (same math as overlay)
-  const sw = snap.width, sh = snap.height;
-  const size = Math.min(sw,sh) * 0.72;
-  const sx   = (sw-size)/2, sy=(sh-size)/2;
-
-  // Crop canvas
-  const crop = document.createElement("canvas");
-  crop.width = crop.height = 480; // fixed size for Gemini
-  crop.getContext("2d").drawImage(snap, sx,sy,size,size, 0,0,480,480);
-  const imageB64 = crop.toDataURL("image/jpeg",0.90).split(",")[1];
-  const photoURL = crop.toDataURL("image/jpeg",0.80);
-
-  const face = FACES[currentFaceIdx];
+  const snapDataURL = snap.toDataURL("image/jpeg", 0.92);
+  const imageB64    = snapDataURL.split(",")[1];
 
   try {
-    const res  = await fetch("/analyze-face", {
+    const res  = await fetch("/analyze-shot", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ image: imageB64 })
+      body: JSON.stringify({ shot: currentShot, image: imageB64 })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    const colors = data.colors;
-    faceData[face.key] = colors;
-    updateCubeColors(face.key, colors);
-
-    // Show face result card
-    showFaceResult(face, colors, photoURL, currentFaceIdx);
-
-    // Update sidebar
-    const steps = document.querySelectorAll(".face-step");
-    if (steps[currentFaceIdx]) {
-      steps[currentFaceIdx].classList.remove("active");
-      steps[currentFaceIdx].classList.add("done");
+    for (const [faceKey, colors] of Object.entries(data)) {
+      faceData[faceKey] = colors;
+      updateCubeFromFaceData(faceKey, colors);
     }
 
-    currentFaceIdx++;
-    faceNumEl.textContent = currentFaceIdx;
+    showFaceEditors(SHOT_FACES[currentShot], data, currentShot, snapDataURL);
 
-    if (currentFaceIdx < 6) {
-      const nextFace = FACES[currentFaceIdx];
-      if (steps[currentFaceIdx]) steps[currentFaceIdx].classList.add("active");
-      mainTitle.textContent  = `FACE ${currentFaceIdx+1} OF 6 — ${nextFace.label.toUpperCase()}`;
-      mainDesc.textContent   = nextFace.hint;
-      faceNameEl.textContent = nextFace.label;
-      captureBtn.disabled    = false;
-      captureBtn.textContent = `📸  Scan ${nextFace.label} Face`;
+    // Update sidebar steps
+    const steps = document.querySelectorAll(".face-step");
+    if (currentShot === 1) {
+      if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
+      if (steps[1]) steps[1].classList.add("active");
+      currentShot = 2;
+      updateShotUI();
+      captureBtn.disabled  = false;
+      captureBtn.textContent = "📸  Capture Shot 2";
     } else {
-      captureBtn.disabled    = true;
-      captureBtn.textContent = "✅  All faces scanned!";
+      if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
+      captureBtn.disabled  = true;
+      captureBtn.textContent = "✅  Both shots captured!";
       solveRow.style.display = "flex";
       resetBtn.style.display = "block";
       mainTitle.textContent  = "READY TO SOLVE";
-      mainDesc.textContent   = "Check the 3D cube — tap any wrong sticker to fix it, then press Solve.";
+      mainDesc.textContent   = "Check the 3D cube above — tap any wrong sticker to fix it, then press Solve.";
       faceNameEl.textContent = "—";
+      const badge = document.getElementById("shot-badge");
+      if (badge) { badge.textContent="ALL DONE"; badge.style.background="var(--accent2)"; }
     }
 
   } catch (err) {
-    showError("Gemini error: " + err.message);
+    showError("Gemini couldn't read the faces: " + err.message);
     captureBtn.disabled  = false;
-    captureBtn.textContent = `📸  Retry ${face.label} Face`;
+    captureBtn.textContent = `📸  Retry Shot ${currentShot}`;
   }
   analyzing = false;
 });
 
-// ── FACE RESULT CARD ──────────────────────────────────────
-function showFaceResult(face, colors, photoURL, idx) {
-  // Remove old card for this face if retrying
-  const old = document.getElementById(`face-card-${face.key}`);
-  if (old) old.remove();
-
-  const card = document.createElement("div");
-  card.id        = `face-card-${face.key}`;
-  card.className = "face-result-card";
-
-  // Header
-  const hdr = document.createElement("div");
-  hdr.className   = "face-result-hdr";
-  hdr.textContent = `${face.color} ${face.label} Face`;
-  card.appendChild(hdr);
-
-  // Body: photo + grid side by side
-  const body = document.createElement("div");
-  body.className = "face-result-body";
-
-  // Photo thumbnail
-  const img = document.createElement("img");
-  img.src       = photoURL;
-  img.className = "face-result-photo";
-  body.appendChild(img);
-
-  // 4×4 editable sticker grid
-  const grid = document.createElement("div");
-  grid.className = "editor-grid";
-  colors.forEach((colorName, i) => {
-    const cell = document.createElement("div");
-    cell.className = "editor-cell";
-    cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
-    cell.dataset.color = colorName;
-    cell.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      openColorPicker(cell, face.key, i);
-    });
-    grid.appendChild(cell);
-  });
-  body.appendChild(grid);
-  card.appendChild(body);
-  facesRow.appendChild(card);
+function updateShotUI() {
+  mainTitle.textContent  = "SHOT 2 OF 2";
+  mainDesc.innerHTML     = SHOT_INSTRUCTIONS[2];
+  faceNameEl.textContent = "Bottom corner";
+  faceNumEl.textContent  = "1";
+  const badge = document.getElementById("shot-badge");
+  if (badge) badge.textContent = "SHOT 2 OF 2";
+  const g1 = document.getElementById("guide-shot1");
+  const g2 = document.getElementById("guide-shot2");
+  if (g1) g1.style.display = "none";
+  if (g2) g2.style.display = "block";
 }
 
-// ── COLOR PICKER ──────────────────────────────────────────
+// ── FACE EDITORS ─────────────────────────────────────────
+function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
+  document.querySelectorAll(`[data-shot="${shotNum}"]`).forEach(el => el.remove());
+
+  // Shot header
+  const hdr = document.createElement("div");
+  hdr.className = "section-label";
+  hdr.setAttribute("data-shot", shotNum);
+  hdr.textContent = `SHOT ${shotNum} — TAP ANY STICKER TO CORRECT`;
+  facesRow.appendChild(hdr);
+
+  // Photo thumbnail
+  if (photoDataURL) {
+    const wrap = document.createElement("div");
+    wrap.setAttribute("data-shot", shotNum);
+    wrap.style.cssText = "margin-bottom:0.8rem;";
+    const img = document.createElement("img");
+    img.src = photoDataURL;
+    img.style.cssText = "width:100%;max-width:320px;border-radius:10px;border:1px solid #2c2c2c;display:block;";
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "font-size:0.65rem;color:#666;letter-spacing:2px;text-transform:uppercase;margin-top:0.4rem;";
+    lbl.textContent = `Shot ${shotNum} photo`;
+    wrap.appendChild(img);
+    wrap.appendChild(lbl);
+    facesRow.appendChild(wrap);
+  }
+
+  // One grid per face
+  faceKeys.forEach(fk => {
+    const colors = data[fk] || Array(16).fill("white");
+    const wrap = document.createElement("div");
+    wrap.setAttribute("data-shot", shotNum);
+    wrap.style.cssText = "margin-bottom:1rem;";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:0.5rem;";
+    title.textContent = FACE_NAMES[fk];
+    wrap.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:180px;";
+
+    colors.forEach((colorName, idx) => {
+      const cell = document.createElement("div");
+      cell.style.cssText = "aspect-ratio:1;border-radius:4px;border:2px solid rgba(0,0,0,0.3);cursor:pointer;transition:transform 0.1s;";
+      cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
+      cell.dataset.color = colorName;
+      cell.addEventListener("pointerdown", (e) => { e.stopPropagation(); openColorPicker(cell, fk, idx); });
+      grid.appendChild(cell);
+    });
+
+    wrap.appendChild(grid);
+    facesRow.appendChild(wrap);
+  });
+}
+
+// ── COLOR PICKER ─────────────────────────────────────────
 let activePopover = null;
 let pickerOpenTime = 0;
 
@@ -359,33 +361,40 @@ function openColorPicker(cell, faceKey, idx) {
   pickerOpenTime = Date.now();
 
   const pop = document.createElement("div");
-  pop.className = "color-popover";
   pop._cell = cell;
+  pop.style.cssText = `
+    position:fixed; z-index:9999; display:flex; gap:6px; padding:8px;
+    background:#1e1e1e; border:1px solid #3a3a3a; border-radius:10px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.7);
+  `;
 
   ALL_COLORS.forEach(colorName => {
     const sw = document.createElement("div");
-    sw.className = "color-swatch";
-    sw.style.background = CUBE_COLORS[colorName].hex;
+    sw.style.cssText = `width:30px;height:30px;border-radius:6px;border:2px solid transparent;cursor:pointer;background:${CUBE_COLORS[colorName].hex};`;
     sw.title = colorName;
-    if (colorName === cell.dataset.color) sw.classList.add("selected");
+    if (colorName === cell.dataset.color) sw.style.borderColor = "#fff";
     sw.addEventListener("pointerdown", (e) => {
       e.stopPropagation(); e.preventDefault();
-      cell.style.background  = CUBE_COLORS[colorName].hex;
-      cell.dataset.color     = colorName;
+      cell.style.background = CUBE_COLORS[colorName].hex;
+      cell.dataset.color    = colorName;
       if (faceData[faceKey]) faceData[faceKey][idx] = colorName;
       const r=Math.floor(idx/4), c=idx%4;
-      faceHexGrid[FACE_3D_IDX[faceKey]][r][c] = CUBE_COLORS[colorName].hex;
+      faceHexGrid[FACE_IDX[faceKey]][r][c] = CUBE_COLORS[colorName].hex;
       closeColorPicker();
     });
     pop.appendChild(sw);
   });
 
+  // Position — use fixed so it stays on screen
   const rect = cell.getBoundingClientRect();
-  const popW = ALL_COLORS.length * 36 + 16;
-  let left   = rect.left + window.scrollX;
+  const popW = ALL_COLORS.length * 38 + 16;
+  let left = rect.left;
+  let top  = rect.bottom + 8;
   if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-  pop.style.top  = (rect.bottom + window.scrollY + 8) + "px";
+  if (top + 50 > window.innerHeight) top = rect.top - 58;
   pop.style.left = Math.max(8, left) + "px";
+  pop.style.top  = top + "px";
+
   document.body.appendChild(pop);
   activePopover = pop;
 }
@@ -405,7 +414,8 @@ function showError(msg) {
   let box = document.getElementById("err-box");
   if (!box) {
     box = document.createElement("div");
-    box.id = "err-box"; box.className = "error-box";
+    box.id = "err-box";
+    box.style.cssText = "background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.25);border-radius:10px;padding:1rem;font-size:0.85rem;color:#ff9090;margin-bottom:1rem;";
     facesRow.before(box);
   }
   box.innerHTML = `<strong>Error:</strong> ${msg}`;
@@ -422,8 +432,8 @@ solveBtn.addEventListener("click", async () => {
   for (const letter of CUBING_ORDER) {
     const colors = faceData[letter];
     if (!colors) {
-      showError(`Face ${letter} not scanned.`);
-      solveBtn.innerHTML = "✅  Solve the Cube!"; solveBtn.disabled = false; return;
+      showError(`Face ${letter} not scanned yet.`);
+      solveBtn.innerHTML="✅  Solve the Cube!"; solveBtn.disabled=false; return;
     }
     for (const c of colors) stateStr += COLOR_TO_FACE[c];
   }
@@ -433,12 +443,16 @@ solveBtn.addEventListener("click", async () => {
     const solution = await experimental4x4x4Solve(stateStr);
     showSolution(solution.toString());
   } catch (err) {
+    console.error(err);
     solutionArea.style.display = "block";
-    document.getElementById("moves-wrap").innerHTML =
-      `<div class="error-box"><strong>Could not solve.</strong><br>Check sticker colours and try again.</div>`;
+    document.getElementById("moves-wrap").innerHTML = "";
     document.getElementById("twisty-wrap").style.display = "none";
     document.getElementById("move-count").textContent = "";
-    solveBtn.innerHTML = "✅  Solve the Cube!"; solveBtn.disabled = false;
+    const errBox = document.createElement("div");
+    errBox.className = "error-box";
+    errBox.innerHTML = `<strong>Could not solve — colours may be wrong.</strong><br><br>Check the 3D cube and tap any wrong sticker to fix it, then try Solve again.`;
+    document.getElementById("moves-wrap").appendChild(errBox);
+    solveBtn.innerHTML="✅  Solve the Cube!"; solveBtn.disabled=false;
   }
 });
 
@@ -449,7 +463,7 @@ function showSolution(algString) {
   wrap.innerHTML = "";
   moves.forEach(m => {
     const chip = document.createElement("span");
-    chip.className = "move-chip"; chip.textContent = m;
+    chip.className="move-chip"; chip.textContent=m;
     wrap.appendChild(chip);
   });
   document.getElementById("twisty").setAttribute("alg", algString);
@@ -460,8 +474,8 @@ function showSolution(algString) {
 
 // ── RESET ─────────────────────────────────────────────────
 resetBtn.addEventListener("click", () => {
-  currentFaceIdx = 0; analyzing = false;
-  Object.keys(faceData).forEach(k => delete faceData[k]);
+  currentShot = 1; analyzing = false;
+  Object.keys(faceData).forEach(k => faceData[k] = null);
   faceHexGrid = Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill(DEFAULT_HEX)));
 
   document.querySelectorAll(".face-step").forEach((s,i) => {
@@ -469,21 +483,29 @@ resetBtn.addEventListener("click", () => {
     if (i===0) s.classList.add("active");
   });
 
-  mainTitle.textContent  = "FACE 1 OF 6 — TOP";
-  mainDesc.textContent   = FACES[0].hint;
-  faceNameEl.textContent = "Top";
+  mainTitle.textContent  = "SHOT 1 OF 2";
+  mainDesc.innerHTML     = SHOT_INSTRUCTIONS[1];
+  faceNameEl.textContent = "Top corner";
   faceNumEl.textContent  = "0";
 
   captureBtn.disabled    = false;
-  captureBtn.textContent = "📸  Scan Top Face";
+  captureBtn.textContent = "📸  Capture Shot 1";
   solveRow.style.display = "none";
   solutionArea.style.display = "none";
   resetBtn.style.display = "none";
-  solveBtn.innerHTML     = "✅  Solve the Cube!"; solveBtn.disabled = false;
+  solveBtn.innerHTML     = "✅  Solve the Cube!";
+  solveBtn.disabled      = false;
 
   document.getElementById("twisty-wrap").style.display = "block";
   document.getElementById("move-count").textContent    = "";
-  document.querySelectorAll(".face-result-card").forEach(el=>el.remove());
+  document.querySelectorAll("[data-shot]").forEach(el => el.remove());
   const errBox = document.getElementById("err-box");
   if (errBox) errBox.style.display = "none";
+
+  const badge = document.getElementById("shot-badge");
+  if (badge) { badge.textContent="SHOT 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
+  const g1 = document.getElementById("guide-shot1");
+  const g2 = document.getElementById("guide-shot2");
+  if (g1) g1.style.display = "block";
+  if (g2) g2.style.display = "none";
 });
