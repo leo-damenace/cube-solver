@@ -91,7 +91,7 @@ def call_gemini(image_b64: str, shot: int) -> dict:
         }],
         "generationConfig": {
             "temperature": 0.0,
-            "maxOutputTokens": 512
+            "maxOutputTokens": 1024
         }
     }).encode()
 
@@ -109,7 +109,14 @@ def call_gemini(image_b64: str, shot: int) -> dict:
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
-            return json.loads(raw)
+            raw = raw.strip()
+            # Safety: close array if Gemini got cut off mid-response
+            if raw.startswith("[") and not raw.endswith("]"):
+                raw = raw.rstrip(", \n") + "]"
+            result = json.loads(raw)
+            if not isinstance(result, list):
+                raise ValueError("Expected list")
+            return result
 
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 4:
