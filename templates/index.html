@@ -578,75 +578,6 @@
       .sidebar-tip { display: none; }
       .main { padding: 1.5rem 1rem; }
     }
-    /* ── FACE RESULT CARDS ── */
-    .face-result-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      margin-bottom: 1rem;
-    }
-    .face-result-hdr {
-      padding: 0.5rem 0.8rem;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--accent);
-      border-bottom: 1px solid var(--border);
-    }
-    .face-result-body {
-      display: flex;
-      gap: 10px;
-      padding: 0.7rem;
-      align-items: flex-start;
-    }
-    .face-result-photo {
-      width: 90px;
-      height: 90px;
-      object-fit: cover;
-      border-radius: 6px;
-      flex-shrink: 0;
-      border: 1px solid var(--border);
-    }
-    .editor-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 3px;
-      flex: 1;
-    }
-    .editor-cell {
-      aspect-ratio: 1;
-      border-radius: 4px;
-      border: 2px solid rgba(0,0,0,0.25);
-      cursor: pointer;
-      transition: transform 0.1s, border-color 0.1s;
-      min-width: 0;
-    }
-    .editor-cell:hover { transform: scale(1.15); border-color: var(--accent); }
-
-    /* ── COLOR POPOVER ── */
-    .color-popover {
-      position: absolute;
-      z-index: 9999;
-      display: flex;
-      gap: 6px;
-      padding: 8px;
-      background: var(--card);
-      border: 1px solid var(--border2);
-      border-radius: 10px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-    }
-    .color-swatch {
-      width: 30px; height: 30px;
-      border-radius: 6px;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: transform 0.1s;
-    }
-    .color-swatch:hover    { transform: scale(1.18); }
-    .color-swatch.selected { border-color: #fff; }
-
   </style>
 </head>
 <body>
@@ -677,12 +608,8 @@
         <div class="sidebar-section-label">Progress</div>
         <div class="face-steps" id="face-steps">
         <div class="face-steps" id="face-steps">
-          <div class="face-step active"><div class="dot"></div><span class="step-name">⬜ Top</span></div>
-          <div class="face-step">      <div class="dot"></div><span class="step-name">🟩 Front</span></div>
-          <div class="face-step">      <div class="dot"></div><span class="step-name">🟥 Right</span></div>
-          <div class="face-step">      <div class="dot"></div><span class="step-name">🟦 Back</span></div>
-          <div class="face-step">      <div class="dot"></div><span class="step-name">🟧 Left</span></div>
-          <div class="face-step">      <div class="dot"></div><span class="step-name">🟨 Bottom</span></div>
+          <div class="face-step active"><div class="dot"></div><span class="step-name">📸 Shot 1 — Top corner</span></div>
+          <div class="face-step">      <div class="dot"></div><span class="step-name">📸 Shot 2 — Bottom corner</span></div>
         </div>
         </div>
       </div>
@@ -697,17 +624,30 @@
     <main class="main">
 
       <div class="main-header">
-        <h2 id="main-title">FACE 1 OF 6 — TOP</h2>
-        <p id="main-desc">Hold the TOP face flat toward the camera so it fills the square, then press Scan.</p>
+        <h2 id="main-title">SHOT 1 OF 2</h2>
+        <p id="main-desc">Hold cube so <strong>Top, Front &amp; Right</strong> faces are visible — like looking at a corner from above.</p>
       </div>
 
-      <!-- Rotating 3D cube preview -->
+      <!-- Guide + rotating cube -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:1.2rem;">
-        <div style="padding:0.7rem 1.2rem;border-bottom:1px solid var(--border);">
-          <span style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);">Live cube preview — updates as you scan</span>
+        <div style="padding:0.7rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);">Live cube preview</span>
+          <span id="shot-badge" style="background:var(--accent);color:#000;font-size:0.65rem;font-weight:600;letter-spacing:2px;padding:3px 10px;border-radius:20px;">SHOT 1 OF 2</span>
         </div>
         <div style="display:flex;justify-content:center;padding:0.8rem;background:#111;">
           <canvas id="ref-cube" width="280" height="220" style="display:block;max-width:100%;"></canvas>
+        </div>
+
+        <!-- Shot 1 instructions -->
+        <div id="guide-shot1" style="padding:0.8rem 1.2rem;font-size:0.78rem;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);">
+          Hold cube so you can see <strong style="color:var(--text)">3 faces at once</strong> — like looking at a corner from above.<br>
+          ✅ Top face pointing up &nbsp; ✅ Front face toward you &nbsp; ✅ Right face on the right
+        </div>
+
+        <!-- Shot 2 instructions -->
+        <div id="guide-shot2" style="padding:0.8rem 1.2rem;font-size:0.78rem;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);display:none;">
+          Flip to the <strong style="color:var(--text)">opposite corner</strong> — rotate the cube so the bottom is now facing up.<br>
+          ✅ Bottom face up toward you &nbsp; ✅ Back face visible &nbsp; ✅ Left face on the left
         </div>
       </div>
 
@@ -722,20 +662,20 @@
           </div>
         </div>
         <div class="camera-footer">
-          <div class="face-label-text">Scanning: <strong id="face-name">Top</strong></div>
-          <div class="face-counter"><span id="face-num">0</span>/6 scanned</div>
+          <div class="face-label-text">Scanning: <strong id="face-name">Top corner</strong></div>
+          <div class="face-counter"><span id="face-num">0</span>/2 captured</div>
         </div>
       </div>
 
       <!-- Controls -->
       <div class="btn-row">
-        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Scan Top Face</button>
+        <button class="btn btn-primary" id="capture-btn">📸 &nbsp;Capture Shot 1</button>
         <button class="btn btn-ghost"   id="reset-btn"   style="flex:0;padding:0.75rem 1.2rem;display:none">↺ Reset</button>
       </div>
 
       <!-- Scanned faces preview -->
       <div id="faces-section">
-        <div class="section-label">Scanned Faces — tap any sticker to correct</div>
+        <div class="section-label">Scanned Faces</div>
         <div class="faces-row" id="faces-row">
           <!-- Slots filled by JS -->
         </div>
