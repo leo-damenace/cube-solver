@@ -1,67 +1,60 @@
 // ═══════════════════════════════════════════════════
 //  CubeSolve — script.js
-//  2-shot corner flow · Gemini vision · live 3D cube
+//  4 shots → Gemini analyzes all → 3D cube appears → tap to fix → solve
 // ═══════════════════════════════════════════════════
-
-const FACE_NAMES = {
-  U:"Top (White)",  F:"Front (Green)", R:"Right (Red)",
-  B:"Back (Blue)",  L:"Left (Orange)", D:"Bottom (Yellow)"
-};
-
-const SHOT_FACES = {
-  1: ["U","F","R"],
-  2: ["D","B","L"],
-};
-
-const SHOT_INSTRUCTIONS = {
-  1: "Hold cube so <strong>Top, Front & Right</strong> faces are visible — like looking at a corner from above.",
-  2: "Flip cube to the opposite corner — <strong>Bottom, Back & Left</strong> faces visible.",
-};
 
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const COLOR_TO_FACE = { white:"U", red:"R", green:"F", yellow:"D", orange:"L", blue:"B" };
 
 const CUBE_COLORS = {
-  white:  { hex:"#f0f0f0" },
-  yellow: { hex:"#ffd200" },
-  red:    { hex:"#d21919" },
-  orange: { hex:"#ff6400" },
-  blue:   { hex:"#0046c8" },
-  green:  { hex:"#009b2d" },
+  white:  "#f0f0f0",
+  yellow: "#ffd200",
+  red:    "#d21919",
+  orange: "#ff6400",
+  blue:   "#0046c8",
+  green:  "#009b2d",
 };
 const ALL_COLORS  = Object.keys(CUBE_COLORS);
-const DEFAULT_HEX = "#222";
+const DEFAULT_HEX = "#2a2a2a";
 
-// ── STATE ────────────────────────────────────────────────
-let currentShot = 1;
-let analyzing   = false;
+const SHOTS = [
+  { n:1, title:"SHOT 1 OF 4", sub:"Top corner — hold cube so Top, Front & Right are visible.", badge:"SHOT 1 / 4" },
+  { n:2, title:"SHOT 2 OF 4", sub:"Flip to opposite corner — Bottom, Back & Left visible.", badge:"SHOT 2 / 4" },
+  { n:3, title:"SHOT 3 OF 4", sub:"Rotate cube on its side — all 4 side faces visible in a band.", badge:"SHOT 3 / 4" },
+  { n:4, title:"SHOT 4 OF 4", sub:"Rotate 90° — same side band from new angle.", badge:"SHOT 4 / 4" },
+];
 
-const faceData = { U:null, F:null, R:null, B:null, L:null, D:null };
+// ── STATE ─────────────────────────────────────────────────
+let currentShot = 0;       // 0-3
+let capturedImages = {};   // {"1":b64, "2":b64, ...}
+let faceData = {};         // final merged colors from Gemini
+let analyzing = false;
 
-const FACE_IDX = { U:0, F:1, R:2, B:3, L:4, D:5 };
-let faceHexGrid = Array.from({length:6}, () =>
-  Array.from({length:4}, () => Array(4).fill(DEFAULT_HEX))
-);
+// faceHexGrid[fi][r][c] — for 3D renderer
+// fi: 0=U 1=F 2=R 3=B 4=L 5=D
+const FACE_IDX = {U:0,F:1,R:2,B:3,L:4,D:5};
+let faceHexGrid = Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill(DEFAULT_HEX)));
 
 // ── DOM ───────────────────────────────────────────────────
-const gateEl       = document.getElementById("gate");
-const appEl        = document.getElementById("app");
-const codeInput    = document.getElementById("code-input");
-const enterBtn     = document.getElementById("enter-btn");
-const gateError    = document.getElementById("gate-error");
-const video        = document.getElementById("camera");
-const overlay      = document.getElementById("overlay");
-const ctx          = overlay.getContext("2d");
-const captureBtn   = document.getElementById("capture-btn");
-const solveRow     = document.getElementById("solve-row");
-const solveBtn     = document.getElementById("solve-btn");
-const resetBtn     = document.getElementById("reset-btn");
-const solutionArea = document.getElementById("solution-area");
-const facesRow     = document.getElementById("faces-row");
-const faceNameEl   = document.getElementById("face-name");
-const faceNumEl    = document.getElementById("face-num");
-const mainTitle    = document.getElementById("main-title");
-const mainDesc     = document.getElementById("main-desc");
+const gateEl      = document.getElementById("gate");
+const appEl       = document.getElementById("app");
+const codeInput   = document.getElementById("code-input");
+const enterBtn    = document.getElementById("enter-btn");
+const gateError   = document.getElementById("gate-error");
+const video       = document.getElementById("camera");
+const overlay     = document.getElementById("overlay");
+const ctx         = overlay.getContext("2d");
+const captureBtn  = document.getElementById("capture-btn");
+const solveRow    = document.getElementById("solve-row");
+const solveBtn    = document.getElementById("solve-btn");
+const resetBtn    = document.getElementById("reset-btn");
+const solutionArea= document.getElementById("solution-area");
+const mainTitle   = document.getElementById("main-title");
+const mainDesc    = document.getElementById("main-desc");
+const faceNameEl  = document.getElementById("face-name");
+const faceNumEl   = document.getElementById("face-num");
+const cubeSection = document.getElementById("cube-section");
+const cubeCanvas  = document.getElementById("cube-canvas");
 
 // ── GATE ──────────────────────────────────────────────────
 async function checkCode() {
@@ -72,103 +65,192 @@ async function checkCode() {
   try {
     const res  = await fetch("/verify-code", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ code })
+      body: JSON.stringify({code})
     });
     const data = await res.json();
     if (data.valid) {
       gateEl.style.display = "none";
       appEl.style.display  = "block";
       startCamera();
-      startCubePreview();
+      startCubeRenderer();
+      updateShotUI(0);
     } else {
-      gateError.textContent = "Invalid code — check with whoever sent it to you.";
+      gateError.textContent = "Invalid code.";
       codeInput.classList.add("shake");
-      codeInput.addEventListener("animationend", () => codeInput.classList.remove("shake"), {once:true});
-      enterBtn.disabled    = false;
-      enterBtn.textContent = "Enter";
+      codeInput.addEventListener("animationend",()=>codeInput.classList.remove("shake"),{once:true});
+      enterBtn.disabled = false; enterBtn.textContent = "Enter";
     }
   } catch {
-    gateError.textContent = "Network error — try again.";
-    enterBtn.disabled    = false;
-    enterBtn.textContent = "Enter";
+    gateError.textContent = "Network error.";
+    enterBtn.disabled = false; enterBtn.textContent = "Enter";
   }
 }
 enterBtn.addEventListener("click", checkCode);
-codeInput.addEventListener("keydown", e => { if (e.key==="Enter") checkCode(); });
-codeInput.addEventListener("input",   () => { gateError.textContent = ""; });
+codeInput.addEventListener("keydown", e=>{if(e.key==="Enter")checkCode();});
+codeInput.addEventListener("input",   ()=>{gateError.textContent="";});
 
 // ── CAMERA ────────────────────────────────────────────────
 async function startCamera() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode:"environment", width:{ideal:1280}, height:{ideal:960} }
+      video:{facingMode:"environment",width:{ideal:1280},height:{ideal:960}}
     });
     video.srcObject = stream;
-    video.addEventListener("loadedmetadata", () => {
+    video.addEventListener("loadedmetadata", ()=>{
       overlay.width  = video.videoWidth  || video.clientWidth;
       overlay.height = video.videoHeight || video.clientHeight;
       drawOverlay();
     });
-  } catch {
-    alert("Camera access denied. Please allow camera permissions and reload.");
-  }
+  } catch { alert("Camera access denied. Please allow camera and reload."); }
 }
 
-// ── OVERLAY — corner brackets only, no grid ───────────────
+// ── OVERLAY — simple square + corner brackets ─────────────
 function drawOverlay() {
-  const w = overlay.width, h = overlay.height;
-  ctx.clearRect(0, 0, w, h);
+  const w=overlay.width, h=overlay.height;
+  ctx.clearRect(0,0,w,h);
 
-  // Soft vignette
-  const grad = ctx.createRadialGradient(w/2,h/2,h*0.25,w/2,h/2,h*0.7);
-  grad.addColorStop(0, "rgba(0,0,0,0)");
-  grad.addColorStop(1, "rgba(0,0,0,0.45)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,w,h);
+  // Vignette
+  const g=ctx.createRadialGradient(w/2,h/2,h*0.22,w/2,h/2,h*0.65);
+  g.addColorStop(0,"rgba(0,0,0,0)");
+  g.addColorStop(1,"rgba(0,0,0,0.5)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+
+  const size=Math.min(w,h)*0.78, sx=(w-size)/2, sy=(h-size)/2;
+
+  // Dim outside
+  ctx.fillStyle="rgba(0,0,0,0.25)";
+  ctx.fillRect(0,0,w,sy); ctx.fillRect(0,sy+size,w,h);
+  ctx.fillRect(0,sy,sx,size); ctx.fillRect(sx+size,sy,w-sx-size,size);
 
   // Corner brackets
-  const pad  = Math.min(w,h) * 0.10;
-  const bLen = Math.min(w,h) * 0.10;
-  ctx.strokeStyle = "#c8f135";
-  ctx.lineWidth   = 3.5;
-  ctx.lineCap     = "round";
-  [
-    [pad,   pad,    1,  1],
-    [w-pad, pad,   -1,  1],
-    [pad,   h-pad,  1, -1],
-    [w-pad, h-pad, -1, -1],
-  ].forEach(([x,y,dx,dy]) => {
-    ctx.beginPath();
-    ctx.moveTo(x+dx*bLen, y); ctx.lineTo(x,y); ctx.lineTo(x, y+dy*bLen);
-    ctx.stroke();
+  const bL=size*0.08;
+  ctx.strokeStyle="#c8f135"; ctx.lineWidth=3; ctx.lineCap="round";
+  [[sx,sy,1,1],[sx+size,sy,-1,1],[sx,sy+size,1,-1],[sx+size,sy+size,-1,-1]].forEach(([x,y,dx,dy])=>{
+    ctx.beginPath(); ctx.moveTo(x+dx*bL,y); ctx.lineTo(x,y); ctx.lineTo(x,y+dy*bL); ctx.stroke();
   });
 
   // Center dot
-  ctx.beginPath(); ctx.arc(w/2, h/2, 4, 0, Math.PI*2);
-  ctx.fillStyle = "#c8f135"; ctx.fill();
-  ctx.beginPath(); ctx.arc(w/2, h/2, 8, 0, Math.PI*2);
-  ctx.strokeStyle = "rgba(200,241,53,0.35)"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(w/2,h/2,4,0,Math.PI*2); ctx.fillStyle="#c8f135"; ctx.fill();
 
   requestAnimationFrame(drawOverlay);
 }
 
-// ── ROTATING 4×4 CUBE PREVIEW ────────────────────────────
-let cubeAngle = 0.5;
+// ── SHOT UI ───────────────────────────────────────────────
+function updateShotUI(idx) {
+  const s = SHOTS[idx];
+  mainTitle.textContent  = s.title;
+  mainDesc.textContent   = s.sub;
+  faceNameEl.textContent = s.badge;
+  faceNumEl.textContent  = idx;
+  captureBtn.textContent = `📸  Take Shot ${idx+1}`;
+  captureBtn.disabled    = false;
 
-function startCubePreview() {
-  const canvas = document.getElementById("ref-cube");
-  if (!canvas) return;
-  const rc = canvas.getContext("2d");
-  (function loop() {
-    cubeAngle += 0.007;
-    drawRotatingCube(rc, canvas.width, canvas.height, cubeAngle);
-    requestAnimationFrame(loop);
-  })();
+  // Update sidebar steps
+  document.querySelectorAll(".face-step").forEach((el,i)=>{
+    el.classList.remove("active","done");
+    if (i < idx)  el.classList.add("done");
+    if (i === idx) el.classList.add("active");
+  });
 }
 
-function drawRotatingCube(rc, W, H, angle) {
+// ── CAPTURE ───────────────────────────────────────────────
+captureBtn.addEventListener("click", async ()=>{
+  if (analyzing) return;
+
+  // Snapshot + crop to square zone
+  const snap=document.createElement("canvas");
+  snap.width=video.videoWidth||640; snap.height=video.videoHeight||480;
+  snap.getContext("2d").drawImage(video,0,0);
+  const sw=snap.width,sh=snap.height;
+  const size=Math.min(sw,sh)*0.78, sx=(sw-size)/2, sy=(sh-size)/2;
+  const crop=document.createElement("canvas");
+  crop.width=crop.height=640;
+  crop.getContext("2d").drawImage(snap,sx,sy,size,size,0,0,640,640);
+  const b64=crop.toDataURL("image/jpeg",0.9).split(",")[1];
+
+  capturedImages[String(currentShot+1)] = b64;
+
+  // Mark step done
+  const steps=document.querySelectorAll(".face-step");
+  if(steps[currentShot]){steps[currentShot].classList.remove("active");steps[currentShot].classList.add("done");}
+
+  currentShot++;
+  faceNumEl.textContent = currentShot;
+
+  if (currentShot < 4) {
+    // More shots to take
+    updateShotUI(currentShot);
+  } else {
+    // All 4 shots taken — send to Gemini
+    captureBtn.disabled  = true;
+    captureBtn.innerHTML = '<span class="spinner"></span> Analyzing all shots...';
+    mainTitle.textContent = "ANALYZING...";
+    mainDesc.textContent  = "Gemini is reading all 6 faces. This takes ~15 seconds.";
+    analyzing = true;
+
+    try {
+      const res  = await fetch("/analyze-all", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({images: capturedImages})
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      faceData = data.faces;
+
+      // Update 3D cube with all colors at once
+      for (const [fk, colors] of Object.entries(faceData)) {
+        const fi = FACE_IDX[fk];
+        for (let r=0;r<4;r++) for (let c=0;c<4;c++)
+          faceHexGrid[fi][r][c] = CUBE_COLORS[colors[r*4+c]] || DEFAULT_HEX;
+      }
+
+      // Show cube section
+      cubeSection.style.display = "block";
+      mainTitle.textContent = "CHECK YOUR CUBE";
+      mainDesc.textContent  = "Tap any sticker on the 3D cube to correct a wrong colour, then press Solve.";
+      solveRow.style.display = "flex";
+      resetBtn.style.display = "block";
+      captureBtn.style.display = "none";
+
+    } catch(err) {
+      showError("Analysis failed: " + err.message);
+      captureBtn.disabled  = false;
+      captureBtn.innerHTML = "🔄 Retry Analysis";
+      mainTitle.textContent = "SHOT 4 OF 4";
+      currentShot = 3;
+      analyzing = false;
+      updateShotUI(3);
+    }
+    analyzing = false;
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+//  INTERACTIVE 3D CUBE — tap stickers to fix colors
+// ══════════════════════════════════════════════════════════
+let cubeAngle   = 0.5;
+let cubeAutoSpin = true;
+let lastHit     = null;  // {fi, r, c} of last tapped sticker
+
+// All projected quads from last render — for hit testing
+let lastQuads = [];
+
+function startCubeRenderer() {
+  const rc = cubeCanvas.getContext("2d");
+  (function loop() {
+    if (cubeAutoSpin) cubeAngle += 0.007;
+    drawCube(rc, cubeCanvas.width, cubeCanvas.height, cubeAngle);
+    requestAnimationFrame(loop);
+  })();
+
+  // Tap/click on cube canvas
+  cubeCanvas.addEventListener("pointerdown", onCubeTap);
+}
+
+function drawCube(rc, W, H, angle) {
   rc.clearRect(0,0,W,H);
-  const N=4, scale=Math.min(W,H)*0.155, cx=W*0.5, cy=H*0.52, tiltX=0.50, half=N/2, INSET=0.08;
+  const N=4, scale=Math.min(W,H)*0.17, cx=W*0.5, cy=H*0.50, tiltX=0.50, half=N/2, INSET=0.07;
 
   function project(x,y,z) {
     const x1=x*Math.cos(angle)+z*Math.sin(angle), z1=-x*Math.sin(angle)+z*Math.cos(angle);
@@ -181,7 +263,7 @@ function drawRotatingCube(rc, W, H, angle) {
     return -nz2>0.04;
   }
 
-  const faceDefs = [
+  const faceDefs=[
     {fi:0,nx:0,ny:1,nz:0,   q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)]},
     {fi:1,nx:0,ny:0,nz:1,   q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)]},
     {fi:2,nx:1,ny:0,nz:0,   q:(c,r)=>[project(+half,+half-r,-half+c),project(+half,+half-r,-half+c+1),project(+half,+half-r-1,-half+c+1),project(+half,+half-r-1,-half+c)]},
@@ -195,317 +277,188 @@ function drawRotatingCube(rc, W, H, angle) {
     if (!faceVisible(fd.nx,fd.ny,fd.nz)) continue;
     for (let r=0;r<N;r++) for (let c=0;c<N;c++) {
       const pts=fd.q(c,r);
-      allQuads.push({pts, depth:pts.reduce((s,p)=>s+p.depth,0)/4, hex:faceHexGrid[fd.fi][r][c]});
+      const depth=pts.reduce((s,p)=>s+p.depth,0)/4;
+      const hex=faceHexGrid[fd.fi][r][c];
+      const isHit = lastHit && lastHit.fi===fd.fi && lastHit.r===r && lastHit.c===c;
+      allQuads.push({pts,depth,hex,fi:fd.fi,r,c,isHit});
     }
   }
   allQuads.sort((a,b)=>a.depth-b.depth);
+  lastQuads = allQuads;
 
-  for (const {pts,hex} of allQuads) {
+  for (const {pts,hex,isHit} of allQuads) {
     const [p0,p1,p2,p3]=pts;
-    rc.beginPath(); rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy);
-    rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy); rc.closePath();
+    // Black body
+    rc.beginPath(); rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy); rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy); rc.closePath();
     rc.fillStyle="#0d0d0d"; rc.fill();
+    // Inset sticker
     const mcx=(p0.sx+p1.sx+p2.sx+p3.sx)/4, mcy=(p0.sy+p1.sy+p2.sy+p3.sy)/4;
     function lerp(a,b,t){return{sx:a.sx+(b.sx-a.sx)*t,sy:a.sy+(b.sy-a.sy)*t};}
     const C={sx:mcx,sy:mcy};
     const i0=lerp(p0,C,INSET),i1=lerp(p1,C,INSET),i2=lerp(p2,C,INSET),i3=lerp(p3,C,INSET);
-    rc.beginPath(); rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy);
-    rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy); rc.closePath();
-    rc.fillStyle=hex; rc.fill();
-    if (hex!==DEFAULT_HEX){rc.strokeStyle="rgba(255,255,255,0.15)";rc.lineWidth=0.5;rc.stroke();}
-  }
-}
-
-function updateCubeFromFaceData(faceKey, colors16) {
-  const fi = FACE_IDX[faceKey];
-  for (let r=0;r<4;r++) for (let c=0;c<4;c++)
-    faceHexGrid[fi][r][c] = CUBE_COLORS[colors16[r*4+c]]?.hex || DEFAULT_HEX;
-}
-
-// ── CAPTURE ───────────────────────────────────────────────
-captureBtn.addEventListener("click", async () => {
-  if (analyzing) return;
-  analyzing = true;
-  captureBtn.disabled  = true;
-  captureBtn.innerHTML = '<span class="spinner"></span> Analyzing...';
-
-  const snap = document.createElement("canvas");
-  snap.width  = video.videoWidth  || 640;
-  snap.height = video.videoHeight || 480;
-  snap.getContext("2d").drawImage(video,0,0);
-
-  const snapDataURL = snap.toDataURL("image/jpeg", 0.92);
-  const imageB64    = snapDataURL.split(",")[1];
-
-  try {
-    const res  = await fetch("/analyze-shot", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ shot: currentShot, image: imageB64 })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    for (const [faceKey, colors] of Object.entries(data)) {
-      faceData[faceKey] = colors;
-      updateCubeFromFaceData(faceKey, colors);
+    rc.beginPath(); rc.moveTo(i0.sx,i0.sy); rc.lineTo(i1.sx,i1.sy); rc.lineTo(i2.sx,i2.sy); rc.lineTo(i3.sx,i3.sy); rc.closePath();
+    rc.fillStyle = hex; rc.fill();
+    // Highlight selected
+    if (isHit) {
+      rc.strokeStyle="#fff"; rc.lineWidth=2; rc.stroke();
+    } else if (hex!==DEFAULT_HEX) {
+      rc.strokeStyle="rgba(255,255,255,0.12)"; rc.lineWidth=0.5; rc.stroke();
     }
-
-    showFaceEditors(SHOT_FACES[currentShot], data, currentShot, snapDataURL);
-
-    // Update sidebar steps
-    const steps = document.querySelectorAll(".face-step");
-    if (currentShot === 1) {
-      if (steps[0]) { steps[0].classList.remove("active"); steps[0].classList.add("done"); }
-      if (steps[1]) steps[1].classList.add("active");
-      currentShot = 2;
-      updateShotUI();
-      captureBtn.disabled  = false;
-      captureBtn.textContent = "📸  Capture Shot 2";
-    } else {
-      if (steps[1]) { steps[1].classList.remove("active"); steps[1].classList.add("done"); }
-      captureBtn.disabled  = true;
-      captureBtn.textContent = "✅  Both shots captured!";
-      solveRow.style.display = "flex";
-      resetBtn.style.display = "block";
-      mainTitle.textContent  = "READY TO SOLVE";
-      mainDesc.textContent   = "Check the 3D cube above — tap any wrong sticker to fix it, then press Solve.";
-      faceNameEl.textContent = "—";
-      const badge = document.getElementById("shot-badge");
-      if (badge) { badge.textContent="ALL DONE"; badge.style.background="var(--accent2)"; }
-    }
-
-  } catch (err) {
-    showError("Gemini couldn't read the faces: " + err.message);
-    captureBtn.disabled  = false;
-    captureBtn.textContent = `📸  Retry Shot ${currentShot}`;
   }
-  analyzing = false;
-});
-
-function updateShotUI() {
-  mainTitle.textContent  = "SHOT 2 OF 2";
-  mainDesc.innerHTML     = SHOT_INSTRUCTIONS[2];
-  faceNameEl.textContent = "Bottom corner";
-  faceNumEl.textContent  = "1";
-  const badge = document.getElementById("shot-badge");
-  if (badge) badge.textContent = "SHOT 2 OF 2";
-  const g1 = document.getElementById("guide-shot1");
-  const g2 = document.getElementById("guide-shot2");
-  if (g1) g1.style.display = "none";
-  if (g2) g2.style.display = "block";
 }
 
-// ── FACE EDITORS ─────────────────────────────────────────
-function showFaceEditors(faceKeys, data, shotNum, photoDataURL) {
-  document.querySelectorAll(`[data-shot="${shotNum}"]`).forEach(el => el.remove());
-
-  // Shot header
-  const hdr = document.createElement("div");
-  hdr.className = "section-label";
-  hdr.setAttribute("data-shot", shotNum);
-  hdr.textContent = `SHOT ${shotNum} — TAP ANY STICKER TO CORRECT`;
-  facesRow.appendChild(hdr);
-
-  // Photo thumbnail
-  if (photoDataURL) {
-    const wrap = document.createElement("div");
-    wrap.setAttribute("data-shot", shotNum);
-    wrap.style.cssText = "margin-bottom:0.8rem;";
-    const img = document.createElement("img");
-    img.src = photoDataURL;
-    img.style.cssText = "width:100%;max-width:320px;border-radius:10px;border:1px solid #2c2c2c;display:block;";
-    const lbl = document.createElement("div");
-    lbl.style.cssText = "font-size:0.65rem;color:#666;letter-spacing:2px;text-transform:uppercase;margin-top:0.4rem;";
-    lbl.textContent = `Shot ${shotNum} photo`;
-    wrap.appendChild(img);
-    wrap.appendChild(lbl);
-    facesRow.appendChild(wrap);
+// Hit test — point in polygon
+function pointInQuad(px,py,pts) {
+  const [p0,p1,p2,p3]=pts;
+  const poly=[{x:p0.sx,y:p0.sy},{x:p1.sx,y:p1.sy},{x:p2.sx,y:p2.sy},{x:p3.sx,y:p3.sy}];
+  let inside=false;
+  for (let i=0,j=poly.length-1;i<poly.length;j=i++) {
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if (((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
   }
-
-  // One grid per face
-  faceKeys.forEach(fk => {
-    const colors = data[fk] || Array(16).fill("white");
-    const wrap = document.createElement("div");
-    wrap.setAttribute("data-shot", shotNum);
-    wrap.style.cssText = "margin-bottom:1rem;";
-
-    const title = document.createElement("div");
-    title.style.cssText = "font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:#666;margin-bottom:0.5rem;";
-    title.textContent = FACE_NAMES[fk];
-    wrap.appendChild(title);
-
-    const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:180px;";
-
-    colors.forEach((colorName, idx) => {
-      const cell = document.createElement("div");
-      cell.style.cssText = "aspect-ratio:1;border-radius:4px;border:2px solid rgba(0,0,0,0.3);cursor:pointer;transition:transform 0.1s;";
-      cell.style.background = CUBE_COLORS[colorName]?.hex || DEFAULT_HEX;
-      cell.dataset.color = colorName;
-      cell.addEventListener("pointerdown", (e) => { e.stopPropagation(); openColorPicker(cell, fk, idx); });
-      grid.appendChild(cell);
-    });
-
-    wrap.appendChild(grid);
-    facesRow.appendChild(wrap);
-  });
+  return inside;
 }
 
-// ── COLOR PICKER ─────────────────────────────────────────
-let activePopover = null;
-let pickerOpenTime = 0;
+function onCubeTap(e) {
+  if (cubeSection.style.display==="none") return;
+  const rect=cubeCanvas.getBoundingClientRect();
+  const scaleX=cubeCanvas.width/rect.width, scaleY=cubeCanvas.height/rect.height;
+  const px=(e.clientX-rect.left)*scaleX, py=(e.clientY-rect.top)*scaleY;
 
-function openColorPicker(cell, faceKey, idx) {
-  if (activePopover && activePopover._cell === cell) { closeColorPicker(); return; }
+  // Find topmost (last rendered = nearest) quad that contains tap
+  let hit=null;
+  for (let i=lastQuads.length-1;i>=0;i--) {
+    if (pointInQuad(px,py,lastQuads[i].pts)) { hit=lastQuads[i]; break; }
+  }
+  if (!hit) { closeColorPicker(); return; }
+
+  // Pause spin while editing
+  cubeAutoSpin = false;
+  lastHit = {fi:hit.fi, r:hit.r, c:hit.c};
+  openColorPicker(hit, e.clientX, e.clientY);
+}
+
+// ── COLOR PICKER ──────────────────────────────────────────
+let activePopover=null, pickerOpenTime=0;
+
+function openColorPicker(hit, clientX, clientY) {
   closeColorPicker();
-  pickerOpenTime = Date.now();
+  pickerOpenTime=Date.now();
 
-  const pop = document.createElement("div");
-  pop._cell = cell;
-  pop.style.cssText = `
-    position:fixed; z-index:9999; display:flex; gap:6px; padding:8px;
-    background:#1e1e1e; border:1px solid #3a3a3a; border-radius:10px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.7);
-  `;
+  const faceKey = Object.keys(FACE_IDX).find(k=>FACE_IDX[k]===hit.fi);
+  const idx     = hit.r*4+hit.c;
 
-  ALL_COLORS.forEach(colorName => {
-    const sw = document.createElement("div");
-    sw.style.cssText = `width:30px;height:30px;border-radius:6px;border:2px solid transparent;cursor:pointer;background:${CUBE_COLORS[colorName].hex};`;
-    sw.title = colorName;
-    if (colorName === cell.dataset.color) sw.style.borderColor = "#fff";
-    sw.addEventListener("pointerdown", (e) => {
-      e.stopPropagation(); e.preventDefault();
-      cell.style.background = CUBE_COLORS[colorName].hex;
-      cell.dataset.color    = colorName;
-      if (faceData[faceKey]) faceData[faceKey][idx] = colorName;
-      const r=Math.floor(idx/4), c=idx%4;
-      faceHexGrid[FACE_IDX[faceKey]][r][c] = CUBE_COLORS[colorName].hex;
+  const pop=document.createElement("div");
+  pop.className="color-popover";
+
+  // Label
+  const lbl=document.createElement("div");
+  lbl.style.cssText="font-size:0.65rem;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;width:100%;";
+  lbl.textContent=`Face ${faceKey} · sticker ${idx+1}`;
+  pop.appendChild(lbl);
+
+  // Swatches row
+  const row=document.createElement("div");
+  row.style.cssText="display:flex;gap:6px;";
+  ALL_COLORS.forEach(colorName=>{
+    const sw=document.createElement("div");
+    sw.className="color-swatch";
+    sw.style.background=CUBE_COLORS[colorName];
+    sw.title=colorName;
+    const currentHex=faceHexGrid[hit.fi][hit.r][hit.c];
+    if (CUBE_COLORS[colorName]===currentHex) sw.classList.add("selected");
+    sw.addEventListener("pointerdown",ev=>{
+      ev.stopPropagation(); ev.preventDefault();
+      faceHexGrid[hit.fi][hit.r][hit.c]=CUBE_COLORS[colorName];
+      // Update faceData too
+      if (!faceData[faceKey]) faceData[faceKey]=Array(16).fill("white");
+      faceData[faceKey][idx]=colorName;
+      lastHit=null;
+      cubeAutoSpin=true;
       closeColorPicker();
     });
-    pop.appendChild(sw);
+    row.appendChild(sw);
   });
+  pop.appendChild(row);
 
-  // Position — use fixed so it stays on screen
-  const rect = cell.getBoundingClientRect();
-  const popW = ALL_COLORS.length * 38 + 16;
-  let left = rect.left;
-  let top  = rect.bottom + 8;
-  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-  if (top + 50 > window.innerHeight) top = rect.top - 58;
-  pop.style.left = Math.max(8, left) + "px";
-  pop.style.top  = top + "px";
-
+  // Position near tap
+  const popW=ALL_COLORS.length*38+20;
+  let left=clientX+window.scrollX-popW/2;
+  let top =clientY+window.scrollY+20;
+  if (left+popW>window.innerWidth-8) left=window.innerWidth-popW-8;
+  if (left<8) left=8;
+  pop.style.cssText+=`position:absolute;top:${top}px;left:${left}px;`;
   document.body.appendChild(pop);
-  activePopover = pop;
+  activePopover=pop;
 }
 
 function closeColorPicker() {
-  if (activePopover) { activePopover.remove(); activePopover = null; }
+  if (activePopover){activePopover.remove();activePopover=null;}
+  lastHit=null; cubeAutoSpin=true;
 }
 
-document.addEventListener("pointerdown", (e) => {
+document.addEventListener("pointerdown",e=>{
   if (!activePopover) return;
-  if (Date.now() - pickerOpenTime < 200) return;
-  if (!activePopover.contains(e.target)) closeColorPicker();
+  if (Date.now()-pickerOpenTime<200) return;
+  if (!activePopover.contains(e.target)&&e.target!==cubeCanvas) closeColorPicker();
 });
 
 // ── ERROR ─────────────────────────────────────────────────
 function showError(msg) {
-  let box = document.getElementById("err-box");
-  if (!box) {
-    box = document.createElement("div");
-    box.id = "err-box";
-    box.style.cssText = "background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.25);border-radius:10px;padding:1rem;font-size:0.85rem;color:#ff9090;margin-bottom:1rem;";
-    facesRow.before(box);
-  }
-  box.innerHTML = `<strong>Error:</strong> ${msg}`;
-  box.style.display = "block";
-  setTimeout(() => { if(box) box.style.display="none"; }, 7000);
+  let box=document.getElementById("err-box");
+  if (!box){box=document.createElement("div");box.id="err-box";box.className="error-box";document.getElementById("faces-section").before(box);}
+  box.innerHTML=`<strong>Error:</strong> ${msg}`;
+  box.style.display="block";
+  setTimeout(()=>{if(box)box.style.display="none";},8000);
 }
 
 // ── SOLVE ─────────────────────────────────────────────────
-solveBtn.addEventListener("click", async () => {
-  solveBtn.innerHTML = '<span class="spinner"></span> Solving...';
-  solveBtn.disabled  = true;
-
-  let stateStr = "";
+solveBtn.addEventListener("click", async ()=>{
+  solveBtn.innerHTML='<span class="spinner"></span> Solving...';
+  solveBtn.disabled=true;
+  let stateStr="";
   for (const letter of CUBING_ORDER) {
-    const colors = faceData[letter];
-    if (!colors) {
-      showError(`Face ${letter} not scanned yet.`);
-      solveBtn.innerHTML="✅  Solve the Cube!"; solveBtn.disabled=false; return;
-    }
-    for (const c of colors) stateStr += COLOR_TO_FACE[c];
+    const colors=faceData[letter];
+    if (!colors){showError(`Face ${letter} missing.`);solveBtn.innerHTML="✅ Solve";solveBtn.disabled=false;return;}
+    for (const c of colors) stateStr+=COLOR_TO_FACE[c]||"U";
   }
-
   try {
-    const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
-    const solution = await experimental4x4x4Solve(stateStr);
+    const {experimental4x4x4Solve}=await import("https://cdn.cubing.net/v0/js/cubing/search");
+    const solution=await experimental4x4x4Solve(stateStr);
     showSolution(solution.toString());
-  } catch (err) {
-    console.error(err);
-    solutionArea.style.display = "block";
-    document.getElementById("moves-wrap").innerHTML = "";
-    document.getElementById("twisty-wrap").style.display = "none";
-    document.getElementById("move-count").textContent = "";
-    const errBox = document.createElement("div");
-    errBox.className = "error-box";
-    errBox.innerHTML = `<strong>Could not solve — colours may be wrong.</strong><br><br>Check the 3D cube and tap any wrong sticker to fix it, then try Solve again.`;
-    document.getElementById("moves-wrap").appendChild(errBox);
-    solveBtn.innerHTML="✅  Solve the Cube!"; solveBtn.disabled=false;
+  } catch(err) {
+    solutionArea.style.display="block";
+    document.getElementById("moves-wrap").innerHTML=`<div class="error-box"><strong>Could not solve.</strong><br>Check colours on the cube and try again.</div>`;
+    document.getElementById("twisty-wrap").style.display="none";
+    document.getElementById("move-count").textContent="";
+    solveBtn.innerHTML="✅ Solve the Cube!"; solveBtn.disabled=false;
   }
 });
 
-function showSolution(algString) {
-  const moves = algString.trim().split(/\s+/).filter(Boolean);
-  document.getElementById("move-count").textContent = `${moves.length} moves`;
-  const wrap = document.getElementById("moves-wrap");
-  wrap.innerHTML = "";
-  moves.forEach(m => {
-    const chip = document.createElement("span");
-    chip.className="move-chip"; chip.textContent=m;
-    wrap.appendChild(chip);
-  });
-  document.getElementById("twisty").setAttribute("alg", algString);
-  document.getElementById("twisty-wrap").style.display = "block";
-  solutionArea.style.display = "block";
+function showSolution(alg) {
+  const moves=alg.trim().split(/\s+/).filter(Boolean);
+  document.getElementById("move-count").textContent=`${moves.length} moves`;
+  const wrap=document.getElementById("moves-wrap"); wrap.innerHTML="";
+  moves.forEach(m=>{const c=document.createElement("span");c.className="move-chip";c.textContent=m;wrap.appendChild(c);});
+  document.getElementById("twisty").setAttribute("alg",alg);
+  document.getElementById("twisty-wrap").style.display="block";
+  solutionArea.style.display="block";
   solutionArea.scrollIntoView({behavior:"smooth"});
 }
 
 // ── RESET ─────────────────────────────────────────────────
-resetBtn.addEventListener("click", () => {
-  currentShot = 1; analyzing = false;
-  Object.keys(faceData).forEach(k => faceData[k] = null);
-  faceHexGrid = Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill(DEFAULT_HEX)));
-
-  document.querySelectorAll(".face-step").forEach((s,i) => {
-    s.classList.remove("active","done");
-    if (i===0) s.classList.add("active");
-  });
-
-  mainTitle.textContent  = "SHOT 1 OF 2";
-  mainDesc.innerHTML     = SHOT_INSTRUCTIONS[1];
-  faceNameEl.textContent = "Top corner";
-  faceNumEl.textContent  = "0";
-
-  captureBtn.disabled    = false;
-  captureBtn.textContent = "📸  Capture Shot 1";
-  solveRow.style.display = "none";
-  solutionArea.style.display = "none";
-  resetBtn.style.display = "none";
-  solveBtn.innerHTML     = "✅  Solve the Cube!";
-  solveBtn.disabled      = false;
-
-  document.getElementById("twisty-wrap").style.display = "block";
-  document.getElementById("move-count").textContent    = "";
-  document.querySelectorAll("[data-shot]").forEach(el => el.remove());
-  const errBox = document.getElementById("err-box");
-  if (errBox) errBox.style.display = "none";
-
-  const badge = document.getElementById("shot-badge");
-  if (badge) { badge.textContent="SHOT 1 OF 2"; badge.style.background="var(--accent)"; badge.style.color="#000"; }
-  const g1 = document.getElementById("guide-shot1");
-  const g2 = document.getElementById("guide-shot2");
-  if (g1) g1.style.display = "block";
-  if (g2) g2.style.display = "none";
+resetBtn.addEventListener("click",()=>{
+  currentShot=0; capturedImages={}; faceData={}; analyzing=false; lastHit=null; cubeAutoSpin=true;
+  faceHexGrid=Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill(DEFAULT_HEX)));
+  document.querySelectorAll(".face-step").forEach((s,i)=>{s.classList.remove("active","done");if(i===0)s.classList.add("active");});
+  mainTitle.textContent="SHOT 1 OF 4"; mainDesc.textContent=SHOTS[0].sub;
+  faceNameEl.textContent=SHOTS[0].badge; faceNumEl.textContent="0";
+  captureBtn.style.display=""; captureBtn.disabled=false; captureBtn.textContent="📸  Take Shot 1";
+  solveRow.style.display="none"; solutionArea.style.display="none"; resetBtn.style.display="none";
+  cubeSection.style.display="none";
+  solveBtn.innerHTML="✅ Solve the Cube!"; solveBtn.disabled=false;
+  document.getElementById("twisty-wrap").style.display="block";
+  document.getElementById("move-count").textContent="";
+  const eb=document.getElementById("err-box"); if(eb)eb.style.display="none";
+  closeColorPicker();
 });
