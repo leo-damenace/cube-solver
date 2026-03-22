@@ -23,53 +23,49 @@ GEMINI_URL = (
 _last_request_time = 0
 _MIN_GAP = 4.0
 
-# Single letter codes to keep Gemini response tiny — never truncates
-# W=white Y=yellow R=red O=orange B=blue G=green
+# Single letter codes — keeps response tiny
 COLOR_DECODE = {"W":"white","Y":"yellow","R":"red","O":"orange","B":"blue","G":"green"}
 
+# Per-face prompt — dead simple, one face at a time
+def make_face_prompt(face_name, face_desc):
+    return (
+        f"4x4 Rubik's cube photo. Look at the {face_name} face ({face_desc}).\n"
+        f"Read its 4x4 grid of stickers left-to-right top-to-bottom.\n"
+        f"Use ONLY: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        f"Return ONLY a JSON array of exactly 16 single letters, nothing else:\n"
+        f'["","","","","","","","","","","","","","","",""]'
+    )
+
+# Shot prompts for shots 1 & 2 (3 faces, compact)
 SHOT_PROMPTS = {
     1: (
         "4x4 Rubik's cube, TOP-FRONT-RIGHT corner view. 3 faces visible.\n"
-        "U=Top face(up) F=Front face(toward camera) R=Right face(right side).\n"
+        "U=Top(up) F=Front(toward camera) R=Right(right side).\n"
         "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
+        "Use ONLY single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, absolutely no other text:\n"
         '{"U":["","","","","","","","","","","","","","","",""],'
         '"F":["","","","","","","","","","","","","","","",""],'
         '"R":["","","","","","","","","","","","","","","",""]}'
     ),
     2: (
         "4x4 Rubik's cube, BOTTOM-BACK-LEFT corner view. 3 faces visible.\n"
-        "D=Bottom face(now up toward camera) B=Back face(far) L=Left face(left side).\n"
+        "D=Bottom(now facing up) B=Back(far face) L=Left(left side).\n"
         "Read each face 4x4 grid left-to-right top-to-bottom as if looking straight at each face.\n"
-        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
+        "Use ONLY single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        "Return ONLY this JSON, absolutely no other text:\n"
         '{"D":["","","","","","","","","","","","","","","",""],'
         '"B":["","","","","","","","","","","","","","","",""],'
         '"L":["","","","","","","","","","","","","","","",""]}'
     ),
-    3: (
-        "4x4 Rubik's cube held horizontally, SIDE BAND view. All 4 side faces visible.\n"
-        "F=Front R=Right B=Back L=Left — going around the band.\n"
-        "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
-        '{"F":["","","","","","","","","","","","","","","",""],'
-        '"R":["","","","","","","","","","","","","","","",""],'
-        '"B":["","","","","","","","","","","","","","","",""],'
-        '"L":["","","","","","","","","","","","","","","",""]}'
-    ),
-    4: (
-        "4x4 Rubik's cube held horizontally, SIDE BAND view rotated 90 degrees.\n"
-        "F=Front R=Right B=Back L=Left — going around the band.\n"
-        "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Use ONLY these single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, no markdown, no spaces inside arrays:\n"
-        '{"F":["","","","","","","","","","","","","","","",""],'
-        '"R":["","","","","","","","","","","","","","","",""],'
-        '"B":["","","","","","","","","","","","","","","",""],'
-        '"L":["","","","","","","","","","","","","","","",""]}'
-    ),
+}
+
+# For shots 3 & 4 (band shots), we ask about each face individually
+BAND_FACES = {
+    "F": "FRONT face — the face directly facing the camera in the band",
+    "R": "RIGHT face — the face on the right side in the band",
+    "B": "BACK face — the face facing away from camera in the band",
+    "L": "LEFT face — the face on the left side in the band",
 }
 
 SHOT_FACES = {
@@ -82,7 +78,8 @@ SHOT_FACES = {
 VALID_COLORS = {"white","yellow","red","orange","blue","green"}
 
 
-def call_gemini(image_b64, shot):
+def call_gemini_raw(prompt, image_b64):
+    """Single Gemini call — returns parsed JSON (list or dict)."""
     global _last_request_time
     elapsed = time.time() - _last_request_time
     if elapsed < _MIN_GAP:
@@ -90,10 +87,10 @@ def call_gemini(image_b64, shot):
 
     payload = json.dumps({
         "contents": [{"parts": [
-            {"text": SHOT_PROMPTS[shot]},
+            {"text": prompt},
             {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
         ]}],
-        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 2048}
+        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512}
     }).encode()
 
     wait = 5
@@ -109,7 +106,10 @@ def call_gemini(image_b64, shot):
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
-            return json.loads(raw.strip())
+            raw = raw.strip()
+            if raw.startswith("[") and not raw.endswith("]"):
+                raw = raw.rstrip(", \n") + "]"
+            return json.loads(raw)
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 4:
                 time.sleep(wait + random.uniform(1, 3))
@@ -166,31 +166,42 @@ def verify_code():
 
 @app.route("/analyze-all", methods=["POST"])
 def analyze_all():
-    """
-    Receives all 4 images at once, runs them through Gemini sequentially,
-    merges results, returns complete 6-face color data.
-    """
     if not GEMINI_API_KEY:
         return jsonify({"error": "GEMINI_API_KEY not set"}), 500
 
     data   = request.get_json()
-    images = data.get("images", {})  # {"1": b64, "2": b64, "3": b64, "4": b64}
+    images = data.get("images", {})
 
     if len(images) != 4:
         return jsonify({"error": "Need exactly 4 images"}), 400
 
     all_faces = {}
-    for shot in [1, 2, 3, 4]:
+
+    # Shots 1 & 2: 3 faces each — compact enough for one call
+    for shot in [1, 2]:
         img = images.get(str(shot), "")
         if not img:
             return jsonify({"error": f"Missing image for shot {shot}"}), 400
         try:
-            result = call_gemini(img, shot)
+            result = call_gemini_raw(SHOT_PROMPTS[shot], img)
             all_faces = merge(all_faces, result, SHOT_FACES[shot])
         except Exception as e:
             return jsonify({"error": f"Shot {shot} failed: {str(e)}"}), 500
 
-    # Validate all 6 faces present
+    # Shots 3 & 4: ask ONE face at a time — prevents truncation
+    for shot in [3, 4]:
+        img = images.get(str(shot), "")
+        if not img:
+            return jsonify({"error": f"Missing image for shot {shot}"}), 400
+        for fk, face_desc in BAND_FACES.items():
+            try:
+                prompt = make_face_prompt(fk, face_desc)
+                result = call_gemini_raw(prompt, img)
+                if isinstance(result, list):
+                    all_faces = merge(all_faces, {fk: validate(result)}, [fk])
+            except Exception as e:
+                return jsonify({"error": f"Shot {shot} face {fk} failed: {str(e)}"}), 500
+
     for fk in ["U","F","R","D","B","L"]:
         if fk not in all_faces:
             all_faces[fk] = ["white"] * 16
