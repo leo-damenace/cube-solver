@@ -123,30 +123,34 @@ function drawOverlay() {
 }
 
 // ── SHOT GUIDE DIAGRAM ────────────────────────────────────
-// Draws a static isometric 4x4 cube with highlighted faces
-// highlightFaces: array of face keys to highlight e.g. ["U","F","R"]
-// For band shots, show all 4 sides with highlight on specific ones
-
 const GUIDE_CONFIGS = [
   {
-    faces: ["U","F","R"],
-    dim:   ["B","L","D"],
-    text:  "Point the <strong>top-front-right corner</strong> at the camera.<br>You should see 3 faces at once — like looking at a corner of a box.",
+    faces:  ["U","F","R"],
+    // camera vertex = top-front-right corner (x=+half, y=+half, z=+half)
+    vertex: { x:2, y:2, z:2 },
+    isBand: false,
+    text:   "Point the <strong>top-front-right corner</strong> at the camera — you should see 3 faces at once.",
   },
   {
-    faces: ["D","B","L"],
-    dim:   ["U","F","R"],
-    text:  "Flip the cube to the <strong>opposite corner</strong>.<br>Bottom, Back and Left faces should all be visible.",
+    faces:  ["D","B","L"],
+    // camera vertex = bottom-back-left corner
+    vertex: { x:-2, y:-2, z:-2 },
+    isBand: false,
+    text:   "Flip to the <strong>opposite corner</strong> — bottom, back and left faces visible.",
   },
   {
-    faces: ["F","R","B","L"],
-    dim:   ["U","D"],
-    text:  "Tilt the cube on its side so you see the <strong>band of 4 side faces</strong>.<br>Top and bottom are hidden — just the 4 sides going around.",
+    faces:  ["F","R","B","L"],
+    // band shot — red line along the front vertical edge (x=+half, z=+half, y varies)
+    isBand: true,
+    bandEdge: [ {x:2,y:2,z:2}, {x:2,y:-2,z:2} ],
+    text:   "Tilt on its side — <strong>all 4 side faces</strong> visible going around.",
   },
   {
-    faces: ["F","R","B","L"],
-    dim:   ["U","D"],
-    text:  "Keep the band view but <strong>rotate 90°</strong>.<br>Same 4 side faces, different angle — gives Gemini a cross-reference.",
+    faces:  ["F","R","B","L"],
+    // rotated 90° — red line along right vertical edge
+    isBand: true,
+    bandEdge: [ {x:2,y:2,z:-2}, {x:2,y:-2,z:-2} ],
+    text:   "Rotate 90° — <strong>same 4 sides</strong> from new angle.",
   },
 ];
 
@@ -158,62 +162,116 @@ function drawGuide(shotIdx) {
   const cfg = GUIDE_CONFIGS[shotIdx];
   textEl.innerHTML = cfg.text;
 
-  const rc  = canvas.getContext("2d");
-  const W   = canvas.width, H = canvas.height;
+  const rc = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
   rc.clearRect(0, 0, W, H);
 
   const N    = 4;
-  const cell = 10;   // px per cell
+  const cell = 10;
   const cx   = W / 2, cy = H * 0.52;
   const tilt = 0.52;
-  const yRot = shotIdx < 2 ? 0.6 : 0.0;  // corner shots angled, band shots straight-on
+  const yRot = cfg.isBand ? 0.4 : 0.6;
 
   function project(x, y, z) {
-    const x1 = x*Math.cos(yRot) + z*Math.sin(yRot);
+    const x1 =  x*Math.cos(yRot) + z*Math.sin(yRot);
     const z1 = -x*Math.sin(yRot) + z*Math.cos(yRot);
-    const y2 = y*Math.cos(tilt)  - z1*Math.sin(tilt);
-    const z2 = y*Math.sin(tilt)  + z1*Math.cos(tilt);
-    return { sx: cx + x1*cell, sy: cy - y2*cell, depth: z2 };
+    const y2 =  y*Math.cos(tilt) - z1*Math.sin(tilt);
+    return { sx: cx + x1*cell, sy: cy - y2*cell };
   }
 
   function faceVisible(nx, ny, nz) {
-    const nx1 = nx*Math.cos(yRot)+nz*Math.sin(yRot), nz1 = -nx*Math.sin(yRot)+nz*Math.cos(yRot);
-    const ny2 = ny*Math.cos(tilt)-nz1*Math.sin(tilt), nz2 = ny*Math.sin(tilt)+nz1*Math.cos(tilt);
+    const nx1 =  nx*Math.cos(yRot)+nz*Math.sin(yRot), nz1 = -nx*Math.sin(yRot)+nz*Math.cos(yRot);
+    const ny2 =  ny*Math.cos(tilt)-nz1*Math.sin(tilt), nz2 =  ny*Math.sin(tilt)+nz1*Math.cos(tilt);
     return -nz2 > 0.04;
+  }
+
+  function faceDepth(nx, ny, nz) {
+    const nx1 =  nx*Math.cos(yRot)+nz*Math.sin(yRot), nz1 = -nx*Math.sin(yRot)+nz*Math.cos(yRot);
+    return ny*Math.sin(tilt)+nz1*Math.cos(tilt);
   }
 
   const half = N / 2;
   const faceDefs = [
-    {key:"U", nx:0,  ny:1,  nz:0,  q:(c,r)=>[project(-half+c,+half,-half+r),project(-half+c+1,+half,-half+r),project(-half+c+1,+half,-half+r+1),project(-half+c,+half,-half+r+1)]},
-    {key:"F", nx:0,  ny:0,  nz:1,  q:(c,r)=>[project(-half+c,+half-r,+half),project(-half+c+1,+half-r,+half),project(-half+c+1,+half-r-1,+half),project(-half+c,+half-r-1,+half)]},
-    {key:"R", nx:1,  ny:0,  nz:0,  q:(c,r)=>[project(+half,+half-r,-half+c),project(+half,+half-r,-half+c+1),project(+half,+half-r-1,-half+c+1),project(+half,+half-r-1,-half+c)]},
-    {key:"B", nx:0,  ny:0,  nz:-1, q:(c,r)=>[project(+half-c,+half-r,-half),project(+half-c-1,+half-r,-half),project(+half-c-1,+half-r-1,-half),project(+half-c,+half-r-1,-half)]},
-    {key:"L", nx:-1, ny:0,  nz:0,  q:(c,r)=>[project(-half,+half-r,+half-c),project(-half,+half-r,+half-c-1),project(-half,+half-r-1,+half-c-1),project(-half,+half-r-1,+half-c)]},
-    {key:"D", nx:0,  ny:-1, nz:0,  q:(c,r)=>[project(-half+c,-half,+half-r),project(-half+c+1,-half,+half-r),project(-half+c+1,-half,+half-r-1),project(-half+c,-half,+half-r-1)]},
+    {key:"U", nx:0,  ny:1,  nz:0,  corners:()=>[ project(-half,+half,-half),project(+half,+half,-half),project(+half,+half,+half),project(-half,+half,+half) ]},
+    {key:"F", nx:0,  ny:0,  nz:1,  corners:()=>[ project(-half,+half,+half),project(+half,+half,+half),project(+half,-half,+half),project(-half,-half,+half) ]},
+    {key:"R", nx:1,  ny:0,  nz:0,  corners:()=>[ project(+half,+half,-half),project(+half,+half,+half),project(+half,-half,+half),project(+half,-half,-half) ]},
+    {key:"B", nx:0,  ny:0,  nz:-1, corners:()=>[ project(+half,+half,-half),project(-half,+half,-half),project(-half,-half,-half),project(+half,-half,-half) ]},
+    {key:"L", nx:-1, ny:0,  nz:0,  corners:()=>[ project(-half,+half,+half),project(-half,+half,-half),project(-half,-half,-half),project(-half,-half,+half) ]},
+    {key:"D", nx:0,  ny:-1, nz:0,  corners:()=>[ project(-half,-half,+half),project(+half,-half,+half),project(+half,-half,-half),project(-half,-half,-half) ]},
   ];
 
-  const allQuads = [];
-  for (const fd of faceDefs) {
-    if (!faceVisible(fd.nx, fd.ny, fd.nz)) continue;
-    const highlighted = cfg.faces.includes(fd.key);
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-      const pts = fd.q(c, r);
-      allQuads.push({ pts, depth: pts.reduce((s,p)=>s+p.depth,0)/4, highlighted, key: fd.key });
+  // Sort by depth for painter's algorithm
+  const visible = faceDefs
+    .filter(fd => faceVisible(fd.nx, fd.ny, fd.nz))
+    .sort((a,b) => faceDepth(a.nx,a.ny,a.nz) - faceDepth(b.nx,b.ny,b.nz));
+
+  // Draw faces
+  for (const fd of visible) {
+    const hi = cfg.faces.includes(fd.key);
+    const pts = fd.corners();
+    rc.beginPath();
+    rc.moveTo(pts[0].sx, pts[0].sy);
+    pts.slice(1).forEach(p => rc.lineTo(p.sx, p.sy));
+    rc.closePath();
+    rc.fillStyle   = hi ? "rgba(200,241,53,0.22)" : "rgba(20,20,20,0.95)";
+    rc.fill();
+    rc.strokeStyle = hi ? "#c8f135" : "#2a2a2a";
+    rc.lineWidth   = hi ? 1.5 : 0.8;
+    rc.stroke();
+  }
+
+  // Draw 4x4 grid lines on highlighted faces only
+  for (const fd of visible) {
+    if (!cfg.faces.includes(fd.key)) continue;
+    // Draw inner grid lines (thin, same accent color)
+    rc.strokeStyle = "rgba(200,241,53,0.35)";
+    rc.lineWidth   = 0.6;
+    for (let i = 1; i < N; i++) {
+      const t = i / N;
+      // Interpolate across the face
+      const pts = fd.corners();
+      // Top edge point and bottom edge point at fraction t
+      const top1 = { sx: pts[0].sx+(pts[1].sx-pts[0].sx)*t, sy: pts[0].sy+(pts[1].sy-pts[0].sy)*t };
+      const bot1 = { sx: pts[3].sx+(pts[2].sx-pts[3].sx)*t, sy: pts[3].sy+(pts[2].sy-pts[3].sy)*t };
+      const lft1 = { sx: pts[0].sx+(pts[3].sx-pts[0].sx)*t, sy: pts[0].sy+(pts[3].sy-pts[0].sy)*t };
+      const rgt1 = { sx: pts[1].sx+(pts[2].sx-pts[1].sx)*t, sy: pts[1].sy+(pts[2].sy-pts[1].sy)*t };
+      rc.beginPath(); rc.moveTo(top1.sx,top1.sy); rc.lineTo(bot1.sx,bot1.sy); rc.stroke();
+      rc.beginPath(); rc.moveTo(lft1.sx,lft1.sy); rc.lineTo(rgt1.sx,rgt1.sy); rc.stroke();
     }
   }
-  allQuads.sort((a,b) => a.depth - b.depth);
 
-  for (const {pts, highlighted} of allQuads) {
-    const [p0,p1,p2,p3] = pts;
-    // Body
-    rc.beginPath();
-    rc.moveTo(p0.sx,p0.sy); rc.lineTo(p1.sx,p1.sy); rc.lineTo(p2.sx,p2.sy); rc.lineTo(p3.sx,p3.sy);
-    rc.closePath();
-    rc.fillStyle = highlighted ? "rgba(200,241,53,0.25)" : "#111";
-    rc.fill();
-    rc.strokeStyle = highlighted ? "#c8f135" : "#333";
-    rc.lineWidth = highlighted ? 1.2 : 0.5;
-    rc.stroke();
+  if (!cfg.isBand) {
+    // Corner shots: red dot at the camera vertex
+    const vp = project(cfg.vertex.x, cfg.vertex.y, cfg.vertex.z);
+    // Outer glow
+    rc.beginPath(); rc.arc(vp.sx, vp.sy, 7, 0, Math.PI*2);
+    rc.fillStyle = "rgba(255,60,60,0.25)"; rc.fill();
+    // Dot
+    rc.beginPath(); rc.arc(vp.sx, vp.sy, 4, 0, Math.PI*2);
+    rc.fillStyle = "#ff3c3c"; rc.fill();
+    rc.strokeStyle = "#fff"; rc.lineWidth = 1; rc.stroke();
+
+    // Draw edges from vertex — show the 3 edges meeting at this corner
+    const neighbours = [
+      { x:-cfg.vertex.x, y:cfg.vertex.y,  z:cfg.vertex.z  },
+      { x:cfg.vertex.x,  y:-cfg.vertex.y, z:cfg.vertex.z  },
+      { x:cfg.vertex.x,  y:cfg.vertex.y,  z:-cfg.vertex.z },
+    ];
+    rc.strokeStyle = "#ff3c3c"; rc.lineWidth = 1.8; rc.lineCap = "round";
+    for (const nb of neighbours) {
+      const np = project(nb.x, nb.y, nb.z);
+      rc.beginPath(); rc.moveTo(vp.sx, vp.sy); rc.lineTo(np.sx, np.sy); rc.stroke();
+    }
+  } else {
+    // Band shots: red line along the highlighted vertical edge
+    const [a, b] = cfg.bandEdge.map(v => project(v.x, v.y, v.z));
+    rc.strokeStyle = "#ff3c3c"; rc.lineWidth = 2.5; rc.lineCap = "round";
+    rc.beginPath(); rc.moveTo(a.sx, a.sy); rc.lineTo(b.sx, b.sy); rc.stroke();
+    // Dots at each end
+    [a, b].forEach(p => {
+      rc.beginPath(); rc.arc(p.sx, p.sy, 3, 0, Math.PI*2);
+      rc.fillStyle = "#ff3c3c"; rc.fill();
+    });
   }
 }
 
