@@ -36,36 +36,31 @@ def make_face_prompt(face_name, face_desc):
         f'["","","","","","","","","","","","","","","",""]'
     )
 
-# Shot prompts for shots 1 & 2 (3 faces, compact)
-SHOT_PROMPTS = {
-    1: (
-        "4x4 Rubik's cube, TOP-FRONT-RIGHT corner view. 3 faces visible.\n"
-        "U=Top(up) F=Front(toward camera) R=Right(right side).\n"
-        "Read each face 4x4 grid left-to-right top-to-bottom.\n"
-        "Use ONLY single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, absolutely no other text:\n"
-        '{"U":["","","","","","","","","","","","","","","",""],'
-        '"F":["","","","","","","","","","","","","","","",""],'
-        '"R":["","","","","","","","","","","","","","","",""]}'
-    ),
-    2: (
-        "4x4 Rubik's cube, BOTTOM-BACK-LEFT corner view. 3 faces visible.\n"
-        "D=Bottom(now facing up) B=Back(far face) L=Left(left side).\n"
-        "Read each face 4x4 grid left-to-right top-to-bottom as if looking straight at each face.\n"
-        "Use ONLY single letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        "Return ONLY this JSON, absolutely no other text:\n"
-        '{"D":["","","","","","","","","","","","","","","",""],'
-        '"B":["","","","","","","","","","","","","","","",""],'
-        '"L":["","","","","","","","","","","","","","","",""]}'
-    ),
-}
-
-# For shots 3 & 4 (band shots), we ask about each face individually
-BAND_FACES = {
-    "F": "FRONT face — the face directly facing the camera in the band",
-    "R": "RIGHT face — the face on the right side in the band",
-    "B": "BACK face — the face facing away from camera in the band",
-    "L": "LEFT face — the face on the left side in the band",
+# ALL shots now use per-face calls — one face at a time, never truncates
+# Face descriptions per shot context
+SHOT_FACE_DESCS = {
+    1: {
+        "U": "TOP face — the face pointing upward (you're looking down at the top-right-front corner)",
+        "F": "FRONT face — the face pointing toward the camera",
+        "R": "RIGHT face — the face on the right side",
+    },
+    2: {
+        "D": "BOTTOM face — was the bottom, now tilted up toward the camera",
+        "B": "BACK face — the face pointing away from camera",
+        "L": "LEFT face — the face on the left side",
+    },
+    3: {
+        "F": "FRONT face — facing the camera in the side-band view",
+        "R": "RIGHT face — on the right in the side-band view",
+        "B": "BACK face — facing away in the side-band view",
+        "L": "LEFT face — on the left in the side-band view",
+    },
+    4: {
+        "F": "FRONT face — facing the camera (cube rotated 90° from shot 3)",
+        "R": "RIGHT face — on the right (cube rotated 90°)",
+        "B": "BACK face — facing away (cube rotated 90°)",
+        "L": "LEFT face — on the left (cube rotated 90°)",
+    },
 }
 
 SHOT_FACES = {
@@ -177,28 +172,19 @@ def analyze_all():
 
     all_faces = {}
 
-    # Shots 1 & 2: 3 faces each — compact enough for one call
-    for shot in [1, 2]:
+    # Every shot: one Gemini call per face — never truncates
+    for shot in [1, 2, 3, 4]:
         img = images.get(str(shot), "")
         if not img:
             return jsonify({"error": f"Missing image for shot {shot}"}), 400
-        try:
-            result = call_gemini_raw(SHOT_PROMPTS[shot], img)
-            all_faces = merge(all_faces, result, SHOT_FACES[shot])
-        except Exception as e:
-            return jsonify({"error": f"Shot {shot} failed: {str(e)}"}), 500
-
-    # Shots 3 & 4: ask ONE face at a time — prevents truncation
-    for shot in [3, 4]:
-        img = images.get(str(shot), "")
-        if not img:
-            return jsonify({"error": f"Missing image for shot {shot}"}), 400
-        for fk, face_desc in BAND_FACES.items():
+        for fk, face_desc in SHOT_FACE_DESCS[shot].items():
             try:
                 prompt = make_face_prompt(fk, face_desc)
                 result = call_gemini_raw(prompt, img)
                 if isinstance(result, list):
                     all_faces = merge(all_faces, {fk: validate(result)}, [fk])
+                elif isinstance(result, dict) and fk in result:
+                    all_faces = merge(all_faces, {fk: validate(result[fk])}, [fk])
             except Exception as e:
                 return jsonify({"error": f"Shot {shot} face {fk} failed: {str(e)}"}), 500
 
