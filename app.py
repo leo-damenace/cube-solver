@@ -74,7 +74,7 @@ VALID_COLORS = {"white","yellow","red","orange","blue","green"}
 
 
 def call_gemini_raw(prompt, image_b64):
-    """Single Gemini call — returns parsed JSON (list or dict)."""
+    """Single Gemini call — returns parsed JSON list."""
     global _last_request_time
     elapsed = time.time() - _last_request_time
     if elapsed < _MIN_GAP:
@@ -87,7 +87,7 @@ def call_gemini_raw(prompt, image_b64):
         ]}],
         "generationConfig": {
             "temperature": 0.0,
-            "maxOutputTokens": 256
+            "maxOutputTokens": 512
         }
     }).encode()
 
@@ -103,22 +103,43 @@ def call_gemini_raw(prompt, image_b64):
                 body = json.loads(resp.read())
 
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+            finish = body["candidates"][0].get("finishReason","")
 
-            # Strip any preamble Gemini adds before the array
-            start = raw.find("[")
-            if start > 0:
-                raw = raw[start:]
+            # Log for debugging
+            print(f"[GEMINI] finish={finish} raw={repr(raw[:300])}", flush=True)
 
             # Strip markdown fences
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
+
+            # Strip any preamble before the array
+            start = raw.find("[")
+            if start >= 0:
+                raw = raw[start:]
+
             raw = raw.strip()
 
-            # Ensure array is closed (stopSequences strips the "]")
+            # Repair truncated array — close any open string then close array
             if raw.startswith("[") and not raw.endswith("]"):
-                raw = raw.rstrip(", \n") + "]"
+                # Count quotes to see if we're mid-string
+                inside_str = raw.count('"') % 2 == 1
+                if inside_str:
+                    raw = raw.rstrip() + '"]'
+                else:
+                    raw = raw.rstrip(", \n") + "]"
 
             return json.loads(raw)
+
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 4:
+                time.sleep(wait + random.uniform(1, 3))
+                wait *= 2
+                continue
+            try:
+                msg = json.loads(e.read()).get("error",{}).get("message", str(e))
+            except Exception:
+                msg = str(e)
+            raise RuntimeError(f"Gemini error {e.code}: {msg}")
 
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 4:
