@@ -29,10 +29,10 @@ COLOR_DECODE = {"W":"white","Y":"yellow","R":"red","O":"orange","B":"blue","G":"
 # Per-face prompt — dead simple, one face at a time
 def make_face_prompt(face_name, face_desc):
     return (
-        f"4x4 Rubik's cube photo. Look at the {face_name} face ({face_desc}).\n"
-        f"Read its 4x4 grid of stickers left-to-right top-to-bottom.\n"
-        f"Use ONLY: W=white Y=yellow R=red O=orange B=blue G=green\n"
-        f"Return ONLY a JSON array of exactly 16 single letters, nothing else:\n"
+        f"4x4 Rubik's cube. Identify the {face_desc}.\n"
+        f"Output ONLY a JSON array of exactly 16 color letters.\n"
+        f"Letters: W=white Y=yellow R=red O=orange B=blue G=green\n"
+        f"Start your response with [ and end with ]. No other text.\n"
         f'["","","","","","","","","","","","","","","",""]'
     )
 
@@ -85,7 +85,11 @@ def call_gemini_raw(prompt, image_b64):
             {"text": prompt},
             {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
         ]}],
-        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 512}
+        "generationConfig": {
+            "temperature": 0.0,
+            "maxOutputTokens": 256,
+            "stopSequences": ["]"]   # stop right after the array closes
+        }
     }).encode()
 
     wait = 5
@@ -98,13 +102,25 @@ def call_gemini_raw(prompt, image_b64):
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
                 body = json.loads(resp.read())
+
             raw = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            # Strip any preamble Gemini adds before the array
+            start = raw.find("[")
+            if start > 0:
+                raw = raw[start:]
+
+            # Strip markdown fences
             raw = re.sub(r"^```[a-z]*\n?", "", raw, flags=re.IGNORECASE)
             raw = re.sub(r"\n?```$", "", raw)
             raw = raw.strip()
+
+            # Ensure array is closed (stopSequences strips the "]")
             if raw.startswith("[") and not raw.endswith("]"):
                 raw = raw.rstrip(", \n") + "]"
+
             return json.loads(raw)
+
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt < 4:
                 time.sleep(wait + random.uniform(1, 3))
