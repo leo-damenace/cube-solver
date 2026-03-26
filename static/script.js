@@ -1,9 +1,12 @@
 let supabase;
 const video = document.getElementById('webcam');
 const captureBtn = document.getElementById('capture-btn');
-let cubeData = [];
+const statusText = document.getElementById('status-text');
+let faceData = []; 
 
-// 1. Initialize App & Fetch Config
+const FACE_LABELS = ["White (Top)", "Green (Front)", "Red (Right)", "Blue (Back)", "Orange (Left)", "Yellow (Bottom)"];
+
+// 1. Initial Handshake & Auth
 async function init() {
     const res = await fetch("/config");
     const config = await res.json();
@@ -14,19 +17,17 @@ async function init() {
     supabase.auth.onAuthStateChange((event, session) => {
         if (session) {
             document.getElementById('auth-gate').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
+            const appUi = document.getElementById('app-interface');
+            appUi.style.display = 'block';
+            setTimeout(() => appUi.style.opacity = 1, 50);
             startCamera();
         }
     });
 }
 init();
 
-// 2. Auth Actions
 window.signIn = async () => {
-    await supabase.auth.signInWithOAuth({ 
-        provider: 'google', 
-        options: { redirectTo: window.location.origin } 
-    });
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
 };
 
 async function startCamera() {
@@ -34,10 +35,10 @@ async function startCamera() {
     video.srcObject = stream;
 }
 
-// 3. Scan Actions
+// 2. Capture Logic
 captureBtn.onclick = async () => {
     captureBtn.disabled = true;
-    captureBtn.innerText = "🤖 AI SCANNING...";
+    captureBtn.innerText = "🤖 AI ANALYZING...";
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
@@ -51,14 +52,20 @@ captureBtn.onclick = async () => {
 
     const data = await res.json();
     if (data.success) {
-        cubeData.push(data.colors);
-        if (cubeData.length < 6) {
+        faceData.push(data.colors);
+        if (faceData.length < 6) {
+            statusText.innerText = `SCAN FACE ${faceData.length + 1} OF 6`;
+            document.getElementById('instruction-text').innerText = `Now hold the ${FACE_LABELS[faceData.length]} face up.`;
             captureBtn.disabled = false;
-            captureBtn.innerText = "Capture Next Face";
-            document.getElementById('status').innerText = `Face ${cubeData.length + 1} of 6`;
+            captureBtn.innerText = "📸 Capture Next";
         } else {
-            document.getElementById('status').innerText = "Solving...";
-            console.log("Full Cube Data Ready:", cubeData);
+            statusText.innerText = "SOLVING...";
+            console.log("Full Cube Scanned:", faceData);
+            // Solver logic goes here
         }
+    } else {
+        alert("Scan failed. Ensure lighting is good!");
+        captureBtn.disabled = false;
+        captureBtn.innerText = "📸 Capture Face";
     }
 };
