@@ -1,33 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4x4 AI Solver</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { background: #0c0c0c; color: white; font-family: sans-serif; text-align: center; margin: 0; }
-        #auth-gate { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .btn { padding: 15px 30px; background: #c8f135; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 1.1rem; }
-        #main-app { display: none; padding: 20px; }
-        video { width: 100%; max-width: 500px; border-radius: 20px; border: 2px solid #333; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CubeSolve AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    /* YOUR ORIGINAL STYLES */
+    :root { --bg: #0c0c0c; --surface: #161616; --accent: #c8f135; --text: #efefef; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; margin: 0; text-align: center; }
+    
+    /* LOGIN OVERLAY */
+    #auth-gate { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .btn-main { background: var(--accent); color: black; padding: 16px 40px; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+    
+    /* APP CONTENT */
+    #app-interface { display: none; opacity: 0; transition: opacity 0.5s; }
+    .video-container { margin: 20px auto; width: 90%; max-width: 500px; border: 2px solid #2c2c2c; border-radius: 20px; overflow: hidden; }
+    video { width: 100%; display: block; }
+  </style>
 </head>
 <body>
-    <div id="auth-gate">
-        <h1>CUBESOLVE <span style="color:#c8f135">AI</span></h1>
-        <button class="btn" onclick="signIn()">Continue with Google</button>
+
+<div id="auth-gate">
+  <h1 style="font-size: 3rem; margin-bottom: 2rem;">CUBESOLVE <span style="color:var(--accent)">AI</span></h1>
+  <button class="btn-main" onclick="signIn()">Continue with Google</button>
+</div>
+
+<div id="app-interface">
+  <div style="padding: 20px;">
+    <h2 id="status-text">SCAN FACE 1 OF 6</h2>
+    <p id="instruction-text" style="color: #666;">Hold the White (Top) face up to the camera.</p>
+    
+    <div class="video-container">
+      <video id="webcam" autoplay playsinline></video>
     </div>
 
-    <div id="main-app">
-        <h2 id="status">Position White Face</h2>
-        <video id="webcam" autoplay playsinline></video>
-        <br><br>
-        <button id="capture-btn" class="btn">📸 Capture Face</button>
-        <div id="solution"></div>
-        <twisty-player id="twisty" puzzle="4x4x4" style="width: 100%; height: 400px;"></twisty-player>
+    <button id="capture-btn" class="btn-main">📸 Capture Face</button>
+    
+    <div id="twisty-wrap" style="margin-top: 30px;">
+      <twisty-player id="twisty" puzzle="4x4x4" style="width: 100%; height: 400px;"></twisty-player>
     </div>
+  </div>
+</div>
 
-    <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
-    <script src="/static/script.js" type="module"></script>
+<script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
+<script src="/static/script.js" type="module"></script>
 </body>
 </html>
