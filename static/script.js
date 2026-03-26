@@ -128,25 +128,25 @@ const GUIDE_CONFIGS = [
     faces:  ["U","F","R"],
     vertex: { x:2, y:2, z:2 },
     isBand: false,
-    text:   "Point the <strong>top-front-right corner</strong> at the camera — 3 green faces visible at once.",
+    text:   "Point the <strong>top-front-right corner</strong> at the camera. You should see <strong>3 faces</strong> — top, front, right.",
   },
   {
     faces:  ["D","B","L"],
     vertex: { x:-2, y:-2, z:-2 },
     isBand: false,
-    text:   "Flip to the <strong>opposite corner</strong> — bottom, back and left faces visible.",
+    text:   "Flip to the <strong>opposite corner</strong>. You should see bottom, back and left faces.",
   },
   {
     faces:  ["F","R","B","L"],
     isBand: true,
     bandEdge: [ {x:2,y:2,z:2}, {x:2,y:-2,z:2} ],
-    text:   "Tilt on its side — <strong>all 4 side faces</strong> visible in a band.",
+    text:   "Tilt cube on its side — <strong>all 4 side faces</strong> visible going around. Top &amp; bottom hidden.",
   },
   {
     faces:  ["F","R","B","L"],
     isBand: true,
     bandEdge: [ {x:2,y:2,z:-2}, {x:2,y:-2,z:-2} ],
-    text:   "Rotate 90° — <strong>same 4 sides</strong> from new angle.",
+    text:   "Rotate 90° from shot 3 — <strong>same 4 sides</strong>, new angle for cross-reference.",
   },
 ];
 
@@ -165,8 +165,12 @@ function drawGuide(shotIdx) {
   const half = 2; // cube half-size
   const cell = Math.min(W, H) * 0.095;
   const cx = W * 0.52, cy = H * 0.54;
-  const tilt = 0.50;
-  const yRot = cfg.isBand ? 0.38 : 0.62;
+  // Corner shots: tilt down to see top+2 sides. Band shots: nearly flat to see all 4 sides
+  const tilt = cfg.isBand ? 0.15 : 0.50;
+  // Shot 1: U+F+R corner. Shot 2: D+B+L (opposite). Band: straight-on side view
+  const yRot = cfg.isBand
+    ? (shotIdx === 2 ? 0.0 : Math.PI * 0.5)
+    : (shotIdx === 0 ? 0.62 : 0.62 + Math.PI);
 
   function project(x, y, z) {
     const x1 =  x*Math.cos(yRot) + z*Math.sin(yRot);
