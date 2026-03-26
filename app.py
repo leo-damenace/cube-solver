@@ -5,9 +5,9 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# Config from Render Env Vars
+# Pulling from Render Environment Variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-vision_model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 @app.route("/")
 def index():
@@ -19,7 +19,6 @@ def ping():
 
 @app.route("/config")
 def get_config():
-    # Sends ONLY the Supabase keys to the browser
     return jsonify({
         "url": os.environ.get("SUPABASE_URL"),
         "key": os.environ.get("SUPABASE_ANON_KEY")
@@ -35,7 +34,7 @@ def scan_face():
         prompt = """Identify the 16 stickers on this 4x4 Rubik's cube face (top-left to bottom-right). 
         Return ONLY a JSON list of strings: 'white', 'yellow', 'red', 'orange', 'blue', 'green'."""
         
-        response = vision_model.generate_content([prompt, img])
+        response = model.generate_content([prompt, img])
         clean_json = response.text.replace("```json", "").replace("```", "").strip()
         return jsonify({"success": True, "colors": json.loads(clean_json)})
     except Exception as e:
