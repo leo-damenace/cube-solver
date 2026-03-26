@@ -87,8 +87,7 @@ def call_gemini_raw(prompt, image_b64):
         ]}],
         "generationConfig": {
             "temperature": 0.0,
-            "maxOutputTokens": 256,
-            "stopSequences": ["]"]   # stop right after the array closes
+            "maxOutputTokens": 256
         }
     }).encode()
 
