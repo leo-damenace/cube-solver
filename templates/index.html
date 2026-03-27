@@ -3,27 +3,16 @@
 <head>
     <title>4x4 AI Solver</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
-    <style>
-        body { background: #0c0c0c; color: white; font-family: sans-serif; text-align: center; }
-        #app { display: none; }
-        .btn { background: #c8f135; color: black; padding: 15px; border-radius: 10px; cursor: pointer; border:none; font-weight:bold; }
-        video { width: 100%; max-width: 400px; border-radius: 15px; border: 2px solid #333; }
-    </style>
 </head>
 <body>
     <div id="gate">
         <h1>CUBESOLVE 4x4</h1>
-        <button class="btn" onclick="signIn()">Login with Google</button>
+        <button id="login-btn" onclick="signIn()">Login with Google</button>
     </div>
-    <div id="app">
-        <h2 id="status">Photo 1: Corner View</h2>
-        <video id="vid" autoplay playsinline></video><br>
-        <button class="btn" onclick="capture()">📸 CAPTURE</button>
-        <twisty-player id="cube" puzzle="4x4x4" visualization="3D"></twisty-player>
-    </div>
-    <input type="hidden" id="url" value="{{ sb_url }}">
-    <input type="hidden" id="key" value="{{ sb_key }}">
+    
+    <input type="hidden" id="sb-url" value="{{ sb_url }}">
+    <input type="hidden" id="sb-key" value="{{ sb_key }}">
+
     <script src="/static/script.js"></script>
 </body>
 </html>
