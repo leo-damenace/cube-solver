@@ -7,13 +7,17 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# Securely pull the key from Render's environment settings
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# Fetching the Key from Render Environment Variables
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Passing the Supabase keys to the frontend securely via the template
+    return render_template("index.html", 
+                           sb_url=os.environ.get("SUPABASE_URL"), 
+                           sb_key=os.environ.get("SUPABASE_ANON_KEY"))
 
 @app.route("/analyze-batch", methods=["POST"])
 def analyze_batch():
@@ -24,13 +28,7 @@ def analyze_batch():
     img_bytes = base64.b64decode(image_data)
     img = Image.open(io.BytesIO(img_bytes))
 
-    prompt = f"""
-    This is a 4x4 Rubik's Cube. This photo is a {view_type}.
-    Identify every visible sticker color. 
-    Return a JSON mapping of faces (up, down, left, right, front, back) to 4x4 color grids.
-    Colors: white, yellow, red, orange, blue, green.
-    """
-
+    prompt = f"4x4 Rubik's Cube {view_type} analysis. Return a JSON map of colors for visible faces."
     response = model.generate_content([prompt, img])
     return jsonify({"analysis": response.text})
 
