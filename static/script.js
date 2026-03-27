@@ -280,30 +280,57 @@ async function analysePhotos() {
 }
 
 // ── SOLVE ─────────────────────────────────────────────────
+// cubing.js experimental4x4x4Solve expects a "reid" notation string:
+// 96 chars, order: U(16) R(16) F(16) D(16) L(16) B(16)
+// each char is the face letter of the colour that belongs on that sticker
+// e.g. if a U-face sticker is white, and white = U, that char is "U"
 async function solveCube() {
   const btn = document.getElementById("solve-btn");
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // Build 96-char state string: U R F D L B
+  // Validate sticker counts first
+  const counts = {};
+  for (const face of CUBING_ORDER) {
+    const stickers = faceColors[face] || [];
+    for (const c of stickers) counts[c] = (counts[c] || 0) + 1;
+  }
+  const invalid = Object.entries(counts).filter(([,v]) => v !== 16);
+  if (invalid.length || Object.keys(counts).length !== 6) {
+    document.getElementById("solution-area").style.display = "block";
+    document.getElementById("moves-wrap").innerHTML = `
+      <div class="error-box">
+        <strong>Colour count is wrong.</strong><br><br>
+        Each of the 6 colours must appear exactly 16 times. Current counts:<br><br>
+        ${Object.entries(counts).map(([c,n]) => `<span style="color:${n===16?'#5dcaa5':'#ff9090'}">${c}: ${n}</span>`).join(" &nbsp;·&nbsp; ")}<br><br>
+        Press <strong>Fix Colours</strong> to correct any wrong stickers.
+      </div>`;
+    btn.innerHTML = "✅ Solve!";
+    btn.disabled  = false;
+    return;
+  }
+
+  // Build reid string: U R F D L B, 16 stickers each
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
-    if (!face) { stateStr += "U".repeat(16); continue; }
-    for (const c of face) stateStr += (COLOR_TO_FACE[c] || "U");
+    if (!face) { stateStr += letter.repeat(16); continue; }
+    for (const c of face) stateStr += (COLOR_TO_FACE[c] || letter);
   }
 
   try {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
-    showSolution(solution.toString());
+    const algStr = solution.toString().trim();
+    if (!algStr) throw new Error("Solver returned empty solution.");
+    showSolution(algStr);
   } catch (err) {
-    console.error(err);
+    console.error("Solver error:", err, "State string:", stateStr);
     document.getElementById("solution-area").style.display = "block";
     document.getElementById("moves-wrap").innerHTML = `
       <div class="error-box">
-        <strong>Could not solve.</strong> The cube state looks invalid.<br><br>
-        Press <strong>Fix Colours</strong> to correct any wrong stickers. Make sure each colour appears exactly 16 times across all 6 faces.
+        <strong>Could not solve.</strong> ${err.message || "The cube state looks invalid."}<br><br>
+        This usually means Gemini misread one or more sticker colours. Press <strong>Fix Colours</strong> to correct them manually. Make sure each colour appears exactly 16 times.
       </div>`;
     btn.innerHTML = "✅ Solve!";
     btn.disabled  = false;
