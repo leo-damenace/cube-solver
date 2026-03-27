@@ -1,54 +1,41 @@
-const SB_URL = "YOUR_SUPABASE_URL";
-const SB_KEY = "YOUR_SUPABASE_ANON_KEY";
+// Fetching keys from the hidden inputs (which Python filled from Render)
+const SB_URL = document.getElementById('sb-url').value;
+const SB_KEY = document.getElementById('sb-key').value;
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-let cubeFaces = [];
-const FACE_NAMES = ["White (Top)", "Yellow (Bottom)", "Red (Front)", "Orange (Back)", "Green (Left)", "Blue (Right)"];
+let activeColor = 'white';
+let currentPhoto = 0;
+const photoSteps = ["Corner 1", "Corner 2", "Middles 1", "Middles 2"];
 
 window.signIn = async () => {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
+    await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin }
     });
-    if (error) alert(error.message);
 };
 
-window.captureFace = async () => {
-    const video = document.getElementById('video');
-    const status = document.getElementById('scan-status');
-    const btn = document.getElementById('capture-btn');
-    
-    status.innerText = "Analyzing with AI...";
-    btn.disabled = true;
+window.setTool = (color) => { activeColor = color; };
 
+window.capture = async () => {
+    const video = document.getElementById('video');
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
-    const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
+    const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
-    try {
-        const response = await fetch('/solve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Image })
-        });
-        const data = await response.json();
-        
-        if (data.colors) {
-            cubeFaces.push(data.colors);
-            if (cubeFaces.length < 6) {
-                document.getElementById('step-title').innerText = `Scan Face ${cubeFaces.length + 1} of 6`;
-                status.innerText = `Success! Next: ${FACE_NAMES[cubeFaces.length]}`;
-            } else {
-                status.innerText = "All faces scanned! Calculating solution...";
-                // Final solve logic would go here
-            }
-        }
-    } catch (e) {
-        status.innerText = "Error scanning. Try again.";
+    const res = await fetch('/analyze-batch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ image: base64, type: photoSteps[currentPhoto] })
+    });
+    const data = await res.json();
+    console.log("AI Analysis:", data.analysis);
+    
+    currentPhoto++;
+    if(currentPhoto < 4) {
+        document.getElementById('step-text').innerText = `Photo ${currentPhoto + 1}: ${photoSteps[currentPhoto]}`;
     }
-    btn.disabled = false;
 };
 
 async function init() {
