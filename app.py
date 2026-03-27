@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import os, json, re, time
-import urllib.request
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
@@ -96,10 +95,18 @@ Replace every "c" with the actual colour name. Every array must have exactly 16 
             text  = re.sub(r"```json|```", "", text).strip()
             faces = json.loads(text)
 
-            # Validate
+            # Validate face structure, colour values, and sticker counts
+            VALID_COLOURS = {"white","yellow","red","orange","blue","green"}
             for face in ["U","D","F","B","L","R"]:
                 if face not in faces or len(faces[face]) != 16:
                     raise ValueError(f"Face {face} missing or wrong length")
+                bad = [c for c in faces[face] if c not in VALID_COLOURS]
+                if bad:
+                    raise ValueError(f"Invalid colour(s) in face {face}: {bad}")
+            counts = Counter(c for f in faces.values() for c in f)
+            wrong = {col: counts.get(col, 0) for col in VALID_COLOURS if counts.get(col, 0) != 16}
+            if wrong:
+                raise ValueError(f"Sticker count wrong: {wrong}")
 
             return jsonify({"ok": True, "faces": faces})
 
