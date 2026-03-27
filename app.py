@@ -7,17 +7,16 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# Fetching the Key from Render Environment Variables
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_KEY)
+# Fetch Gemini Key from Render Environment
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route("/")
 def index():
-    # Passing the Supabase keys to the frontend securely via the template
+    # Fetch Supabase keys from Render Environment
     return render_template("index.html", 
-                           sb_url=os.environ.get("SUPABASE_URL"), 
-                           sb_key=os.environ.get("SUPABASE_ANON_KEY"))
+                           sb_url=os.environ.get("SUPABASE_URL", ""), 
+                           sb_key=os.environ.get("SUPABASE_ANON_KEY", ""))
 
 @app.route("/analyze-batch", methods=["POST"])
 def analyze_batch():
