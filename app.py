@@ -7,13 +7,13 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# Fetch Gemini Key from Render Environment
+# Fetching the Gemini Key from Render Environment Variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route("/")
 def index():
-    # Fetch Supabase keys from Render Environment
+    # Fetching Supabase keys from Render to hand to index.html
     return render_template("index.html", 
                            sb_url=os.environ.get("SUPABASE_URL", ""), 
                            sb_key=os.environ.get("SUPABASE_ANON_KEY", ""))
