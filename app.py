@@ -1,44 +1,46 @@
-import os, io, base64, json
+import os
+import base64
+import io
 from flask import Flask, render_template, request, jsonify
 import google.generativeai as genai
 from PIL import Image
 
 app = Flask(__name__)
 
-# Pulling from Render Environment Variables
+# Configure Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-@app.route("/ping")
-def ping():
-    return "OK", 200
+@app.route("/solve", methods=["POST"])
+def solve():
+    data = request.get_json()
+    image_data = data.get("image")
+    
+    if not image_data:
+        return jsonify({"error": "No image"}), 400
 
-@app.route("/config")
-def get_config():
-    return jsonify({
-        "url": os.environ.get("SUPABASE_URL"),
-        "key": os.environ.get("SUPABASE_ANON_KEY")
-    })
+    # Convert base64 to Image
+    img_bytes = base64.b64decode(image_data)
+    img = Image.open(io.BytesIO(img_bytes))
 
-@app.route("/scan-face", methods=["POST"])
-def scan_face():
-    try:
-        data = request.get_json()
-        image_b64 = data['image'].split(",")[1]
-        img = Image.open(io.BytesIO(base64.b64decode(image_b64)))
+    prompt = """
+    Analyze this Rubik's Cube face (4x4). 
+    Return exactly 16 color names in a simple list, starting from top-left to bottom-right.
+    Use only these labels: white, yellow, red, orange, blue, green.
+    Example output: [white, white, red, ...]
+    """
 
-        prompt = """Identify the 16 stickers on this 4x4 Rubik's cube face (top-left to bottom-right). 
-        Return ONLY a JSON list of strings: 'white', 'yellow', 'red', 'orange', 'blue', 'green'."""
-        
-        response = model.generate_content([prompt, img])
-        clean_json = response.text.replace("```json", "").replace("```", "").strip()
-        return jsonify({"success": True, "colors": json.loads(clean_json)})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    response = model.generate_content([prompt, img])
+    # Basic cleaning of the response text to get the list
+    colors_text = response.text.replace('[', '').replace(']', '').replace(' ', '').lower()
+    colors_list = colors_text.split(',')
+
+    return jsonify({"colors": colors_list})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
