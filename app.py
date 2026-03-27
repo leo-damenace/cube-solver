@@ -7,14 +7,14 @@ from PIL import Image
 
 app = Flask(__name__)
 
-# This line grabs the Gemini key you put in Render
+# This grabs the Gemini key from your Render Environment Variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 @app.route("/")
 def index():
-    # THIS IS THE FIX: This pulls the keys you added to Render 
-    # and sends them to the index.html file.
+    # THIS IS THE KEY: It grabs the Supabase info from Render 
+    # and passes it to the HTML variables 'sb_url' and 'sb_key'
     return render_template("index.html", 
                            sb_url=os.environ.get("SUPABASE_URL", ""), 
                            sb_key=os.environ.get("SUPABASE_ANON_KEY", ""))
@@ -23,9 +23,16 @@ def index():
 def solve_4x4():
     data = request.get_json()
     image_data = data.get("image")
+    step = data.get("step")
+
+    if not image_data:
+        return jsonify({"error": "No image"}), 400
+
     img_bytes = base64.b64decode(image_data)
     img = Image.open(io.BytesIO(img_bytes))
-    response = model.generate_content(["Identify 4x4 Rubik's colors", img])
+
+    prompt = f"Analyze this 4x4 Rubik's Cube {step} view. Return color mapping."
+    response = model.generate_content([prompt, img])
     return jsonify({"result": response.text})
 
 if __name__ == "__main__":
