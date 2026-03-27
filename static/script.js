@@ -1,20 +1,25 @@
-// Fetching keys from the hidden inputs (which Python filled from Render)
+// FETCH KEYS FROM HIDDEN INPUTS
 const SB_URL = document.getElementById('sb-url').value;
 const SB_KEY = document.getElementById('sb-key').value;
-const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-let activeColor = 'white';
+let supabaseClient;
+if (SB_URL && SB_KEY) {
+    supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+} else {
+    console.error("Supabase keys are missing! Check Render Env Variables.");
+}
+
 let currentPhoto = 0;
-const photoSteps = ["Corner 1", "Corner 2", "Middles 1", "Middles 2"];
+const photoSteps = ["Corner: Top-Front-Right", "Corner: Bottom-Back-Left", "Middles: Front & Back", "Middles: Left & Right"];
 
+// ATTACH TO WINDOW SO HTML CAN SEE IT
 window.signIn = async () => {
+    if (!supabaseClient) return alert("System not ready. Check keys.");
     await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin }
     });
 };
-
-window.setTool = (color) => { activeColor = color; };
 
 window.capture = async () => {
     const video = document.getElementById('video');
@@ -29,8 +34,6 @@ window.capture = async () => {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ image: base64, type: photoSteps[currentPhoto] })
     });
-    const data = await res.json();
-    console.log("AI Analysis:", data.analysis);
     
     currentPhoto++;
     if(currentPhoto < 4) {
@@ -38,7 +41,13 @@ window.capture = async () => {
     }
 };
 
+window.setTool = (color) => {
+    console.log("Selected color:", color);
+    // Logic for manual 3D model override goes here
+};
+
 async function init() {
+    if (!supabaseClient) return;
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
         document.getElementById('auth-gate').style.display = 'none';
