@@ -67,7 +67,7 @@ function explainMove(m) {
 }
 
 // ── STATE ─────────────────────────────────────────────────
-let supabase      = null;
+let supabaseClient      = null;
 let currentUser   = null;
 let photosTaken   = [];          // array of base64 strings (up to 4)
 let faceColors    = {};          // { U:[16], D:[16], F:[16], B:[16], L:[16], R:[16] }
@@ -76,20 +76,20 @@ let activePaint   = COLOUR_NAMES[0];
 
 // ── INIT SUPABASE ─────────────────────────────────────────
 window.addEventListener("load", () => {
-  supabase = window.supabase.createClient(
+  supabaseClient = window.supabase.createClient(
     window.SUPABASE_URL,
     window.SUPABASE_ANON_KEY
   );
 
-  // Wire up Google sign-in AFTER supabase is created
+  // Wire up Google sign-in AFTER supabaseClient is created
   document.getElementById("google-btn").onclick = async () => {
     const btn = document.getElementById("google-btn");
     btn.disabled = true;
     btn.textContent = "Signing in...";
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin }
+      options: { redirectTo: window.location.origin + "/" }
     });
 
     if (error) {
@@ -100,14 +100,14 @@ window.addEventListener("load", () => {
   };
 
   // Check if user is already signed in
-  supabase.auth.getSession().then(({ data }) => {
+  supabaseClient.auth.getSession().then(({ data }) => {
     if (data.session) {
       showApp(data.session.user);
     }
   });
 
   // Listen for auth state changes (e.g. after OAuth redirect)
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
     if (session) {
       showApp(session.user);
     } else {
@@ -119,7 +119,7 @@ window.addEventListener("load", () => {
 // ── SIGN OUT ──────────────────────────────────────────────
 async function signOut() {
   stopCamera();
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   showAuth();
   doRestart();
 }
