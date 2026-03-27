@@ -3,32 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CubeSolve AI</title>
+    <title>CubeSolve 4x4 AI</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
     <style>
-        :root { --bg: #0c0c0c; --card: #161616; --accent: #c8f135; --text: #efefef; }
-        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        #auth-gate, #app-interface { background: var(--card); padding: 40px; border-radius: 24px; border: 1px solid #2c2c2c; text-align: center; max-width: 400px; width: 90%; }
-        .btn { background: var(--accent); color: #000; border: none; padding: 15px 30px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-top: 20px; }
-        video { width: 100%; border-radius: 12px; border: 2px solid #333; margin-top: 15px; }
+        :root { --bg: #0c0c0c; --accent: #c8f135; --card: #161616; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #auth-gate, #app-interface { width: 90%; max-width: 500px; margin-top: 50px; text-align: center; }
         #app-interface { display: none; }
-        .status { margin-top: 10px; color: var(--accent); font-size: 14px; }
+        .camera-wrap { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid #333; margin: 20px 0; }
+        video { width: 100%; display: block; }
+        twisty-player { width: 100%; height: 350px; background: #000; border-radius: 12px; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 10px; }
+        .color-picker { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
+        .swatch { width: 35px; height: 35px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; }
+        .swatch.active { border-color: #fff; }
     </style>
 </head>
 <body>
     <div id="auth-gate">
-        <h1>CUBESOLVE <span style="color:var(--accent)">AI</span></h1>
-        <p>Sign in with Google to start scanning</p>
-        <button class="btn" onclick="window.signIn()">Continue with Google</button>
+        <h1>CUBESOLVE <span style="color:var(--accent)">4x4</span></h1>
+        <button class="btn" onclick="window.signIn()">Login with Google</button>
     </div>
 
     <div id="app-interface">
-        <h2 id="step-title">Scan Face 1 of 6</h2>
-        <video id="video" autoplay playsinline></video>
-        <div id="scan-status" class="status">Waiting for capture...</div>
-        <button id="capture-btn" class="btn" onclick="window.captureFace()">📸 Capture Face</button>
+        <h3 id="step-text">Photo 1: Corner (Top-Front-Right)</h3>
+        <div class="camera-wrap"><video id="video" autoplay playsinline></video></div>
+        <button class="btn" onclick="window.capture()">📸 Capture Photo</button>
+        
+        <twisty-player id="cube-view" puzzle="4x4x4" visualization="3D" control-panel="none"></twisty-player>
+        
+        <p>Tap a square above to fix color:</p>
+        <div class="color-picker" id="palette">
+            <div class="swatch" style="background:white" onclick="window.setTool('white')"></div>
+            <div class="swatch" style="background:yellow" onclick="window.setTool('yellow')"></div>
+            <div class="swatch" style="background:red" onclick="window.setTool('red')"></div>
+            <div class="swatch" style="background:orange" onclick="window.setTool('orange')"></div>
+            <div class="swatch" style="background:blue" onclick="window.setTool('blue')"></div>
+            <div class="swatch" style="background:green" onclick="window.setTool('green')"></div>
+        </div>
+        <button class="btn" style="background:#fff" onclick="window.solve()">🚀 Generate Solve Path</button>
     </div>
-
     <script type="module" src="/static/script.js"></script>
 </body>
 </html>
