@@ -1,84 +1,64 @@
-const SB_URL = "YOUR_SUPABASE_URL_HERE";
-const SB_KEY = "YOUR_SUPABASE_ANON_KEY_HERE";
+const SB_URL = "YOUR_SUPABASE_URL";
+const SB_KEY = "YOUR_SUPABASE_ANON_KEY";
 const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
-let cubeFaces = []; // Stores the 6 scanned faces
-let scanning = false;
+let cubeFaces = [];
+const FACE_NAMES = ["White (Top)", "Yellow (Bottom)", "Red (Front)", "Orange (Back)", "Green (Left)", "Blue (Right)"];
 
-// 1. GLOBAL LOGIN FUNCTION
 window.signIn = async () => {
-    console.log("Attempting Login...");
     const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin }
     });
-    if (error) alert("Error: " + error.message);
+    if (error) alert(error.message);
 };
 
-// 2. CAPTURE & AI ANALYSIS FUNCTION
-window.capture = async () => {
+window.captureFace = async () => {
     const video = document.getElementById('video');
+    const status = document.getElementById('scan-status');
+    const btn = document.getElementById('capture-btn');
+    
+    status.innerText = "Analyzing with AI...";
+    btn.disabled = true;
+
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext('2d').drawImage(video, 0, 0);
-    
-    const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
-    console.log("Image captured, sending to Gemini...");
+    const base64Image = canvas.toDataURL('image/jpeg').split(',')[1];
 
     try {
         const response = await fetch('/solve', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: imageData })
+            body: JSON.stringify({ image: base64Image })
         });
-        
         const data = await response.json();
+        
         if (data.colors) {
             cubeFaces.push(data.colors);
-            alert(`Face ${cubeFaces.length} scanned!`);
-            if (cubeFaces.length === 6) {
-                alert("All faces scanned. Calculating solution...");
-                processSolve();
+            if (cubeFaces.length < 6) {
+                document.getElementById('step-title').innerText = `Scan Face ${cubeFaces.length + 1} of 6`;
+                status.innerText = `Success! Next: ${FACE_NAMES[cubeFaces.length]}`;
+            } else {
+                status.innerText = "All faces scanned! Calculating solution...";
+                // Final solve logic would go here
             }
         }
-    } catch (err) {
-        console.error("AI Error:", err);
+    } catch (e) {
+        status.innerText = "Error scanning. Try again.";
     }
+    btn.disabled = false;
 };
 
-// 3. INITIALIZATION & AUTH CHECK
 async function init() {
     const { data: { user } } = await supabaseClient.auth.getUser();
     if (user) {
         document.getElementById('auth-gate').style.display = 'none';
         document.getElementById('app-interface').style.display = 'block';
-        startCamera();
-    }
-}
-
-// 4. CAMERA CONTROL
-async function startCamera() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         document.getElementById('video').srcObject = stream;
-    } catch (err) {
-        alert("Camera access denied or not found.");
     }
-}
-
-// 5. FINAL SOLVE LOGIC
-async function processSolve() {
-    // This sends the 6 faces to your Python backend to get the move sequence
-    const response = await fetch('/get-moves', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ faces: cubeFaces })
-    });
-    const result = await response.json();
-    console.log("Solution moves:", result.moves);
 }
 
 init();
