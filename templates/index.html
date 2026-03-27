@@ -8,21 +8,21 @@
     <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
     <style>
         :root { --bg: #0c0c0c; --accent: #c8f135; --card: #161616; }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         #auth-gate, #app-interface { width: 90%; max-width: 500px; margin-top: 50px; text-align: center; }
         #app-interface { display: none; }
-        .camera-wrap { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid #333; margin: 20px 0; }
-        video { width: 100%; display: block; }
-        twisty-player { width: 100%; height: 350px; background: #000; border-radius: 12px; }
-        .btn { background: var(--accent); color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 10px; }
-        .color-picker { display: flex; gap: 10px; justify-content: center; margin: 15px 0; }
-        .swatch { width: 35px; height: 35px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; }
+        .camera-wrap { width: 100%; border-radius: 15px; overflow: hidden; border: 2px solid #333; margin: 20px 0; background: #000; aspect-ratio: 4/3; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        twisty-player { width: 100%; height: 350px; background: #000; border-radius: 12px; margin: 20px 0; }
+        .btn { background: var(--accent); color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1rem; }
+        .swatch-box { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+        .swatch { width: 35px; height: 35px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
         .swatch.active { border-color: #fff; }
     </style>
 </head>
 <body>
     <div id="auth-gate">
-        <h1>CUBESOLVE <span style="color:var(--accent)">4x4</span></h1>
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">CUBESOLVE <span style="color:var(--accent)">4x4</span></h1>
         <button class="btn" onclick="window.signIn()">Login with Google</button>
     </div>
 
@@ -30,8 +30,10 @@
         <h3 id="step-text">Photo 1: Corner (Top-Front-Right)</h3>
         <div class="camera-wrap"><video id="video" autoplay playsinline></video></div>
         <button class="btn" onclick="window.capture()">📸 Capture Photo</button>
+        
         <twisty-player id="cube-view" puzzle="4x4x4" visualization="3D" control-panel="none"></twisty-player>
-        <div class="color-picker">
+        
+        <div class="swatch-box">
             <div class="swatch" style="background:white" onclick="window.setTool('white')"></div>
             <div class="swatch" style="background:yellow" onclick="window.setTool('yellow')"></div>
             <div class="swatch" style="background:red" onclick="window.setTool('red')"></div>
@@ -39,12 +41,11 @@
             <div class="swatch" style="background:blue" onclick="window.setTool('blue')"></div>
             <div class="swatch" style="background:green" onclick="window.setTool('green')"></div>
         </div>
-        <button class="btn" style="background:#fff">🚀 Generate Solve Path</button>
+        <button class="btn" style="background:#fff">🚀 Solve Cube</button>
     </div>
 
     <input type="hidden" id="sb-url" value="{{ sb_url }}">
     <input type="hidden" id="sb-key" value="{{ sb_key }}">
-
     <script type="module" src="/static/script.js"></script>
 </body>
 </html>
