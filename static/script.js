@@ -16,12 +16,8 @@ const COLOURS = {
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
-// Canonical solved orientation expected by experimental4x4x4Solve:
-//   U=white, D=yellow, F=green, B=blue, R=red, L=orange
-// Each colour maps to the face it belongs to in the SOLVED state.
-const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
-
-// experimental4x4x4Solve requires faces in exactly this order: U R F D L B
+// faceColors: U=0, D=1, F=2, B=3, L=4, R=5
+const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", orange:"L", red:"R" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
 const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
@@ -71,7 +67,7 @@ function explainMove(m) {
 }
 
 // ── STATE ─────────────────────────────────────────────────
-let supabase      = null;
+let supabaseClient = null;
 let currentUser   = null;
 let photosTaken   = [];          // array of base64 strings (up to 4)
 let faceColors    = {};          // { U:[16], D:[16], F:[16], B:[16], L:[16], R:[16] }
@@ -80,20 +76,20 @@ let activePaint   = COLOUR_NAMES[0];
 
 // ── INIT SUPABASE ─────────────────────────────────────────
 window.addEventListener("load", () => {
-  supabase = window.supabase.createClient(
+  supabaseClient = window.supabase.createClient(
     window.SUPABASE_URL,
     window.SUPABASE_ANON_KEY
   );
 
   // Check if user is already signed in
-  supabase.auth.getSession().then(({ data }) => {
+  supabaseClient.auth.getSession().then(({ data }) => {
     if (data.session) {
       showApp(data.session.user);
     }
   });
 
   // Listen for auth state changes (e.g. after OAuth redirect)
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
     if (session) {
       showApp(session.user);
     } else {
@@ -108,7 +104,7 @@ document.getElementById("google-btn").onclick = async () => {
   btn.disabled = true;
   btn.textContent = "Signing in...";
 
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: window.location.origin }
   });
@@ -122,7 +118,7 @@ document.getElementById("google-btn").onclick = async () => {
 
 // ── SIGN OUT ──────────────────────────────────────────────
 async function signOut() {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   showAuth();
   doRestart();
 }
@@ -278,106 +274,29 @@ async function solveCube() {
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // ── 1. Build 96-char reid state string (order: U R F D L B) ──────────────
-  // Each character is the face-letter of the colour that belongs there in solved state.
-  // Stickers are read row-by-row, left-to-right, top-to-bottom for each face,
-  // always viewed from outside the cube looking directly at that face.
+  // Build 96-char state string: U R F D L B
   let stateStr = "";
-  for (const letter of CUBING_ORDER) {            // U R F D L B
+  for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
-    if (!face || face.length !== 16) {
-      showSolveError("Face " + letter + " has missing data. Please rescan or fix colours.");
-      btn.innerHTML = "✅ Solve!";
-      btn.disabled  = false;
-      return;
-    }
-    for (const c of face) {
-      const mapped = COLOR_TO_FACE[c];
-      if (!mapped) {
-        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and correct it.`);
-        btn.innerHTML = "✅ Solve!";
-        btn.disabled  = false;
-        return;
-      }
-      stateStr += mapped;
-    }
+    if (!face) { stateStr += "U".repeat(16); continue; }
+    for (const c of face) stateStr += (COLOR_TO_FACE[c] || "U");
   }
 
-  // ── 2. Pre-flight validation ──────────────────────────────────────────────
-  const validationError = validateStateString(stateStr);
-  if (validationError) {
-    showSolveError(validationError);
-    btn.innerHTML = "✅ Solve!";
-    btn.disabled  = false;
-    return;
-  }
-
-  console.log("[CubeSolve] State string:", stateStr);
-
-  // ── 3. Call the solver ────────────────────────────────────────────────────
   try {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
-    const algStr   = solution.toString().trim();
-    console.log("[CubeSolve] Solution:", algStr);
-
-    // Set up the twisty-player: show the scrambled state by running the
-    // inverse of the solution as a setup alg, then play the solution forward.
-    const twisty = document.getElementById("twisty");
-    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
-    twisty.setAttribute("alg", algStr);
-
-    showSolution(algStr);
+    showSolution(solution.toString());
   } catch (err) {
-    console.error("[CubeSolve] Solver error:", err);
-    const msg = err?.message || String(err);
-    // Surface the raw error message so the user can tell us what went wrong
-    showSolveError(
-      "Solver rejected this cube state. " +
-      (msg.includes("pattern") || msg.includes("match")
-        ? "The colour assignment may still be wrong — check that each colour appears exactly 16 times and that no two adjacent centre stickers on the same face have different colours if they should be the same."
-        : msg) +
-      "<br><br>Press <strong>Fix Colours</strong> to manually correct any mistakes."
-    );
+    console.error(err);
+    document.getElementById("solution-area").style.display = "block";
+    document.getElementById("moves-wrap").innerHTML = `
+      <div class="error-box">
+        <strong>Could not solve.</strong> The cube state looks invalid.<br><br>
+        Press <strong>Fix Colours</strong> to correct any wrong stickers. Make sure each colour appears exactly 16 times across all 6 faces.
+      </div>`;
     btn.innerHTML = "✅ Solve!";
     btn.disabled  = false;
   }
-}
-
-// ── Validate 96-char state string before sending to solver ────────────────
-function validateStateString(s) {
-  if (s.length !== 96) return `State string is ${s.length} chars — must be exactly 96.`;
-  const valid = new Set(["U","R","F","D","L","B"]);
-  for (const ch of s) {
-    if (!valid.has(ch)) return `Unexpected character "${ch}" in state string.`;
-  }
-  const counts = {};
-  for (const ch of s) counts[ch] = (counts[ch] || 0) + 1;
-  const wrong = Object.entries(counts).filter(([,n]) => n !== 16);
-  if (wrong.length) {
-    return "Colour count mismatch — each face must appear exactly 16 times.\n" +
-      wrong.map(([f,n]) => `  ${f}: ${n}/16`).join(", ") +
-      "\nOpen Fix Colours and correct the highlighted faces.";
-  }
-  return null; // valid
-}
-
-// ── Invert an alg string so twisty-player can show the scrambled start ────
-function invertAlg(algStr) {
-  return algStr.trim().split(/\s+/).reverse().map(m => {
-    if (m.endsWith("2")) return m;           // X2 → X2 (self-inverse)
-    if (m.endsWith("'")) return m.slice(0,-1); // X' → X
-    return m + "'";                            // X  → X'
-  }).join(" ");
-}
-
-function showSolveError(html) {
-  document.getElementById("solution-area").style.display = "block";
-  document.getElementById("twisty-wrap").style.display   = "none";
-  document.getElementById("moves-wrap").innerHTML = `
-    <div class="error-box">
-      <strong>Could not solve.</strong><br><br>${html}
-    </div>`;
 }
 
 function showSolution(algStr) {
@@ -415,6 +334,7 @@ function showSolution(algStr) {
   activeChip = chips.firstChild;
   renderExplanation(moves[0], 0, moves.length);
 
+  document.getElementById("twisty").setAttribute("alg", algStr);
   document.getElementById("twisty-wrap").style.display   = "block";
   document.getElementById("solution-area").style.display = "block";
   document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
