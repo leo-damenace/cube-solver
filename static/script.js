@@ -68,4 +68,12 @@ captureBtn.onclick = async () => {
         captureBtn.disabled = false;
         captureBtn.innerText = "📸 Capture Face";
     }
+// This makes the function global so the button can see it
+window.signIn = async () => {
+    console.log("Button clicked!");
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+    });
+    if (error) alert("Login Error: " + error.message);
 };
