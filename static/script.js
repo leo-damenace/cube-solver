@@ -1,53 +1,33 @@
-const SB_URL = document.getElementById('sb-url').value;
-const SB_KEY = document.getElementById('sb-key').value;
+const url = document.getElementById('url').value;
+const key = document.getElementById('key').value;
+const supabaseClient = supabase.createClient(url, key);
 
-let supabaseClient;
-if (SB_URL && SB_KEY) {
-    supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+async function signIn() {
+    await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
 }
 
-let currentPhoto = 0;
-const photoSteps = ["Corner 1", "Corner 2", "Middles 1", "Middles 2"];
-
-window.signIn = async () => {
-    if (!supabaseClient) return alert("Keys missing in Render dashboard!");
-    await supabaseClient.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin }
-    });
-};
-
-window.capture = async () => {
-    const video = document.getElementById('video');
+async function capture() {
+    const vid = document.getElementById('vid');
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
+    canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
+    canvas.getContext('2d').drawImage(vid, 0, 0);
+    const img = canvas.toDataURL('image/jpeg').split(',')[1];
 
-    await fetch('/analyze-batch', {
+    await fetch('/solve-4x4', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ image: base64, type: photoSteps[currentPhoto] })
+        body: JSON.stringify({ image: img, step: "Corner Scan" })
     });
-    
-    currentPhoto++;
-    if(currentPhoto < 4) {
-        document.getElementById('step-text').innerText = `Photo ${currentPhoto + 1}: ${photoSteps[currentPhoto]}`;
-    }
-};
-
-window.setTool = (color) => { console.log("Selected:", color); };
-
-async function init() {
-    if (!supabaseClient) return;
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (user) {
-        document.getElementById('auth-gate').style.display = 'none';
-        document.getElementById('app-interface').style.display = 'block';
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        document.getElementById('video').srcObject = stream;
-    }
+    alert("Sent to AI!");
 }
 
+async function init() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        document.getElementById('gate').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        document.getElementById('vid').srcObject = stream;
+    }
+}
 init();
