@@ -1,20 +1,16 @@
-// FETCH KEYS FROM HIDDEN INPUTS
 const SB_URL = document.getElementById('sb-url').value;
 const SB_KEY = document.getElementById('sb-key').value;
 
 let supabaseClient;
 if (SB_URL && SB_KEY) {
     supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-} else {
-    console.error("Supabase keys are missing! Check Render Env Variables.");
 }
 
 let currentPhoto = 0;
-const photoSteps = ["Corner: Top-Front-Right", "Corner: Bottom-Back-Left", "Middles: Front & Back", "Middles: Left & Right"];
+const photoSteps = ["Corner 1", "Corner 2", "Middles 1", "Middles 2"];
 
-// ATTACH TO WINDOW SO HTML CAN SEE IT
 window.signIn = async () => {
-    if (!supabaseClient) return alert("System not ready. Check keys.");
+    if (!supabaseClient) return alert("Keys missing in Render dashboard!");
     await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin }
@@ -29,7 +25,7 @@ window.capture = async () => {
     canvas.getContext('2d').drawImage(video, 0, 0);
     const base64 = canvas.toDataURL('image/jpeg').split(',')[1];
 
-    const res = await fetch('/analyze-batch', {
+    await fetch('/analyze-batch', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ image: base64, type: photoSteps[currentPhoto] })
@@ -41,10 +37,7 @@ window.capture = async () => {
     }
 };
 
-window.setTool = (color) => {
-    console.log("Selected color:", color);
-    // Logic for manual 3D model override goes here
-};
+window.setTool = (color) => { console.log("Selected:", color); };
 
 async function init() {
     if (!supabaseClient) return;
