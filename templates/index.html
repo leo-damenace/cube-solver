@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CubeSolve 4x4 AI</title>
+    <title>4x4 CubeSolve AI</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
     <style>
@@ -30,11 +30,8 @@
         <h3 id="step-text">Photo 1: Corner (Top-Front-Right)</h3>
         <div class="camera-wrap"><video id="video" autoplay playsinline></video></div>
         <button class="btn" onclick="window.capture()">📸 Capture Photo</button>
-        
         <twisty-player id="cube-view" puzzle="4x4x4" visualization="3D" control-panel="none"></twisty-player>
-        
-        <p>Tap a square above to fix color:</p>
-        <div class="color-picker" id="palette">
+        <div class="color-picker">
             <div class="swatch" style="background:white" onclick="window.setTool('white')"></div>
             <div class="swatch" style="background:yellow" onclick="window.setTool('yellow')"></div>
             <div class="swatch" style="background:red" onclick="window.setTool('red')"></div>
@@ -42,8 +39,12 @@
             <div class="swatch" style="background:blue" onclick="window.setTool('blue')"></div>
             <div class="swatch" style="background:green" onclick="window.setTool('green')"></div>
         </div>
-        <button class="btn" style="background:#fff" onclick="window.solve()">🚀 Generate Solve Path</button>
+        <button class="btn" style="background:#fff">🚀 Generate Solve Path</button>
     </div>
+
+    <input type="hidden" id="sb-url" value="{{ sb_url }}">
+    <input type="hidden" id="sb-key" value="{{ sb_key }}">
+
     <script type="module" src="/static/script.js"></script>
 </body>
 </html>
