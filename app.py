@@ -18,6 +18,57 @@ def is_rate_limited(ip):
     request_log[ip].append(now)
     return False
 
+# ── COLOUR NORMALIZATION ──────────────────────────────────
+NORMALIZE = {
+    "white": "white", "w": "white",
+    "yellow": "yellow", "y": "yellow",
+    "red": "red",
+    "orange": "orange",
+    "blue": "blue",
+    "green": "green",
+
+    # common Gemini mistakes
+    "light red": "red",
+    "dark red": "red",
+    "pink": "red",
+    "light orange": "orange",
+    "dark orange": "orange",
+    "gold": "yellow",
+    "cream": "white",
+}
+
+VALID_COLOURS = {"white","yellow","red","orange","blue","green"}
+
+def normalize_colour(c):
+    return NORMALIZE.get(c.lower().strip(), c.lower().strip())
+
+# ── SAFE JSON EXTRACTION ──────────────────────────────────
+def extract_json(raw_text):
+    match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+    if not match:
+        raise ValueError("No JSON object found")
+
+    json_str = match.group(0)
+
+    # fix trailing commas
+    json_str = re.sub(r",\s*}", "}", json_str)
+    json_str = re.sub(r",\s*]", "]", json_str)
+
+    return json.loads(json_str)
+
+# ── VALIDATION ────────────────────────────────────────────
+def validate_faces(faces):
+    for face in ["U","D","F","B","L","R"]:
+        if face not in faces:
+            raise ValueError(f"Missing face {face}")
+
+        if len(faces[face]) != 16:
+            raise ValueError(f"{face} has wrong length")
+
+        for c in faces[face]:
+            if c not in VALID_COLOURS:
+                raise ValueError(f"Invalid colour: {c}")
+
 # ── ROUTES ────────────────────────────────────────────────
 @app.route("/")
 def index():
@@ -29,6 +80,7 @@ def index():
 @app.route("/analyze", methods=["POST"])
 def analyze():
     ip = request.headers.get("X-Forwarded-For", request.remote_addr).split(",")[0].strip()
+
     if is_rate_limited(ip):
         return jsonify({"ok": False, "error": "Too many requests. Please wait a moment."}), 429
 
@@ -37,93 +89,97 @@ def analyze():
         return jsonify({"ok": False, "error": "Server misconfigured — GEMINI_API_KEY missing."}), 500
 
     data   = request.get_json()
-    images = data.get("images", [])  # list of up to 4 base64 strings
+    images = data.get("images", [])
 
-    if not images or len(images) < 1:
+    if not images:
         return jsonify({"ok": False, "error": "No images received."}), 400
 
-    prompt = f"""I am sending you {len(images)} photo(s) of the same 4x4 Rubik's cube taken from different angles.
+    base_prompt = f"""I am sending you {len(images)} photo(s) of the same 4x4 Rubik's cube taken from different angles.
 
-Your job is to identify ALL 6 faces of the cube by reading the sticker colours across all photos.
+Identify ALL 6 faces: U, D, F, B, L, R.
 
-The 6 faces are: TOP (U), BOTTOM (D), FRONT (F), BACK (B), LEFT (L), RIGHT (R).
+Each face is a 4x4 grid (16 stickers), read left-to-right, top-to-bottom.
 
-For each face, read the 4x4 grid of 16 stickers left-to-right, top-to-bottom, row by row.
-Each sticker is exactly one of these 6 words: white, yellow, red, orange, blue, green.
-You MUST use only these exact words. Never use: lime, light green, neon, bright, dark, teal, cyan, crimson, scarlet, or any other variation.
-If a sticker looks lime or neon green, call it green. If it looks light yellow or yellow-green, call it yellow. If it looks dark red or crimson, call it red. If it looks dark orange or brown-orange, call it orange.
+STRICT RULES:
+- Output MUST be valid JSON
+- NO markdown, NO backticks, NO explanation
+- ONLY lowercase colour names
+- ONLY allowed: white, yellow, red, orange, blue, green
+- Each face must have exactly 16 values
+- Each colour must appear exactly 16 times total
 
-Important:
-- orange and red look similar — be precise
-- white and yellow look similar under some lighting — be precise
-- Use all photos together to determine every face
-
-Return ONLY this JSON, no markdown, no explanation:
+Return ONLY:
 {{
-  "U": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "D": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "F": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "B": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "L": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "R": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]
-}}
+  "U": [...16],
+  "D": [...16],
+  "F": [...16],
+  "B": [...16],
+  "L": [...16],
+  "R": [...16]
+}}"""
 
-Replace every "c" with the actual colour name. Every array must have exactly 16 values."""
-
-    parts = [{"text": prompt}]
-    for img_b64 in images:
-        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
+    parts = [{"text": base_prompt}]
+    for img in images:
+        parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img}})
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
+        "generationConfig": {
+            "temperature": 0,
+            "maxOutputTokens": 1024,
+            "response_mime_type": "application/json"
+        }
     }).encode("utf-8")
 
     last_error = ""
+
     for attempt in range(4):
         try:
             req = urllib.request.Request(
                 f"{GEMINI_URL}?key={api_key}",
                 data=payload,
-                headers={"Content-Type": "application/json", "User-Agent": "CubeSolveApp/1.0"},
+                headers={"Content-Type": "application/json"},
                 method="POST"
             )
+
             with urllib.request.urlopen(req, timeout=60) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
 
-            if "error" in result:
-                return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
+            raw = result["candidates"][0]["content"]["parts"][0]["text"]
 
-            text  = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            text  = re.sub(r"```json|```", "", text).strip()
-            faces = json.loads(text)
+            # ── Extract JSON safely
+            faces = extract_json(raw)
 
-            # Validate
-            for face in ["U","D","F","B","L","R"]:
-                if face not in faces or len(faces[face]) != 16:
-                    raise ValueError(f"Face {face} missing or wrong length")
+            # ── Normalize colours
+            for face in faces:
+                faces[face] = [normalize_colour(c) for c in faces[face]]
+
+            # ── Validate
+            validate_faces(faces)
 
             return jsonify({"ok": True, "faces": faces})
 
-        except urllib.error.HTTPError as e:
-            body = e.read().decode()
-            last_error = f"HTTP {e.code}"
-            if e.code in [429, 500, 503]:
-                time.sleep(2 ** (attempt + 1))
-                continue
-            return jsonify({"ok": False, "error": f"Gemini API error {e.code}: {body[:200]}"})
-
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            last_error = str(e)
-            time.sleep(2)
-            continue
-
         except Exception as e:
             last_error = str(e)
-            time.sleep(2)
+
+            # smarter retry prompt
+            parts[0]["text"] = f"""Your previous response was invalid.
+
+Return ONLY valid JSON.
+
+Rules:
+- Faces: U, D, F, B, L, R
+- 16 values each
+- Only: white, yellow, red, orange, blue, green
+- No extra text
+
+Fix your output."""
+
+            time.sleep(2 ** (attempt + 1))
             continue
 
     return jsonify({"ok": False, "error": f"Failed after retries: {last_error}"})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
