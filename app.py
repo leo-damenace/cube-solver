@@ -76,7 +76,7 @@ Replace every "c" with the actual colour name. Every array must have exactly 16 
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
     }).encode("utf-8")
 
     last_error = ""
