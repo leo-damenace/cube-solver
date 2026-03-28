@@ -64,158 +64,73 @@
       text-align: center;
     }
 
-    .logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 3rem;
-      letter-spacing: 3px;
-      line-height: 1;
-      margin-bottom: 0.2rem;
-    }
-
+    .logo { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; letter-spacing: 3px; line-height: 1; margin-bottom: 0.2rem; }
     .logo span { color: var(--accent); }
-
-    .logo-sub {
-      font-size: 0.75rem;
-      color: var(--muted);
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      margin-bottom: 2.5rem;
-      display: block;
-    }
+    .logo-sub { font-size: 0.75rem; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 2.5rem; display: block; }
 
     #google-btn {
-      width: 100%;
-      background: #fff;
-      color: #333;
-      border: none;
-      border-radius: 10px;
-      padding: 0.9rem 1.2rem;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      width: 100%; background: #fff; color: #333; border: none; border-radius: 10px;
+      padding: 0.9rem 1.2rem; font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
+      font-weight: 500; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; gap: 10px;
       transition: opacity 0.15s, transform 0.1s;
-      touch-action: manipulation;
-      min-height: 52px;
+      touch-action: manipulation; min-height: 52px;
     }
-
     #google-btn:hover  { opacity: 0.92; transform: translateY(-1px); }
     #google-btn:active { transform: scale(0.98); }
+    #google-btn svg    { width: 20px; height: 20px; flex-shrink: 0; }
 
-    #google-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-
-    .auth-footer {
-      margin-top: 1.5rem;
-      font-size: 0.72rem;
-      color: var(--muted2);
-      line-height: 1.6;
-    }
-
-    #auth-error {
-      color: var(--red);
-      font-size: 0.8rem;
-      margin-top: 1rem;
-      min-height: 1em;
-      font-family: 'DM Mono', monospace;
-    }
+    .auth-footer { margin-top: 1.5rem; font-size: 0.72rem; color: var(--muted2); line-height: 1.6; }
+    #auth-error  { color: var(--red); font-size: 0.8rem; margin-top: 1rem; min-height: 1em; font-family: 'DM Mono', monospace; }
 
     /* ── APP ── */
     #app { display: none; min-height: 100vh; }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 
     /* SIDEBAR */
     .sidebar {
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
     }
 
     .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 2px; }
     .sidebar-logo span { color: var(--accent); }
 
     .user-chip {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem 0.8rem;
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.6rem 0.8rem;
     }
-
     .user-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--accent);
+      width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 600; color: #000;
-      flex-shrink: 0;
-      overflow: hidden;
+      font-size: 0.75rem; font-weight: 600; color: #000; flex-shrink: 0; overflow: hidden;
     }
-
     .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .user-name { font-size: 0.78rem; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     #signout-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.7rem;
-      cursor: pointer;
-      font-family: 'DM Mono', monospace;
-      padding: 2px 4px;
-      flex-shrink: 0;
+      background: transparent; border: none; color: var(--muted);
+      font-size: 0.7rem; cursor: pointer; font-family: 'DM Mono', monospace;
+      padding: 2px 4px; flex-shrink: 0;
     }
-
     #signout-btn:hover { color: var(--red); }
 
-    .section-label {
-      font-size: 0.62rem;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.6rem;
-    }
-
-    .photo-steps { display: flex; flex-direction: column; gap: 6px; }
+    .section-label { font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
+    .photo-steps   { display: flex; flex-direction: column; gap: 6px; }
 
     .photo-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 0.6rem 0.8rem;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      transition: all 0.2s;
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 0.6rem 0.8rem; border-radius: 8px;
+      border: 1px solid transparent; transition: all 0.2s;
     }
-
     .photo-step .dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      border: 2px solid var(--muted2);
-      flex-shrink: 0;
-      margin-top: 3px;
-      transition: all 0.2s;
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 2px solid var(--muted2); flex-shrink: 0; margin-top: 3px; transition: all 0.2s;
     }
-
     .photo-step .step-text { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-
     .photo-step.active { background: rgba(200,241,53,0.05); border-color: rgba(200,241,53,0.2); }
     .photo-step.active .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(200,241,53,0.4); }
     .photo-step.active .step-text { color: var(--accent); font-weight: 500; }
@@ -223,481 +138,365 @@
     .photo-step.done .step-text { color: var(--accent2); }
 
     .sidebar-tip {
-      margin-top: auto;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      font-size: 0.76rem;
-      color: var(--muted);
-      line-height: 1.6;
+      margin-top: auto; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; font-size: 0.76rem; color: var(--muted); line-height: 1.6;
     }
-
     .sidebar-tip strong { color: var(--text); display: block; margin-bottom: 4px; }
 
     /* MAIN */
     .main { padding: 2rem 1.5rem; max-width: 660px; }
-
     .main-header { margin-bottom: 1.5rem; }
-    .main-header h2 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.9rem; letter-spacing: 2px; line-height: 1; margin-bottom: 0.4rem;
-    }
-    .main-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .main-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; letter-spacing: 2px; line-height: 1; margin-bottom: 0.4rem; }
+    .main-header p  { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
 
     /* STATUS BANNER */
     #status-banner {
-      display: none;
-      background: rgba(200,241,53,0.07);
-      border: 1px solid rgba(200,241,53,0.2);
-      border-radius: 10px;
-      padding: 0.85rem 1.1rem;
-      font-size: 0.85rem;
-      color: var(--accent);
-      margin-bottom: 1.2rem;
-      line-height: 1.5;
-      text-align: center;
+      display: none; background: rgba(200,241,53,0.07);
+      border: 1px solid rgba(200,241,53,0.2); border-radius: 10px;
+      padding: 0.85rem 1.1rem; font-size: 0.85rem; color: var(--accent);
+      margin-bottom: 1.2rem; line-height: 1.5; text-align: center;
     }
 
     /* CAMERA */
-    .camera-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-      margin-bottom: 1.2rem;
-    }
-
-    .camera-wrap {
-      position: relative;
-      aspect-ratio: 4/3;
-      background: #000;
-      overflow: hidden;
-    }
-
-    #camera {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .camera-badge {
-      position: absolute;
-      top: 10px; left: 10px;
-      background: rgba(0,0,0,0.7);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 3px 10px;
-      font-size: 0.7rem;
-      font-family: 'DM Mono', monospace;
-      color: #fff;
-      display: flex; align-items: center; gap: 6px;
-    }
-
-    .rec-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--red);
-      animation: blink 1.2s ease infinite;
-    }
-
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
+    .camera-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 1.2rem; }
+    .camera-wrap { position: relative; aspect-ratio: 4/3; background: #000; overflow: hidden; }
+    #camera { width: 100%; height: 100%; object-fit: cover; display: block; }
     .camera-footer {
-      padding: 0.8rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-top: 1px solid var(--border);
+      padding: 0.8rem 1rem; display: flex; align-items: center;
+      justify-content: space-between; border-top: 1px solid var(--border);
     }
-
-    .camera-footer-left { font-size: 0.82rem; color: var(--muted); }
+    .camera-footer-left  { font-size: 0.82rem; color: var(--muted); }
     .camera-footer-left strong { color: var(--text); }
     .camera-footer-right { font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace; }
 
     /* BUTTONS */
     .btn-row { display: flex; gap: 10px; margin-bottom: 1.2rem; }
-
     .btn {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 500;
-      padding: 0.8rem 1.5rem;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-      flex: 1;
-      touch-action: manipulation;
-      min-height: 48px;
-      -webkit-tap-highlight-color: transparent;
+      font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 500;
+      padding: 0.8rem 1.5rem; border-radius: 10px; border: none; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s; flex: 1;
+      touch-action: manipulation; min-height: 48px; -webkit-tap-highlight-color: transparent;
     }
-
     .btn:hover  { opacity: 0.85; transform: translateY(-1px); }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-
-    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary { background: var(--accent);  color: #000; }
     .btn-success { background: var(--accent2); color: #000; }
     .btn-ghost   { background: var(--card); color: var(--muted); border: 1px solid var(--border); flex: 0; padding: 0.8rem 1.2rem; }
 
     /* PHOTO GRID */
-    .photos-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 1.2rem;
-    }
-
+    .photos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.2rem; }
     .photo-slot {
-      aspect-ratio: 4/3;
-      background: var(--card);
-      border: 1px dashed var(--border2);
-      border-radius: 10px;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      aspect-ratio: 4/3; background: var(--card); border: 1px dashed var(--border2);
+      border-radius: 10px; overflow: hidden; position: relative;
+      display: flex; align-items: center; justify-content: center;
     }
-
     .photo-slot.taken { border-style: solid; border-color: var(--accent2); }
-    .photo-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
+    .photo-slot img   { width: 100%; height: 100%; object-fit: cover; display: block; }
     .photo-slot-label {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.65);
-      padding: 4px 8px;
-      font-size: 0.68rem;
-      color: #ccc;
-      text-align: center;
-      font-family: 'DM Mono', monospace;
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.65); padding: 4px 8px;
+      font-size: 0.68rem; color: #ccc; text-align: center; font-family: 'DM Mono', monospace;
     }
-
-    .photo-slot-empty {
-      font-size: 0.75rem;
-      color: var(--muted2);
-      text-align: center;
-      padding: 1rem;
-      line-height: 1.5;
-    }
-
-    /* COLOUR EDITOR MODAL */
-    #editor-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      background: rgba(0,0,0,0.92);
-      backdrop-filter: blur(8px);
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 1.5rem 1rem 2rem;
-      overflow-y: auto;
-      gap: 1rem;
-    }
-
-    #editor-modal.open { display: flex; }
-
-    .editor-header {
-      width: 100%;
-      max-width: 440px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .editor-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.5rem;
-      letter-spacing: 2px;
-      color: var(--accent);
-    }
-
-    #editor-close {
-      background: var(--card);
-      border: 1px solid var(--border2);
-      color: var(--text);
-      width: 42px; height: 42px;
-      border-radius: 10px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      touch-action: manipulation;
-    }
-
-    .editor-hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-align: center;
-      max-width: 380px;
-      line-height: 1.5;
-    }
-
-    .editor-faces { display: flex; flex-direction: column; gap: 1rem; width: 100%; max-width: 440px; }
-
-    .editor-face {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1rem;
-    }
-
-    .editor-face-label {
-      font-size: 0.68rem;
-      color: var(--muted);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 0.7rem;
-    }
-
-    .editor-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-bottom: 0.8rem;
-    }
-
-    .editor-cell {
-      aspect-ratio: 1/1;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 3px solid transparent;
-      transition: transform 0.1s, border-color 0.1s;
-      touch-action: manipulation;
-    }
-
-    .editor-cell:hover  { transform: scale(1.08); }
-    .editor-cell.active { border-color: #fff; transform: scale(1.12); }
-
-    .palette {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .swatch {
-      width: 44px; height: 44px;
-      border-radius: 10px;
-      cursor: pointer;
-      border: 3px solid transparent;
-      transition: transform 0.1s, border-color 0.1s;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; color: rgba(0,0,0,0.6); font-weight: 600;
-      text-transform: uppercase;
-      touch-action: manipulation;
-    }
-
-    .swatch:hover  { transform: scale(1.1); }
-    .swatch.active { border-color: #fff; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.25); }
-
-    #editor-save {
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: 10px;
-      padding: 0.9rem 2.5rem;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      touch-action: manipulation;
-      min-height: 50px;
-    }
+    .photo-slot-empty { font-size: 0.75rem; color: var(--muted2); text-align: center; padding: 1rem; line-height: 1.5; }
 
     /* SOLUTION */
-    .solution-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-      margin-bottom: 1.2rem;
-    }
-
-    .solution-header {
-      padding: 0.9rem 1.1rem;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-
-    .solution-header h3 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.3rem; letter-spacing: 1px; color: var(--accent2);
-    }
-
-    .move-count { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
-
+    .solution-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 1.2rem; }
+    .solution-header { padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .solution-header h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: 1px; color: var(--accent2); }
+    .move-count  { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
     .solution-body { padding: 1.1rem; }
 
     .move-chip {
-      display: inline-block;
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.82rem;
-      color: var(--text);
-      cursor: pointer;
-      margin: 3px;
-      transition: background 0.1s;
-      touch-action: manipulation;
+      display: inline-block; background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 4px 10px; font-family: 'DM Mono', monospace;
+      font-size: 0.82rem; color: var(--text); cursor: pointer; margin: 3px;
+      transition: background 0.1s; touch-action: manipulation;
     }
-
-    .move-chip:hover { background: var(--border); }
+    .move-chip:hover  { background: var(--border); }
     .move-chip.active { background: var(--accent); color: #000; border-color: var(--accent); }
 
     #explain-panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      margin-top: 0.8rem;
-      font-size: 0.85rem;
-      line-height: 1.6;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; margin-top: 0.8rem; font-size: 0.85rem; line-height: 1.6;
     }
 
     #twisty-wrap { background: #111; border-top: 1px solid var(--border); }
     twisty-player { width: 100%; height: 300px; display: block; }
 
     .error-box {
-      background: rgba(255,77,77,0.08);
-      border: 1px solid rgba(255,77,77,0.25);
-      border-radius: 10px;
-      padding: 1rem;
-      font-size: 0.85rem;
-      color: #ff9090;
-      line-height: 1.7;
+      background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.25);
+      border-radius: 10px; padding: 1rem; font-size: 0.85rem; color: #ff9090; line-height: 1.7;
     }
 
     /* SPINNER */
     .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(0,0,0,0.15);
-      border-top-color: #000;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(0,0,0,0.15); border-top-color: #000;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* MOBILE */
-    /* SCAN VALIDATION */
-    #scan-validation {
+    /* ══════════════════════════════════════════════════════
+       REVIEW MODAL — 3D cube + flat face editors
+    ══════════════════════════════════════════════════════ */
+    #review-modal {
       display: none;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 1rem;
-      margin-bottom: 1.2rem;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: var(--bg);
+      flex-direction: column;
+      overflow-y: auto;
     }
+    #review-modal.open { display: flex; }
 
-    .scan-validation-header {
-      display: flex;
-      align-items: baseline;
-      gap: 0.8rem;
-      margin-bottom: 0.9rem;
-      flex-wrap: wrap;
-    }
-
-    .scan-validation-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.1rem;
-      letter-spacing: 1.5px;
-      color: var(--accent2);
-    }
-
-    .scan-validation-hint {
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    .scan-faces-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 0.9rem;
-    }
-
-    .scan-face {
+    .review-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem;
-    }
-
-    .scan-face-label {
-      font-size: 0.62rem;
-      color: var(--muted);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      margin-bottom: 0.4rem;
-    }
-
-    .scan-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 3px;
-    }
-
-    .scan-cell {
-      aspect-ratio: 1/1;
-      border-radius: 3px;
-    }
-
-    .scan-counts {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .count-pill {
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.2rem;
       display: flex;
       align-items: center;
-      gap: 5px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 3px 8px 3px 4px;
-      font-size: 0.74rem;
-    }
-
-    .count-pill.bad { border-color: rgba(255,77,77,0.4); background: rgba(255,77,77,0.05); }
-
-    .count-dot {
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.68rem;
-      font-weight: 600;
+      justify-content: space-between;
+      gap: 1rem;
       flex-shrink: 0;
     }
 
-    .count-name { color: var(--muted); }
-    .count-warn { color: #ff9090; font-size: 0.68rem; }
+    .review-header-left { display: flex; flex-direction: column; gap: 2px; }
+    .review-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 2px; color: var(--accent); }
+    .review-subtitle { font-size: 0.74rem; color: var(--muted); }
 
+    .review-header-right { display: flex; gap: 8px; align-items: center; }
+
+    #review-close-btn {
+      background: var(--card); border: 1px solid var(--border2);
+      color: var(--muted); width: 38px; height: 38px; border-radius: 8px;
+      font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+    }
+    #review-close-btn:hover { color: var(--text); }
+
+    /* 3D cube section */
+    .review-3d-section {
+      background: #111;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.5rem 0 0;
+      flex-shrink: 0;
+    }
+
+    .review-3d-label {
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.5rem 0 0.3rem;
+    }
+
+    #review-twisty {
+      width: 100%;
+      max-width: 400px;
+      height: 260px;
+      display: block;
+    }
+
+    .review-3d-hint {
+      font-size: 0.7rem;
+      color: var(--muted2);
+      padding: 0.3rem 0 0.6rem;
+    }
+
+    /* Colour count pills */
+    #review-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .review-count-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 3px 8px 3px 3px;
+      font-size: 0.73rem; transition: border-color 0.2s;
+    }
+    .review-count-pill.ok  { border-color: rgba(53,241,176,0.35); }
+    .review-count-pill.bad { border-color: rgba(255,77,77,0.4); background: rgba(255,77,77,0.05); }
+
+    .review-count-dot {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 600; flex-shrink: 0;
+    }
+    .review-count-name  { color: var(--muted); }
+    .review-count-check { color: var(--accent2); font-size: 0.75rem; }
+    .review-count-warn  { color: #ff9090; font-size: 0.68rem; }
+
+    /* Face editor area */
+    #review-faces {
+      padding: 1rem 1rem 0;
+      flex: 1;
+    }
+
+    /* Shared palette */
+    .review-palette {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-bottom: 1rem;
+      padding: 0.8rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      position: sticky;
+      top: 65px;
+      z-index: 5;
+    }
+
+    .review-swatch {
+      width: 42px; height: 42px; border-radius: 9px; cursor: pointer;
+      border: 3px solid transparent;
+      transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+      display: flex; align-items: flex-end; justify-content: center;
+      padding-bottom: 3px;
+      touch-action: manipulation;
+      position: relative;
+    }
+    .review-swatch:hover  { transform: scale(1.08); }
+    .review-swatch.active {
+      border-color: #fff;
+      transform: scale(1.14);
+      box-shadow: 0 0 12px rgba(255,255,255,0.2);
+    }
+    .review-swatch-label {
+      font-size: 0.48rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    /* Face grids */
+    .review-faces-wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-bottom: 1rem;
+    }
+
+    .review-face {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.7rem;
+    }
+
+    .review-face-label {
+      font-size: 0.62rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .review-face-letter {
+      font-family: 'DM Mono', monospace;
+      color: var(--accent);
+      font-size: 0.78rem;
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .review-cell {
+      aspect-ratio: 1/1;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.08s, border-color 0.08s;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .review-cell:hover  { transform: scale(1.1); z-index: 1; position: relative; }
+    .review-cell.painted {
+      transform: scale(1.18);
+      border-color: rgba(255,255,255,0.6) !important;
+      z-index: 2;
+      position: relative;
+    }
+
+    /* Warning + confirm footer */
+    .review-footer {
+      padding: 1rem 1.2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      position: sticky;
+      bottom: 0;
+    }
+
+    #review-warning {
+      display: none;
+      background: rgba(255,77,77,0.08);
+      border: 1px solid rgba(255,77,77,0.3);
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.8rem;
+      color: #ff9090;
+      line-height: 1.5;
+    }
+
+    #review-confirm-btn {
+      background: var(--accent2);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      touch-action: manipulation;
+      min-height: 52px;
+      transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.5px;
+    }
+    #review-confirm-btn:hover  { opacity: 0.9; transform: translateY(-1px); }
+    #review-confirm-btn:active { transform: scale(0.98); }
+
+    /* MOBILE */
     @media (max-width: 620px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar {
-        position: static;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-        padding: 1rem;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 0.8rem;
+        position: static; height: auto; border-right: none;
+        border-bottom: 1px solid var(--border); padding: 1rem;
+        flex-direction: row; flex-wrap: wrap; gap: 0.8rem;
       }
       .photo-steps { flex-direction: row; flex-wrap: wrap; }
       .sidebar-tip { display: none; }
       .main { padding: 1.2rem 1rem; }
-      .scan-faces-grid { grid-template-columns: repeat(2, 1fr); }
+      .review-faces-wrap { grid-template-columns: 1fr 1fr; }
+      #review-twisty { height: 220px; }
     }
   </style>
 </head>
@@ -765,7 +564,7 @@
 
       <div class="sidebar-tip">
         <strong>How to scan</strong>
-        Take 4 photos from different angles so all 6 faces are visible across the photos. Good lighting makes a big difference — avoid shadows and glare.
+        Take 4 photos from different angles so all 6 faces are visible. After scanning, review and fix any wrong colours before solving.
       </div>
     </aside>
 
@@ -791,7 +590,7 @@
 
       <div class="btn-row">
         <button class="btn btn-primary" id="capture-btn" onclick="takePhoto()">📸 &nbsp;Take Photo</button>
-        <button class="btn btn-ghost" id="restart-btn" onclick="doRestart()" style="display:none">↺</button>
+        <button class="btn btn-ghost"   id="restart-btn" onclick="doRestart()" style="display:none">↺</button>
       </div>
 
       <!-- 4 photo previews -->
@@ -803,12 +602,9 @@
         <div class="photo-slot" id="slot-3"><div class="photo-slot-empty">Photo 4<br>not taken</div></div>
       </div>
 
-      <!-- Post-scan colour validation -->
-      <div id="scan-validation"></div>
-
-      <!-- Edit + Solve buttons -->
+      <!-- Solve button (shown after review confirmation) -->
       <div class="btn-row" id="action-row" style="display:none">
-        <button class="btn btn-ghost" style="flex:1" onclick="openEditor()">✏️ &nbsp;Fix Colours</button>
+        <button class="btn btn-ghost"   style="flex:1" onclick="openReviewModal()">✏️ &nbsp;Fix Colours</button>
         <button class="btn btn-success" style="flex:2" id="solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
       </div>
 
@@ -833,15 +629,42 @@
   </div>
 </div>
 
-<!-- ══ COLOUR EDITOR MODAL ════════════════════════════════ -->
-<div id="editor-modal">
-  <div class="editor-header">
-    <div class="editor-title">FIX COLOURS</div>
-    <button id="editor-close" onclick="closeEditor()">✕</button>
+<!-- ══ REVIEW MODAL ═══════════════════════════════════════ -->
+<div id="review-modal">
+
+  <!-- Sticky header -->
+  <div class="review-header">
+    <div class="review-header-left">
+      <div class="review-title">REVIEW COLOURS</div>
+      <div class="review-subtitle">Rotate the 3D cube to check · tap a square then pick a colour to fix it</div>
+    </div>
+    <div class="review-header-right">
+      <button id="review-close-btn" onclick="closeReviewModal()">✕</button>
+    </div>
   </div>
-  <div class="editor-hint">Pick a colour from the palette, then tap any square to paint it.</div>
-  <div class="editor-faces" id="editor-faces"></div>
-  <button id="editor-save" onclick="saveEditor()">Save &amp; Close</button>
+
+  <!-- 3D rotatable cube -->
+  <div class="review-3d-section">
+    <div class="review-3d-label">3D Preview — drag to rotate</div>
+    <twisty-player id="review-twisty" puzzle="4x4x4" visualization="3D"
+                   control-panel="none" background="none"></twisty-player>
+    <div class="review-3d-hint">The 3D view shows the solved state — use the grids below to verify and fix colours</div>
+  </div>
+
+  <!-- Colour count pills -->
+  <div id="review-counts"></div>
+
+  <!-- Palette + face grids -->
+  <div id="review-faces"></div>
+
+  <!-- Warning + confirm -->
+  <div class="review-footer">
+    <div id="review-warning"></div>
+    <button id="review-confirm-btn" onclick="confirmReview()">
+      ✓ &nbsp;Looks Good — Solve It!
+    </button>
+  </div>
+
 </div>
 
 <!-- Supabase + cubing.js -->
