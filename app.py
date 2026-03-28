@@ -9,7 +9,7 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5
 
 VALID_COLOURS = {"white", "yellow", "red", "orange", "blue", "green"}
 
-# ── RATE LIMITING ─────────────────────────────────────────
+# ── RATE LIMITING ───────────────────────────────────────── 
 request_log = defaultdict(list)
 
 def is_rate_limited(ip):
