@@ -1,45 +1,65 @@
 // ═══════════════════════════════════════════════════════
 //  CubeSolve — script.js
+//  Supabase Google Auth · 4-photo Gemini scanning
+//  Colour editor · cubing.js 4x4 solver
 // ═══════════════════════════════════════════════════════
+
+// ── COLOURS ──────────────────────────────────────────────
+const COLOURS = {
+  white:  { hex: "#f0f0f0", label: "White"  },
+  yellow: { hex: "#ffd200", label: "Yellow" },
+  red:    { hex: "#c41e1e", label: "Red"    },
+  orange: { hex: "#ff6400", label: "Orange" },
+  blue:   { hex: "#0046c8", label: "Blue"   },
+  green:  { hex: "#009b2d", label: "Green"  },
+};
+const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
+
+// cubing.js face mapping
+// Canonical solved orientation: U=white, D=yellow, F=green, B=blue, R=red, L=orange
+const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
+const CUBING_ORDER  = ["U","R","F","D","L","B"];
+const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
+const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
 
 // ── MOVE EXPLANATIONS ─────────────────────────────────────
 const MOVE_EXP = {
-  "U":    {n:"U — Top CW",            w:"Rotate top layer 90° clockwise.",              y:"Repositions top layer pieces without touching lower layers."},
-  "U'":   {n:"U' — Top CCW",          w:"Rotate top layer 90° counter-clockwise.",      y:"Undoes a U move."},
-  "U2":   {n:"U2 — Top 180°",         w:"Rotate top layer 180°.",                       y:"Swaps opposite top pieces."},
-  "D":    {n:"D — Bottom CW",         w:"Rotate bottom layer 90° clockwise.",           y:"Moves bottom pieces without disturbing the top."},
-  "D'":   {n:"D' — Bottom CCW",       w:"Rotate bottom layer 90° counter-clockwise.",   y:"Undoes a D move."},
-  "D2":   {n:"D2 — Bottom 180°",      w:"Rotate bottom layer 180°.",                    y:"Swaps opposite bottom pieces."},
-  "R":    {n:"R — Right CW",          w:"Rotate right face 90° clockwise.",             y:"Shifts pieces between top, front, bottom and back on the right."},
-  "R'":   {n:"R' — Right CCW",        w:"Rotate right face 90° counter-clockwise.",     y:"Undoes an R move."},
-  "R2":   {n:"R2 — Right 180°",       w:"Rotate right face 180°.",                      y:"Swaps right face pieces."},
-  "L":    {n:"L — Left CW",           w:"Rotate left face 90° clockwise.",              y:"Mirrors R on the left side."},
-  "L'":   {n:"L' — Left CCW",         w:"Rotate left face 90° counter-clockwise.",      y:"Undoes an L move."},
-  "L2":   {n:"L2 — Left 180°",        w:"Rotate left face 180°.",                       y:"Swaps left face pieces."},
-  "F":    {n:"F — Front CW",          w:"Rotate front face 90° clockwise.",             y:"Moves front side pieces."},
-  "F'":   {n:"F' — Front CCW",        w:"Rotate front face 90° counter-clockwise.",     y:"Undoes an F move."},
-  "F2":   {n:"F2 — Front 180°",       w:"Rotate front face 180°.",                      y:"Swaps front face pieces."},
-  "B":    {n:"B — Back CW",           w:"Rotate back face 90° clockwise.",              y:"Like F but on the back."},
-  "B'":   {n:"B' — Back CCW",         w:"Rotate back face 90° counter-clockwise.",      y:"Undoes a B move."},
-  "B2":   {n:"B2 — Back 180°",        w:"Rotate back face 180°.",                       y:"Swaps back face pieces."},
-  "Uw":   {n:"Uw — Wide Top CW",      w:"Rotate top TWO layers 90° clockwise.",         y:"4×4 specific — fixes inner edge parity."},
-  "Uw'":  {n:"Uw' — Wide Top CCW",    w:"Rotate top TWO layers counter-clockwise.",     y:"Undoes a Uw move."},
-  "Uw2":  {n:"Uw2 — Wide Top 180°",   w:"Rotate top TWO layers 180°.",                  y:"4×4 wide move."},
-  "Dw":   {n:"Dw — Wide Bottom CW",   w:"Rotate bottom TWO layers 90° clockwise.",      y:"Repositions inner bottom edges."},
-  "Dw'":  {n:"Dw' — Wide Bottom CCW", w:"Rotate bottom TWO layers counter-clockwise.",  y:"Undoes a Dw move."},
-  "Dw2":  {n:"Dw2 — Wide Bottom 180°",w:"Rotate bottom TWO layers 180°.",               y:"Fixes inner bottom edges."},
-  "Rw":   {n:"Rw — Wide Right CW",    w:"Rotate right TWO layers 90° clockwise.",       y:"Key for solving 4×4 centres."},
-  "Rw'":  {n:"Rw' — Wide Right CCW",  w:"Rotate right TWO layers counter-clockwise.",   y:"Undoes an Rw move."},
-  "Rw2":  {n:"Rw2 — Wide Right 180°", w:"Rotate right TWO layers 180°.",                y:"Swaps inner right slice pieces."},
-  "Lw":   {n:"Lw — Wide Left CW",     w:"Rotate left TWO layers 90° clockwise.",        y:"Mirrors Rw on the left."},
-  "Lw'":  {n:"Lw' — Wide Left CCW",   w:"Rotate left TWO layers counter-clockwise.",    y:"Undoes an Lw move."},
-  "Lw2":  {n:"Lw2 — Wide Left 180°",  w:"Rotate left TWO layers 180°.",                 y:"Swaps inner left pieces."},
-  "Fw":   {n:"Fw — Wide Front CW",    w:"Rotate front TWO layers 90° clockwise.",       y:"Moves inner front edges."},
-  "Fw'":  {n:"Fw' — Wide Front CCW",  w:"Rotate front TWO layers counter-clockwise.",   y:"Undoes an Fw move."},
-  "Fw2":  {n:"Fw2 — Wide Front 180°", w:"Rotate front TWO layers 180°.",                y:"Swaps inner front pieces."},
-  "Bw":   {n:"Bw — Wide Back CW",     w:"Rotate back TWO layers 90° clockwise.",        y:"Moves inner back edges."},
-  "Bw'":  {n:"Bw' — Wide Back CCW",   w:"Rotate back TWO layers counter-clockwise.",    y:"Undoes a Bw move."},
-  "Bw2":  {n:"Bw2 — Wide Back 180°",  w:"Rotate back TWO layers 180°.",                 y:"Swaps inner back pieces."},
+  "U":   {n:"U — Top CW",        w:"Rotate top layer 90° clockwise.",              y:"Repositions top layer pieces without touching lower layers."},
+  "U'":  {n:"U' — Top CCW",      w:"Rotate top layer 90° counter-clockwise.",      y:"Undoes a U move."},
+  "U2":  {n:"U2 — Top 180°",     w:"Rotate top layer 180°.",                       y:"Swaps opposite top pieces."},
+  "D":   {n:"D — Bottom CW",     w:"Rotate bottom layer 90° clockwise.",           y:"Moves bottom pieces without disturbing the top."},
+  "D'":  {n:"D' — Bottom CCW",   w:"Rotate bottom layer 90° counter-clockwise.",   y:"Undoes a D move."},
+  "D2":  {n:"D2 — Bottom 180°",  w:"Rotate bottom layer 180°.",                    y:"Swaps opposite bottom pieces."},
+  "R":   {n:"R — Right CW",      w:"Rotate right face 90° clockwise.",             y:"Shifts pieces between top, front, bottom and back on the right."},
+  "R'":  {n:"R' — Right CCW",    w:"Rotate right face 90° counter-clockwise.",     y:"Undoes an R move."},
+  "R2":  {n:"R2 — Right 180°",   w:"Rotate right face 180°.",                      y:"Swaps right face pieces."},
+  "L":   {n:"L — Left CW",       w:"Rotate left face 90° clockwise.",              y:"Mirrors R on the left side."},
+  "L'":  {n:"L' — Left CCW",     w:"Rotate left face 90° counter-clockwise.",      y:"Undoes an L move."},
+  "L2":  {n:"L2 — Left 180°",    w:"Rotate left face 180°.",                       y:"Swaps left face pieces."},
+  "F":   {n:"F — Front CW",      w:"Rotate front face 90° clockwise.",             y:"Moves front side pieces."},
+  "F'":  {n:"F' — Front CCW",    w:"Rotate front face 90° counter-clockwise.",     y:"Undoes an F move."},
+  "F2":  {n:"F2 — Front 180°",   w:"Rotate front face 180°.",                      y:"Swaps front face pieces."},
+  "B":   {n:"B — Back CW",       w:"Rotate back face 90° clockwise.",              y:"Like F but on the back."},
+  "B'":  {n:"B' — Back CCW",     w:"Rotate back face 90° counter-clockwise.",      y:"Undoes a B move."},
+  "B2":  {n:"B2 — Back 180°",    w:"Rotate back face 180°.",                       y:"Swaps back face pieces."},
+  "Uw":  {n:"Uw — Wide Top CW",  w:"Rotate top TWO layers 90° clockwise.",         y:"4×4 specific — fixes inner edge parity."},
+  "Uw'": {n:"Uw' — Wide Top CCW",w:"Rotate top TWO layers counter-clockwise.",     y:"Undoes a Uw move."},
+  "Uw2": {n:"Uw2 — Wide Top 180°",w:"Rotate top TWO layers 180°.",                 y:"Swaps inner edges the top can't fix alone."},
+  "Dw":  {n:"Dw — Wide Bottom CW",w:"Rotate bottom TWO layers 90° clockwise.",     y:"Repositions inner bottom edges."},
+  "Dw'": {n:"Dw' — Wide Bottom CCW",w:"Rotate bottom TWO layers counter-clockwise.",y:"Undoes a Dw move."},
+  "Dw2": {n:"Dw2 — Wide Bottom 180°",w:"Rotate bottom TWO layers 180°.",            y:"Fixes inner bottom edges."},
+  "Rw":  {n:"Rw — Wide Right CW", w:"Rotate right TWO layers 90° clockwise.",      y:"Key for solving 4×4 centres."},
+  "Rw'": {n:"Rw' — Wide Right CCW",w:"Rotate right TWO layers counter-clockwise.", y:"Undoes an Rw move."},
+  "Rw2": {n:"Rw2 — Wide Right 180°",w:"Rotate right TWO layers 180°.",              y:"Swaps inner right slice pieces."},
+  "Lw":  {n:"Lw — Wide Left CW",  w:"Rotate left TWO layers 90° clockwise.",       y:"Mirrors Rw on the left."},
+  "Lw'": {n:"Lw' — Wide Left CCW",w:"Rotate left TWO layers counter-clockwise.",   y:"Undoes an Lw move."},
+  "Lw2": {n:"Lw2 — Wide Left 180°",w:"Rotate left TWO layers 180°.",               y:"Swaps inner left pieces."},
+  "Fw":  {n:"Fw — Wide Front CW", w:"Rotate front TWO layers 90° clockwise.",      y:"Moves inner front edges."},
+  "Fw'": {n:"Fw' — Wide Front CCW",w:"Rotate front TWO layers counter-clockwise.", y:"Undoes an Fw move."},
+  "Fw2": {n:"Fw2 — Wide Front 180°",w:"Rotate front TWO layers 180°.",              y:"Swaps inner front pieces."},
+  "Bw":  {n:"Bw — Wide Back CW",  w:"Rotate back TWO layers 90° clockwise.",       y:"Moves inner back edges."},
+  "Bw'": {n:"Bw' — Wide Back CCW",w:"Rotate back TWO layers counter-clockwise.",   y:"Undoes a Bw move."},
+  "Bw2": {n:"Bw2 — Wide Back 180°",w:"Rotate back TWO layers 180°.",               y:"Swaps inner back pieces."},
 };
 
 function explainMove(m) {
@@ -47,11 +67,12 @@ function explainMove(m) {
 }
 
 // ── STATE ─────────────────────────────────────────────────
-let supabaseClient = null;
+let supabaseClient = null;   // renamed from 'supabase' to avoid clash with CDN global
 let currentUser    = null;
 let photosTaken    = [];
-let currentMoves   = [];   // array of move strings from Gemini
+let faceColors     = {};
 let isAnalysing    = false;
+let activePaint    = COLOUR_NAMES[0];
 
 // ── INIT SUPABASE ─────────────────────────────────────────
 window.addEventListener("load", () => {
@@ -59,53 +80,64 @@ window.addEventListener("load", () => {
     window.SUPABASE_URL,
     window.SUPABASE_ANON_KEY
   );
+
   supabaseClient.auth.getSession().then(({ data }) => {
     if (data.session) showApp(data.session.user);
   });
+
   supabaseClient.auth.onAuthStateChange((_event, session) => {
     if (session) showApp(session.user);
-    else         showAuth();
+    else showAuth();
   });
 });
 
-// ── AUTH ──────────────────────────────────────────────────
+// ── GOOGLE SIGN IN ────────────────────────────────────────
 document.getElementById("google-btn").onclick = async () => {
   const btn = document.getElementById("google-btn");
-  btn.disabled    = true;
+  btn.disabled = true;
   btn.textContent = "Signing in...";
+
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: "google",
-    options:  { redirectTo: window.location.origin }
+    options: { redirectTo: window.location.origin }
   });
+
   if (error) {
     document.getElementById("auth-error").textContent = error.message;
-    btn.disabled  = false;
+    btn.disabled = false;
     btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Sign in with Google`;
   }
 };
 
+// ── SIGN OUT ──────────────────────────────────────────────
 async function signOut() {
   await supabaseClient.auth.signOut();
   showAuth();
   doRestart();
 }
 
+// ── SHOW AUTH / APP ───────────────────────────────────────
 function showAuth() {
   document.getElementById("auth-screen").style.display = "flex";
-  document.getElementById("app").style.display         = "none";
+  document.getElementById("app").style.display = "none";
   currentUser = null;
 }
 
 function showApp(user) {
   currentUser = user;
   document.getElementById("auth-screen").style.display = "none";
-  document.getElementById("app").style.display         = "block";
+  document.getElementById("app").style.display = "block";
+
   const name   = user.user_metadata?.full_name || user.email || "User";
   const avatar = user.user_metadata?.avatar_url;
   document.getElementById("user-name").textContent = name;
   const avatarEl = document.getElementById("user-avatar");
-  if (avatar) avatarEl.innerHTML = `<img src="${avatar}" alt="${name}"/>`;
-  else        avatarEl.textContent = name.charAt(0).toUpperCase();
+  if (avatar) {
+    avatarEl.innerHTML = `<img src="${avatar}" alt="${name}"/>`;
+  } else {
+    avatarEl.textContent = name.charAt(0).toUpperCase();
+  }
+
   startCamera();
 }
 
@@ -113,11 +145,13 @@ function showApp(user) {
 async function startCamera() {
   const video = document.getElementById("camera");
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
     video.srcObject = stream;
     video.play();
   } catch (err) {
-    showBanner("Camera error: " + err.message, "error");
+    showBanner("Camera error: " + err.message + ". Go to Settings > Safari > Camera > Allow.", "error");
   }
 }
 
@@ -141,25 +175,26 @@ function takePhoto() {
   const slot = document.getElementById(`slot-${count}`);
   slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Photo ${count+1}</div>`;
   slot.classList.add("taken");
+
   markStep(count, "done");
 
   if (photosTaken.length < 4) {
     markStep(photosTaken.length, "active");
-    document.getElementById("shot-num").textContent   = photosTaken.length + 1;
+    document.getElementById("shot-num").textContent  = photosTaken.length + 1;
     document.getElementById("main-title").textContent = `TAKE PHOTO ${photosTaken.length + 1}`;
     const descs = [
-      "Point at the front of the cube so at least 3 faces are visible.",
-      "Rotate and show the back — capture the other faces.",
-      "Tilt to show the top face clearly.",
-      "Flip to show the bottom face."
+      "Point at the front of the cube so 3 faces are visible.",
+      "Rotate the cube and point at the back so the other faces show.",
+      "Tilt the cube to show the top face clearly.",
+      "Flip the cube to show the bottom face."
     ];
-    document.getElementById("main-desc").textContent = descs[photosTaken.length] || "";
+    document.getElementById("main-desc").textContent = descs[photosTaken.length] || "Make sure all faces have been captured.";
     showBanner(`✅ Photo ${count+1} saved! ${4 - photosTaken.length} more to go.`);
   } else {
     document.getElementById("capture-btn").style.display = "none";
     document.getElementById("restart-btn").style.display = "block";
     document.getElementById("main-title").textContent    = "ANALYSING...";
-    document.getElementById("main-desc").textContent     = "Gemini is solving your cube from the photos. This takes a few seconds.";
+    document.getElementById("main-desc").textContent     = "Gemini AI is reading all 6 faces from your 4 photos. This takes a few seconds.";
     analysePhotos();
   }
 }
@@ -167,10 +202,10 @@ function takePhoto() {
 // ── SEND TO GEMINI ────────────────────────────────────────
 async function analysePhotos() {
   isAnalysing = true;
-  showBanner("🤖 Gemini is solving your cube...");
+  showBanner("🤖 Gemini is reading all 6 faces from your photos...");
 
   const controller = new AbortController();
-  const timeout    = setTimeout(() => controller.abort(), 120000);
+  const timeout    = setTimeout(() => controller.abort(), 90000);
 
   try {
     const res = await fetch("/analyze", {
@@ -194,158 +229,316 @@ async function analysePhotos() {
         slot.classList.remove("taken");
         markStep(photosTaken.length, "active");
         document.getElementById("capture-btn").textContent = "📸 Take Photo";
-        document.getElementById("capture-btn").onclick     = takePhoto;
-        document.getElementById("main-title").textContent  = `TAKE PHOTO ${photosTaken.length+1}`;
+        document.getElementById("capture-btn").onclick = takePhoto;
+        document.getElementById("main-title").textContent = `TAKE PHOTO ${photosTaken.length+1}`;
       };
       return;
     }
 
-    isAnalysing    = false;
-    currentMoves   = data.solution.trim().split(/\s+/).filter(Boolean);
+    faceColors = {};
+    for (const [face, colours] of Object.entries(data.faces)) {
+      faceColors[face] = colours.map(c => c.toLowerCase().trim());
+    }
 
+    isAnalysing = false;
     markStep(3, "done");
-    document.getElementById("main-title").textContent = "SOLUTION READY";
-    document.getElementById("main-desc").textContent  = "Gemini solved your cube. Review the moves below, edit if needed, then apply.";
-    showBanner(`✅ Solution found — ${currentMoves.length} moves!`);
+    document.getElementById("main-title").textContent = "ALL FACES SCANNED";
+    document.getElementById("main-desc").innerHTML    = "Check the colour grid below — all counts must be 16. Fix any wrong colours before solving.";
 
-    showSolution();
+    showScanValidation();
+    document.getElementById("action-row").style.display = "flex";
 
   } catch (err) {
     clearTimeout(timeout);
-    showBanner("⚠️ " + (err.name === "AbortError" ? "Request timed out." : err.message), "error");
+    showBanner("⚠️ " + (err.name === "AbortError" ? "Request timed out. Try again." : err.message), "error");
     isAnalysing = false;
     document.getElementById("capture-btn").style.display = "block";
   }
 }
 
-// ── SHOW SOLUTION ─────────────────────────────────────────
-function showSolution() {
-  renderMoveEditor();
-  applyToTwisty();
+// ── SCAN VALIDATION UI ────────────────────────────────────
+function showScanValidation() {
+  const knownColours = new Set(["white","yellow","red","orange","blue","green"]);
 
-  document.getElementById("solution-area").style.display = "block";
-  document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
+  const colourCounts = {};
+  for (const face of ["U","R","F","D","L","B"]) {
+    for (const c of (faceColors[face] || [])) {
+      colourCounts[c] = (colourCounts[c] || 0) + 1;
+    }
+  }
+
+  const problems = [];
+  for (const colour of COLOUR_NAMES) {
+    const got = colourCounts[colour] || 0;
+    if (got !== 16) problems.push(`${colour}: ${got}/16`);
+  }
+  for (const colour of Object.keys(colourCounts)) {
+    if (!knownColours.has(colour)) problems.push(`unknown colour "${colour}"`);
+  }
+
+  if (problems.length === 0) {
+    showBanner("✅ All 6 colours appear exactly 16 times — looks good! Press Solve.");
+  } else {
+    showBanner("⚠️ Colour issues: " + problems.join(" | ") + " — fix before solving.", "error");
+  }
+
+  const old = document.getElementById("scan-preview");
+  if (old) old.remove();
+
+  const preview = document.createElement("div");
+  preview.id = "scan-preview";
+  preview.style.cssText = "margin-bottom:1rem;";
+
+  const label = document.createElement("div");
+  label.className   = "section-label";
+  label.textContent = "Scanned Colours — tap Fix Colours if anything looks wrong";
+  preview.appendChild(label);
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:8px;";
+
+  for (const face of ["U","R","F","D","L","B"]) {
+    const stickers = faceColors[face] || [];
+    const hasBad   = stickers.some(c => !knownColours.has(c));
+
+    const faceDiv = document.createElement("div");
+    faceDiv.style.cssText = `background:var(--card);border:1px solid ${hasBad ? "#ff4d4d" : "var(--border)"};border-radius:8px;padding:6px;`;
+
+    const fl = document.createElement("div");
+    fl.style.cssText = "font-size:.6rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;";
+    fl.textContent   = FACE_LABELS[face] + " (" + face + ")";
+    faceDiv.appendChild(fl);
+
+    const fg = document.createElement("div");
+    fg.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:2px;";
+    stickers.forEach(c => {
+      const cell = document.createElement("div");
+      cell.style.cssText = `aspect-ratio:1;border-radius:2px;background:${COLOURS[c]?.hex || "#ff4d4d"};`;
+      fg.appendChild(cell);
+    });
+    faceDiv.appendChild(fg);
+    grid.appendChild(faceDiv);
+  }
+
+  preview.appendChild(grid);
+  const actionRow = document.getElementById("action-row");
+  actionRow.parentNode.insertBefore(preview, actionRow);
 }
 
-// ── MOVE EDITOR ───────────────────────────────────────────
-function renderMoveEditor() {
-  const wrap = document.getElementById("moves-wrap");
-  wrap.innerHTML = `
-    <p class="moves-hint">Tap any move chip to delete it · drag to reorder · or type below to add moves</p>
-  `;
+// ── SOLVE ─────────────────────────────────────────────────
+async function solveCube() {
+  const btn = document.getElementById("solve-btn");
+  btn.innerHTML = '<span class="spinner"></span> Solving...';
+  btn.disabled  = true;
 
-  const chipsDiv = document.createElement("div");
-  chipsDiv.id        = "chips-container";
-  chipsDiv.className = "chips-container";
+  // Build 96-char reid state string (order: U R F D L B)
+  let stateStr = "";
+  for (const letter of CUBING_ORDER) {
+    const face = faceColors[letter];
+    if (!face || face.length !== 16) {
+      showSolveError(`Face ${letter} has missing data. Please rescan or fix colours.`);
+      btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
+    }
+    for (const c of face) {
+      const mapped = COLOR_TO_FACE[c];
+      if (!mapped) {
+        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and repaint those stickers.`);
+        btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
+      }
+      stateStr += mapped;
+    }
+  }
 
-  currentMoves.forEach((m, i) => {
-    chipsDiv.appendChild(makeChip(m, i));
-  });
+  const validationError = validateStateString(stateStr);
+  if (validationError) {
+    showSolveError(validationError);
+    btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
+  }
 
-  wrap.appendChild(chipsDiv);
+  try {
+    const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
+    const solution = await experimental4x4x4Solve(stateStr);
+    const algStr   = solution.toString().trim();
 
-  // Explain panel
-  const panel = document.createElement("div");
-  panel.id        = "explain-panel";
-  panel.className = "explain-panel";
-  panel.style.display = "none";
-  wrap.appendChild(panel);
+    const twisty = document.getElementById("twisty");
+    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
+    twisty.setAttribute("alg", algStr);
 
-  // Manual add row
-  const addRow = document.createElement("div");
-  addRow.className = "add-move-row";
-  addRow.innerHTML = `
-    <input id="move-input" class="move-input" type="text" placeholder="Add move (e.g. Rw2)" maxlength="4" autocomplete="off" autocorrect="off"/>
-    <button class="btn btn-ghost" style="flex:0;padding:.6rem 1rem;font-size:.85rem" onclick="addMove()">+ Add</button>
-  `;
-  wrap.appendChild(addRow);
-
-  document.getElementById("move-input").addEventListener("keydown", e => {
-    if (e.key === "Enter") addMove();
-  });
-
-  // Apply button
-  const applyBtn = document.createElement("button");
-  applyBtn.className   = "btn btn-success";
-  applyBtn.style.width = "100%";
-  applyBtn.style.marginTop = "0.8rem";
-  applyBtn.innerHTML   = "▶ Apply to 3D Cube";
-  applyBtn.onclick     = applyToTwisty;
-  wrap.appendChild(applyBtn);
+    showSolution(algStr);
+  } catch (err) {
+    showSolveError(
+      "Solver rejected this cube state — Gemini likely misread 1–2 stickers." +
+      "<br><br>State string sent:<br><code style='font-size:.65rem;word-break:break-all;color:#aaa;'>" + stateStr + "</code>" +
+      "<br><br>Press <strong>Fix Colours</strong> to manually correct any wrong stickers, then try again."
+    );
+    btn.innerHTML = "✅ Solve!"; btn.disabled = false;
+  }
 }
 
-function makeChip(move, index) {
-  const chip = document.createElement("span");
-  chip.className    = "move-chip";
-  chip.textContent  = move;
-  chip.dataset.index = index;
-
-  chip.addEventListener("click", () => {
-    // Single tap = show explanation
-    const info  = explainMove(move);
-    const panel = document.getElementById("explain-panel");
-    panel.style.display = "block";
-    panel.innerHTML = `
-      <div class="explain-top">
-        <span class="explain-move">${move}</span>
-        <button class="explain-delete" onclick="deleteMove(${index})">✕ Remove</button>
-      </div>
-      <div class="explain-name">${info.n}</div>
-      <div class="explain-what">🔄 ${info.w}</div>
-      <div class="explain-why">💡 <em>${info.y}</em></div>
-    `;
-    document.querySelectorAll(".move-chip").forEach(c => c.classList.remove("active"));
-    chip.classList.add("active");
-  });
-
-  chip.addEventListener("touchend", e => { e.preventDefault(); chip.click(); });
-
-  return chip;
+// ── VALIDATE STATE STRING ─────────────────────────────────
+function validateStateString(s) {
+  if (s.length !== 96) return `State string is ${s.length} chars — must be exactly 96.`;
+  const valid = new Set(["U","R","F","D","L","B"]);
+  for (const ch of s) {
+    if (!valid.has(ch)) return `Unexpected character "${ch}" in state string.`;
+  }
+  const counts = {};
+  for (const ch of s) counts[ch] = (counts[ch] || 0) + 1;
+  const wrong = Object.entries(counts).filter(([,n]) => n !== 16);
+  if (wrong.length) {
+    return "Colour count mismatch — each must be exactly 16: " +
+      wrong.map(([f,n]) => `${f}=${n}`).join(", ") +
+      ". Open Fix Colours to correct.";
+  }
+  return null;
 }
 
-function deleteMove(index) {
-  currentMoves.splice(index, 1);
-  document.getElementById("explain-panel").style.display = "none";
-  renderMoveEditor();
-  applyToTwisty();
-}
-
-function addMove() {
-  const input = document.getElementById("move-input");
-  const val   = input.value.trim();
-  if (!val) return;
-  currentMoves.push(val);
-  input.value = "";
-  renderMoveEditor();
-  applyToTwisty();
-}
-
-// ── APPLY TO TWISTY-PLAYER ────────────────────────────────
-function applyToTwisty() {
-  const algStr = currentMoves.join(" ");
-  document.getElementById("move-count").textContent = currentMoves.length + " moves";
-
-  const twisty = document.getElementById("twisty");
-  twisty.setAttribute("alg", algStr);
-  
-
-  document.getElementById("twisty-wrap").style.display = "block";
-}
-
-// ── INVERT ALG ────────────────────────────────────────────
+// ── INVERT ALG for twisty-player setup ───────────────────
 function invertAlg(algStr) {
-  return algStr.trim().split(/\s+/).filter(Boolean).reverse().map(m => {
-    if (m.endsWith("2"))  return m;
-    if (m.endsWith("'"))  return m.slice(0, -1);
+  return algStr.trim().split(/\s+/).reverse().map(m => {
+    if (m.endsWith("2")) return m;
+    if (m.endsWith("'")) return m.slice(0, -1);
     return m + "'";
   }).join(" ");
 }
 
+function showSolveError(html) {
+  document.getElementById("solution-area").style.display = "block";
+  document.getElementById("twisty-wrap").style.display   = "none";
+  document.getElementById("moves-wrap").innerHTML = `
+    <div class="error-box">
+      <strong>Could not solve.</strong><br><br>${html}
+    </div>`;
+}
+
+// ── SHOW SOLUTION ─────────────────────────────────────────
+function showSolution(algStr) {
+  const moves = algStr.trim().split(/\s+/).filter(Boolean);
+  document.getElementById("move-count").textContent = moves.length + " moves";
+
+  const wrap = document.getElementById("moves-wrap");
+  wrap.innerHTML = `<p style="font-size:.78rem;color:#555;margin-bottom:.8rem;">Tap any move to see what it does.</p>`;
+
+  const chips = document.createElement("div");
+  chips.style.marginBottom = "0.8rem";
+
+  let activeChip = null;
+
+  moves.forEach((m, i) => {
+    const chip = document.createElement("span");
+    chip.className   = "move-chip";
+    chip.textContent = m;
+    const activate = () => {
+      if (activeChip) activeChip.classList.remove("active");
+      chip.classList.add("active");
+      activeChip = chip;
+      renderExplanation(m, i, moves.length);
+    };
+    chip.addEventListener("click", activate);
+    chip.addEventListener("touchend", e => { e.preventDefault(); activate(); });
+    chips.appendChild(chip);
+  });
+
+  wrap.appendChild(chips);
+
+  chips.firstChild && chips.firstChild.classList.add("active");
+  activeChip = chips.firstChild;
+  renderExplanation(moves[0], 0, moves.length);
+
+  document.getElementById("twisty-wrap").style.display   = "block";
+  document.getElementById("solution-area").style.display = "block";
+  document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
+}
+
+function renderExplanation(move, index, total) {
+  const info  = explainMove(move);
+  const panel = document.getElementById("explain-panel");
+  panel.style.display = "block";
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <span style="font-family:'DM Mono',monospace;font-size:1.1rem;color:var(--accent);font-weight:500;">${move}</span>
+      <span style="font-size:.7rem;color:#555;letter-spacing:1px;">MOVE ${index+1} OF ${total}</span>
+    </div>
+    <div style="font-size:.75rem;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:.4rem;">${info.n}</div>
+    <div style="font-size:.88rem;color:var(--text);margin-bottom:.4rem;line-height:1.5;">🔄 ${info.w}</div>
+    <div style="font-size:.82rem;color:var(--muted);line-height:1.5;">💡 <em>${info.y}</em></div>
+  `;
+}
+
+// ── COLOUR EDITOR ─────────────────────────────────────────
+function openEditor() {
+  const container = document.getElementById("editor-faces");
+  container.innerHTML = "";
+  activePaint = COLOUR_NAMES[0];
+
+  const faceOrder = ["U","D","F","B","L","R"];
+  faceOrder.forEach(face => {
+    const colours = faceColors[face] || Array(16).fill("white");
+    const section = document.createElement("div");
+    section.className = "editor-face";
+
+    const lbl = document.createElement("div");
+    lbl.className   = "editor-face-label";
+    lbl.textContent = FACE_LABELS[face] + " face (" + face + ")";
+    section.appendChild(lbl);
+
+    const grid = document.createElement("div");
+    grid.className = "editor-grid";
+
+    colours.forEach((c, i) => {
+      const cell = document.createElement("div");
+      cell.className    = "editor-cell";
+      cell.style.background = COLOURS[c]?.hex || "#333";
+      const paint = () => {
+        faceColors[face][i] = activePaint;
+        cell.style.background = COLOURS[activePaint].hex;
+        cell.classList.add("active");
+        setTimeout(() => cell.classList.remove("active"), 250);
+      };
+      cell.addEventListener("click", paint);
+      cell.addEventListener("touchend", e => { e.preventDefault(); paint(); });
+      grid.appendChild(cell);
+    });
+    section.appendChild(grid);
+
+    const palette = document.createElement("div");
+    palette.className = "palette";
+    COLOUR_NAMES.forEach(name => {
+      const sw = document.createElement("div");
+      sw.className = "swatch" + (name === activePaint ? " active" : "");
+      sw.style.background = COLOURS[name].hex;
+      sw.textContent = COLOURS[name].label;
+      sw.dataset.colour = name;
+      sw.addEventListener("click", () => {
+        activePaint = name;
+        document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("active", s.dataset.colour === name));
+      });
+      palette.appendChild(sw);
+    });
+    section.appendChild(palette);
+    container.appendChild(section);
+  });
+
+  document.getElementById("editor-modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeEditor() {
+  document.getElementById("editor-modal").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function saveEditor() {
+  closeEditor();
+  showScanValidation(); // re-run validation after edits
+}
+
 // ── RESTART ───────────────────────────────────────────────
 function doRestart() {
-  photosTaken  = [];
-  currentMoves = [];
-  isAnalysing  = false;
+  photosTaken = [];
+  faceColors  = {};
+  isAnalysing = false;
+  activePaint = COLOUR_NAMES[0];
 
   for (let i = 0; i < 4; i++) {
     const slot = document.getElementById(`slot-${i}`);
@@ -354,16 +547,24 @@ function doRestart() {
     markStep(i, i === 0 ? "active" : "");
   }
 
-  document.getElementById("shot-num").textContent        = "1";
-  document.getElementById("main-title").textContent      = "TAKE PHOTO 1";
-  document.getElementById("main-desc").textContent       = "Point your camera at the front of the cube. Make sure at least 3 faces are clearly visible.";
-  document.getElementById("capture-btn").style.display   = "block";
-  document.getElementById("capture-btn").textContent     = "📸 Take Photo";
-  document.getElementById("capture-btn").onclick         = takePhoto;
-  document.getElementById("restart-btn").style.display   = "none";
-  document.getElementById("solution-area").style.display = "none";
-  document.getElementById("status-banner").style.display = "none";
+  const old = document.getElementById("scan-preview");
+  if (old) old.remove();
 
+  document.getElementById("shot-num").textContent      = "1";
+  document.getElementById("main-title").textContent    = "TAKE PHOTO 1";
+  document.getElementById("main-desc").textContent     = "Point your camera at the front of the cube. Make sure at least 3 faces are clearly visible.";
+  document.getElementById("capture-btn").style.display = "block";
+  document.getElementById("capture-btn").textContent   = "📸 Take Photo";
+  document.getElementById("capture-btn").onclick       = takePhoto;
+  document.getElementById("restart-btn").style.display = "none";
+  document.getElementById("action-row").style.display  = "none";
+  document.getElementById("solution-area").style.display = "none";
+
+  const solveBtn = document.getElementById("solve-btn");
+  solveBtn.innerHTML = "✅ Solve!";
+  solveBtn.disabled  = false;
+
+  document.getElementById("status-banner").style.display = "none";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -371,7 +572,7 @@ function doRestart() {
 function markStep(index, state) {
   const el = document.getElementById(`step-${index}`);
   if (!el) return;
-  el.classList.remove("active","done");
+  el.classList.remove("active", "done");
   if (state) el.classList.add(state);
 }
 
@@ -379,8 +580,8 @@ function showBanner(msg, type = "info") {
   const b = document.getElementById("status-banner");
   if (!b) return;
   b.style.display     = "block";
-  b.style.background  = type === "error" ? "rgba(255,77,77,0.08)"  : "rgba(200,241,53,0.07)";
-  b.style.borderColor = type === "error" ? "rgba(255,77,77,0.2)"   : "rgba(200,241,53,0.2)";
-  b.style.color       = type === "error" ? "#ff9090"                : "var(--accent)";
+  b.style.background  = type === "error" ? "rgba(255,77,77,0.08)"   : "rgba(200,241,53,0.07)";
+  b.style.borderColor = type === "error" ? "rgba(255,77,77,0.2)"    : "rgba(200,241,53,0.2)";
+  b.style.color       = type === "error" ? "#ff9090"                 : "var(--accent)";
   b.textContent       = msg;
 }
