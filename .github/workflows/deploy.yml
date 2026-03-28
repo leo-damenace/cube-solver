@@ -8,15 +8,11 @@ jobs:
     steps:
       - name: Push env vars to Render
         run: |
-          curl -s -X PUT \
+          curl -s -X PATCH \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \ 
-            -d '[
-              {"key":"GEMINI_API_KEY","value":"${{ secrets.GEMINI_API_KEY }}"},
-              {"key":"SUPABASE_URL","value":"${{ secrets.SUPABASE_URL }}"},
-              {"key":"SUPABASE_ANON_KEY","value":"${{ secrets.SUPABASE_ANON_KEY }}"}
-            ]'
+            -H "Content-Type: application/json" \
+            -d '[{"key":"GEMINI_API_KEY","value":"${{ secrets.GEMINI_API_KEY }}"}]'
       - name: Trigger deploy
         run: |
           curl -s -X POST \
