@@ -327,8 +327,7 @@ function applyToTwisty() {
 
   const twisty = document.getElementById("twisty");
   twisty.setAttribute("alg", algStr);
-  // experimental-setup-alg = inverse of solution = shows the scrambled state
-  twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
+  
 
   document.getElementById("twisty-wrap").style.display = "block";
 }
