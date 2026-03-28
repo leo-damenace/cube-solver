@@ -16,8 +16,8 @@ const COLOURS = {
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
-// Canonical solved orientation: U=white, D=yellow, F=green, B=blue, R=red, L=orange
-const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
+// faceColors: U=0, D=1, F=2, B=3, L=4, R=5
+const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", orange:"L", red:"R" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
 const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
@@ -67,12 +67,12 @@ function explainMove(m) {
 }
 
 // ── STATE ─────────────────────────────────────────────────
-let supabaseClient = null;   // renamed from 'supabase' to avoid clash with CDN global
-let currentUser    = null;
-let photosTaken    = [];
-let faceColors     = {};
-let isAnalysing    = false;
-let activePaint    = COLOUR_NAMES[0];
+let supabaseClient = null;
+let currentUser   = null;
+let photosTaken   = [];          // array of base64 strings (up to 4)
+let faceColors    = {};          // { U:[16], D:[16], F:[16], B:[16], L:[16], R:[16] }
+let isAnalysing   = false;
+let activePaint   = COLOUR_NAMES[0];
 
 // ── INIT SUPABASE ─────────────────────────────────────────
 window.addEventListener("load", () => {
@@ -81,13 +81,20 @@ window.addEventListener("load", () => {
     window.SUPABASE_ANON_KEY
   );
 
+  // Check if user is already signed in
   supabaseClient.auth.getSession().then(({ data }) => {
-    if (data.session) showApp(data.session.user);
+    if (data.session) {
+      showApp(data.session.user);
+    }
   });
 
+  // Listen for auth state changes (e.g. after OAuth redirect)
   supabaseClient.auth.onAuthStateChange((_event, session) => {
-    if (session) showApp(session.user);
-    else showAuth();
+    if (session) {
+      showApp(session.user);
+    } else {
+      showAuth();
+    }
   });
 });
 
@@ -128,6 +135,7 @@ function showApp(user) {
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("app").style.display = "block";
 
+  // Set user info in sidebar
   const name   = user.user_metadata?.full_name || user.email || "User";
   const avatar = user.user_metadata?.avatar_url;
   document.getElementById("user-name").textContent = name;
@@ -162,6 +170,7 @@ function takePhoto() {
   const count = photosTaken.length;
   if (count >= 4) return;
 
+  // Capture + compress
   const snap  = document.createElement("canvas");
   const maxW  = 800;
   const scale = Math.min(1, maxW / (video.videoWidth || 1280));
@@ -172,10 +181,12 @@ function takePhoto() {
 
   photosTaken.push(b64);
 
+  // Show preview
   const slot = document.getElementById(`slot-${count}`);
   slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Photo ${count+1}</div>`;
   slot.classList.add("taken");
 
+  // Update step
   markStep(count, "done");
 
   if (photosTaken.length < 4) {
@@ -191,6 +202,7 @@ function takePhoto() {
     document.getElementById("main-desc").textContent = descs[photosTaken.length] || "Make sure all faces have been captured.";
     showBanner(`✅ Photo ${count+1} saved! ${4 - photosTaken.length} more to go.`);
   } else {
+    // All 4 taken — send to Gemini
     document.getElementById("capture-btn").style.display = "none";
     document.getElementById("restart-btn").style.display = "block";
     document.getElementById("main-title").textContent    = "ANALYSING...";
@@ -235,17 +247,30 @@ async function analysePhotos() {
       return;
     }
 
+    // Store face colours
     faceColors = {};
     for (const [face, colours] of Object.entries(data.faces)) {
       faceColors[face] = colours.map(c => c.toLowerCase().trim());
     }
 
+    // Show raw Gemini output so user can see exactly what was read
+    const oldRaw = document.getElementById("raw-output");
+    if (oldRaw) oldRaw.remove();
+    const rawBox = document.createElement("div");
+    rawBox.id = "raw-output";
+    rawBox.style.cssText = "margin-bottom:1rem;";
+    rawBox.innerHTML = `
+      <div class="section-label">Raw Gemini Output</div>
+      <textarea readonly style="width:100%;height:200px;background:#111;color:#aaa;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:'DM Mono',monospace;font-size:.72rem;resize:vertical;">${data.raw || JSON.stringify(data.faces, null, 2)}</textarea>
+    `;
+    const actionRow = document.getElementById("action-row");
+    actionRow.parentNode.insertBefore(rawBox, actionRow);
+
     isAnalysing = false;
     markStep(3, "done");
     document.getElementById("main-title").textContent = "ALL FACES SCANNED";
-    document.getElementById("main-desc").innerHTML    = "Check the colour grid below — all counts must be 16. Fix any wrong colours before solving.";
-
-    showScanValidation();
+    document.getElementById("main-desc").innerHTML    = "Gemini read all 6 faces. Fix any wrong colours if needed, then press Solve.";
+    showBanner("✅ All 6 faces identified! Review colours or press Solve.");
     document.getElementById("action-row").style.display = "flex";
 
   } catch (err) {
@@ -256,162 +281,37 @@ async function analysePhotos() {
   }
 }
 
-// ── SCAN VALIDATION UI ────────────────────────────────────
-function showScanValidation() {
-  const knownColours = new Set(["white","yellow","red","orange","blue","green"]);
-
-  const colourCounts = {};
-  for (const face of ["U","R","F","D","L","B"]) {
-    for (const c of (faceColors[face] || [])) {
-      colourCounts[c] = (colourCounts[c] || 0) + 1;
-    }
-  }
-
-  const problems = [];
-  for (const colour of COLOUR_NAMES) {
-    const got = colourCounts[colour] || 0;
-    if (got !== 16) problems.push(`${colour}: ${got}/16`);
-  }
-  for (const colour of Object.keys(colourCounts)) {
-    if (!knownColours.has(colour)) problems.push(`unknown colour "${colour}"`);
-  }
-
-  if (problems.length === 0) {
-    showBanner("✅ All 6 colours appear exactly 16 times — looks good! Press Solve.");
-  } else {
-    showBanner("⚠️ Colour issues: " + problems.join(" | ") + " — fix before solving.", "error");
-  }
-
-  const old = document.getElementById("scan-preview");
-  if (old) old.remove();
-
-  const preview = document.createElement("div");
-  preview.id = "scan-preview";
-  preview.style.cssText = "margin-bottom:1rem;";
-
-  const label = document.createElement("div");
-  label.className   = "section-label";
-  label.textContent = "Scanned Colours — tap Fix Colours if anything looks wrong";
-  preview.appendChild(label);
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:8px;";
-
-  for (const face of ["U","R","F","D","L","B"]) {
-    const stickers = faceColors[face] || [];
-    const hasBad   = stickers.some(c => !knownColours.has(c));
-
-    const faceDiv = document.createElement("div");
-    faceDiv.style.cssText = `background:var(--card);border:1px solid ${hasBad ? "#ff4d4d" : "var(--border)"};border-radius:8px;padding:6px;`;
-
-    const fl = document.createElement("div");
-    fl.style.cssText = "font-size:.6rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;";
-    fl.textContent   = FACE_LABELS[face] + " (" + face + ")";
-    faceDiv.appendChild(fl);
-
-    const fg = document.createElement("div");
-    fg.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:2px;";
-    stickers.forEach(c => {
-      const cell = document.createElement("div");
-      cell.style.cssText = `aspect-ratio:1;border-radius:2px;background:${COLOURS[c]?.hex || "#ff4d4d"};`;
-      fg.appendChild(cell);
-    });
-    faceDiv.appendChild(fg);
-    grid.appendChild(faceDiv);
-  }
-
-  preview.appendChild(grid);
-  const actionRow = document.getElementById("action-row");
-  actionRow.parentNode.insertBefore(preview, actionRow);
-}
-
 // ── SOLVE ─────────────────────────────────────────────────
 async function solveCube() {
   const btn = document.getElementById("solve-btn");
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // Build 96-char reid state string (order: U R F D L B)
+  // Build 96-char state string: U R F D L B
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
-    if (!face || face.length !== 16) {
-      showSolveError(`Face ${letter} has missing data. Please rescan or fix colours.`);
-      btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
-    }
-    for (const c of face) {
-      const mapped = COLOR_TO_FACE[c];
-      if (!mapped) {
-        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and repaint those stickers.`);
-        btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
-      }
-      stateStr += mapped;
-    }
-  }
-
-  const validationError = validateStateString(stateStr);
-  if (validationError) {
-    showSolveError(validationError);
-    btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
+    if (!face) { stateStr += "U".repeat(16); continue; }
+    for (const c of face) stateStr += (COLOR_TO_FACE[c] || "U");
   }
 
   try {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
-    const algStr   = solution.toString().trim();
-
-    const twisty = document.getElementById("twisty");
-    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
-    twisty.setAttribute("alg", algStr);
-
-    showSolution(algStr);
+    showSolution(solution.toString());
   } catch (err) {
-    showSolveError(
-      "Solver rejected this cube state — Gemini likely misread 1–2 stickers." +
-      "<br><br>State string sent:<br><code style='font-size:.65rem;word-break:break-all;color:#aaa;'>" + stateStr + "</code>" +
-      "<br><br>Press <strong>Fix Colours</strong> to manually correct any wrong stickers, then try again."
-    );
-    btn.innerHTML = "✅ Solve!"; btn.disabled = false;
+    console.error(err);
+    document.getElementById("solution-area").style.display = "block";
+    document.getElementById("moves-wrap").innerHTML = `
+      <div class="error-box">
+        <strong>Could not solve.</strong> The cube state looks invalid.<br><br>
+        Press <strong>Fix Colours</strong> to correct any wrong stickers. Make sure each colour appears exactly 16 times across all 6 faces.
+      </div>`;
+    btn.innerHTML = "✅ Solve!";
+    btn.disabled  = false;
   }
 }
 
-// ── VALIDATE STATE STRING ─────────────────────────────────
-function validateStateString(s) {
-  if (s.length !== 96) return `State string is ${s.length} chars — must be exactly 96.`;
-  const valid = new Set(["U","R","F","D","L","B"]);
-  for (const ch of s) {
-    if (!valid.has(ch)) return `Unexpected character "${ch}" in state string.`;
-  }
-  const counts = {};
-  for (const ch of s) counts[ch] = (counts[ch] || 0) + 1;
-  const wrong = Object.entries(counts).filter(([,n]) => n !== 16);
-  if (wrong.length) {
-    return "Colour count mismatch — each must be exactly 16: " +
-      wrong.map(([f,n]) => `${f}=${n}`).join(", ") +
-      ". Open Fix Colours to correct.";
-  }
-  return null;
-}
-
-// ── INVERT ALG for twisty-player setup ───────────────────
-function invertAlg(algStr) {
-  return algStr.trim().split(/\s+/).reverse().map(m => {
-    if (m.endsWith("2")) return m;
-    if (m.endsWith("'")) return m.slice(0, -1);
-    return m + "'";
-  }).join(" ");
-}
-
-function showSolveError(html) {
-  document.getElementById("solution-area").style.display = "block";
-  document.getElementById("twisty-wrap").style.display   = "none";
-  document.getElementById("moves-wrap").innerHTML = `
-    <div class="error-box">
-      <strong>Could not solve.</strong><br><br>${html}
-    </div>`;
-}
-
-// ── SHOW SOLUTION ─────────────────────────────────────────
 function showSolution(algStr) {
   const moves = algStr.trim().split(/\s+/).filter(Boolean);
   document.getElementById("move-count").textContent = moves.length + " moves";
@@ -422,6 +322,7 @@ function showSolution(algStr) {
   const chips = document.createElement("div");
   chips.style.marginBottom = "0.8rem";
 
+  const panel = document.getElementById("explain-panel");
   let activeChip = null;
 
   moves.forEach((m, i) => {
@@ -441,10 +342,12 @@ function showSolution(algStr) {
 
   wrap.appendChild(chips);
 
+  // Auto-show first move
   chips.firstChild && chips.firstChild.classList.add("active");
   activeChip = chips.firstChild;
   renderExplanation(moves[0], 0, moves.length);
 
+  document.getElementById("twisty").setAttribute("alg", algStr);
   document.getElementById("twisty-wrap").style.display   = "block";
   document.getElementById("solution-area").style.display = "block";
   document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
@@ -501,6 +404,7 @@ function openEditor() {
     });
     section.appendChild(grid);
 
+    // Palette
     const palette = document.createElement("div");
     palette.className = "palette";
     COLOUR_NAMES.forEach(name => {
@@ -530,7 +434,6 @@ function closeEditor() {
 
 function saveEditor() {
   closeEditor();
-  showScanValidation(); // re-run validation after edits
 }
 
 // ── RESTART ───────────────────────────────────────────────
@@ -540,15 +443,13 @@ function doRestart() {
   isAnalysing = false;
   activePaint = COLOUR_NAMES[0];
 
+  // Reset slots
   for (let i = 0; i < 4; i++) {
     const slot = document.getElementById(`slot-${i}`);
     slot.innerHTML = `<div class="photo-slot-empty">Photo ${i+1}<br>not taken</div>`;
     slot.classList.remove("taken");
     markStep(i, i === 0 ? "active" : "");
   }
-
-  const old = document.getElementById("scan-preview");
-  if (old) old.remove();
 
   document.getElementById("shot-num").textContent      = "1";
   document.getElementById("main-title").textContent    = "TAKE PHOTO 1";
