@@ -587,6 +587,101 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* MOBILE */
+    /* SCAN VALIDATION */
+    #scan-validation {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 1rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .scan-validation-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.8rem;
+      margin-bottom: 0.9rem;
+      flex-wrap: wrap;
+    }
+
+    .scan-validation-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 1.5px;
+      color: var(--accent2);
+    }
+
+    .scan-validation-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .scan-faces-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 0.9rem;
+    }
+
+    .scan-face {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem;
+    }
+
+    .scan-face-label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    .scan-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3px;
+    }
+
+    .scan-cell {
+      aspect-ratio: 1/1;
+      border-radius: 3px;
+    }
+
+    .scan-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .count-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 8px 3px 4px;
+      font-size: 0.74rem;
+    }
+
+    .count-pill.bad { border-color: rgba(255,77,77,0.4); background: rgba(255,77,77,0.05); }
+
+    .count-dot {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .count-name { color: var(--muted); }
+    .count-warn { color: #ff9090; font-size: 0.68rem; }
+
     @media (max-width: 620px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar {
@@ -602,6 +697,7 @@
       .photo-steps { flex-direction: row; flex-wrap: wrap; }
       .sidebar-tip { display: none; }
       .main { padding: 1.2rem 1rem; }
+      .scan-faces-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -707,6 +803,9 @@
         <div class="photo-slot" id="slot-3"><div class="photo-slot-empty">Photo 4<br>not taken</div></div>
       </div>
 
+      <!-- Post-scan colour validation -->
+      <div id="scan-validation"></div>
+
       <!-- Edit + Solve buttons -->
       <div class="btn-row" id="action-row" style="display:none">
         <button class="btn btn-ghost" style="flex:1" onclick="openEditor()">✏️ &nbsp;Fix Colours</button>
@@ -745,16 +844,16 @@
   <button id="editor-save" onclick="saveEditor()">Save &amp; Close</button>
 </div>
 
-<!-- Pass Supabase config from server FIRST so script.js can read it -->
-<script>
-  window.SUPABASE_URL      = "{{ supabase_url }}";
-  window.SUPABASE_ANON_KEY = "{{ supabase_anon_key }}";
-</script>
-
 <!-- Supabase + cubing.js -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
 <script src="/static/script.js"></script>
+
+<!-- Pass Supabase config from server -->
+<script>
+  window.SUPABASE_URL      = "{{ supabase_url }}";
+  window.SUPABASE_ANON_KEY = "{{ supabase_anon_key }}";
+</script>
 
 </body>
 </html>
