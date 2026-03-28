@@ -16,7 +16,7 @@ const COLOURS = {
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
-// Canonical solved orientation: U=white, D=yellow, F=green, B=blue, R=red, L=orange
+// faceColors: U=0, D=1, F=2, B=3, L=4, R=5
 const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
@@ -256,8 +256,11 @@ async function analysePhotos() {
     isAnalysing = false;
     markStep(3, "done");
     document.getElementById("main-title").textContent = "ALL FACES SCANNED";
-    document.getElementById("main-desc").innerHTML    = "Gemini read all 6 faces. Fix any wrong colours if needed, then press Solve.";
-    showBanner("✅ All 6 faces identified! Review colours or press Solve.");
+    document.getElementById("main-desc").innerHTML    = "Gemini read all 6 faces. Check the colour counts below — all must be 16. Fix any wrong colours before solving.";
+
+    // ── Show validation summary ──────────────────────────────
+    showScanValidation();
+
     document.getElementById("action-row").style.display = "flex";
 
   } catch (err) {
@@ -266,6 +269,98 @@ async function analysePhotos() {
     isAnalysing = false;
     document.getElementById("capture-btn").style.display = "block";
   }
+}
+
+// ── SCAN VALIDATION UI ────────────────────────────────────
+function showScanValidation() {
+  // Count how many times each colour appears across all faces
+  const colourCounts = {};
+  const faceCounts   = {};
+  for (const face of ["U","R","F","D","L","B"]) {
+    faceCounts[face] = {};
+    const stickers = faceColors[face] || [];
+    for (const c of stickers) {
+      colourCounts[c] = (colourCounts[c] || 0) + 1;
+      faceCounts[face][c] = (faceCounts[face][c] || 0) + 1;
+    }
+  }
+
+  // Map colour → face letter so we can check counts
+  const expectedCounts = { white:16, yellow:16, red:16, orange:16, blue:16, green:16 };
+  const problems = [];
+  for (const [colour, expected] of Object.entries(expectedCounts)) {
+    const got = colourCounts[colour] || 0;
+    if (got !== expected) problems.push({ colour, got, expected });
+  }
+
+  // Unknown colours
+  const knownColours = new Set(["white","yellow","red","orange","blue","green"]);
+  for (const [colour, count] of Object.entries(colourCounts)) {
+    if (!knownColours.has(colour)) problems.push({ colour, got: count, expected: 0, unknown: true });
+  }
+
+  const allGood = problems.length === 0;
+
+  // Build banner
+  if (allGood) {
+    showBanner("✅ All 6 colours appear exactly 16 times. Looks good — press Solve!");
+  } else {
+    const msgs = problems.map(p =>
+      p.unknown
+        ? `⚠️ Unknown colour "${p.colour}" (${p.got}x) — open Fix Colours and repaint these stickers`
+        : `⚠️ ${p.colour}: ${p.got}/16`
+    );
+    showBanner("Colour count issues found — fix before solving:\n" + msgs.join("  |  "), "error");
+  }
+
+  // Build per-face grid preview
+  const existingPreview = document.getElementById("scan-preview");
+  if (existingPreview) existingPreview.remove();
+
+  const preview = document.createElement("div");
+  preview.id = "scan-preview";
+  preview.style.cssText = "margin-bottom:1rem;";
+
+  const label = document.createElement("div");
+  label.className   = "section-label";
+  label.textContent = "Scanned Colours";
+  preview.appendChild(label);
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:8px;";
+
+  for (const face of ["U","R","F","D","L","B"]) {
+    const stickers = faceColors[face] || [];
+    const faceDiv  = document.createElement("div");
+    faceDiv.style.cssText = "background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;";
+
+    // Check if this face has mixed colours (possible misread)
+    const uniqueOnFace = new Set(stickers).size;
+    const hasProblem   = stickers.some(c => !knownColours.has(c));
+    if (hasProblem) faceDiv.style.borderColor = "#ff4d4d";
+
+    const faceLabel = document.createElement("div");
+    faceLabel.style.cssText = "font-size:.6rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;";
+    faceLabel.textContent   = FACE_LABELS[face] + " (" + face + ")";
+    faceDiv.appendChild(faceLabel);
+
+    const faceGrid = document.createElement("div");
+    faceGrid.style.cssText = "display:grid;grid-template-columns:repeat(4,1fr);gap:2px;";
+    stickers.forEach(c => {
+      const cell = document.createElement("div");
+      cell.style.cssText = `width:100%;aspect-ratio:1;border-radius:2px;background:${COLOURS[c]?.hex || "#ff4d4d"};`;
+      if (!knownColours.has(c)) cell.title = c; // show unknown colour name on hover
+      faceGrid.appendChild(cell);
+    });
+    faceDiv.appendChild(faceGrid);
+    grid.appendChild(faceDiv);
+  }
+
+  preview.appendChild(grid);
+
+  // Insert before action-row
+  const actionRow = document.getElementById("action-row");
+  actionRow.parentNode.insertBefore(preview, actionRow);
 }
 
 // ── SOLVE ─────────────────────────────────────────────────
@@ -287,7 +382,7 @@ async function solveCube() {
     for (const c of face) {
       const mapped = COLOR_TO_FACE[c];
       if (!mapped) {
-        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and correct it.`);
+        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and repaint those stickers.`);
         btn.innerHTML = "✅ Solve!";
         btn.disabled  = false;
         return;
@@ -305,13 +400,10 @@ async function solveCube() {
     return;
   }
 
-  console.log("[CubeSolve] State string:", stateStr);
-
   try {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
     const algStr   = solution.toString().trim();
-    console.log("[CubeSolve] Solution:", algStr);
 
     const twisty = document.getElementById("twisty");
     twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
@@ -319,13 +411,10 @@ async function solveCube() {
 
     showSolution(algStr);
   } catch (err) {
-    console.error("[CubeSolve] Solver error:", err);
     const msg = err?.message || String(err);
     showSolveError(
-      "Solver rejected this cube state. " +
-      (msg.includes("pattern") || msg.includes("match")
-        ? "The colour assignment may still be wrong — check that each colour appears exactly 16 times."
-        : msg) +
+      "Solver rejected this cube state — one or more stickers are probably misread by Gemini." +
+      "<br><br>State sent: <code style='font-size:.7rem;word-break:break-all;'>" + stateStr + "</code>" +
       "<br><br>Press <strong>Fix Colours</strong> to manually correct any mistakes."
     );
     btn.innerHTML = "✅ Solve!";
