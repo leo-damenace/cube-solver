@@ -16,8 +16,8 @@ const COLOURS = {
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
-// faceColors: U=0, D=1, F=2, B=3, L=4, R=5
-const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", orange:"L", red:"R" };
+// Canonical solved orientation: U=white, D=yellow, F=green, B=blue, R=red, L=orange
+const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
 const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
@@ -274,29 +274,99 @@ async function solveCube() {
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // Build 96-char state string: U R F D L B
+  // Build 96-char reid state string (order: U R F D L B)
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
-    if (!face) { stateStr += "U".repeat(16); continue; }
-    for (const c of face) stateStr += (COLOR_TO_FACE[c] || "U");
+    if (!face || face.length !== 16) {
+      showSolveError("Face " + letter + " has missing data. Please rescan or fix colours.");
+      btn.innerHTML = "✅ Solve!";
+      btn.disabled  = false;
+      return;
+    }
+    for (const c of face) {
+      const mapped = COLOR_TO_FACE[c];
+      if (!mapped) {
+        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and correct it.`);
+        btn.innerHTML = "✅ Solve!";
+        btn.disabled  = false;
+        return;
+      }
+      stateStr += mapped;
+    }
   }
+
+  // Pre-flight validation
+  const validationError = validateStateString(stateStr);
+  if (validationError) {
+    showSolveError(validationError);
+    btn.innerHTML = "✅ Solve!";
+    btn.disabled  = false;
+    return;
+  }
+
+  console.log("[CubeSolve] State string:", stateStr);
 
   try {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
-    showSolution(solution.toString());
+    const algStr   = solution.toString().trim();
+    console.log("[CubeSolve] Solution:", algStr);
+
+    const twisty = document.getElementById("twisty");
+    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
+    twisty.setAttribute("alg", algStr);
+
+    showSolution(algStr);
   } catch (err) {
-    console.error(err);
-    document.getElementById("solution-area").style.display = "block";
-    document.getElementById("moves-wrap").innerHTML = `
-      <div class="error-box">
-        <strong>Could not solve.</strong> The cube state looks invalid.<br><br>
-        Press <strong>Fix Colours</strong> to correct any wrong stickers. Make sure each colour appears exactly 16 times across all 6 faces.
-      </div>`;
+    console.error("[CubeSolve] Solver error:", err);
+    const msg = err?.message || String(err);
+    showSolveError(
+      "Solver rejected this cube state. " +
+      (msg.includes("pattern") || msg.includes("match")
+        ? "The colour assignment may still be wrong — check that each colour appears exactly 16 times."
+        : msg) +
+      "<br><br>Press <strong>Fix Colours</strong> to manually correct any mistakes."
+    );
     btn.innerHTML = "✅ Solve!";
     btn.disabled  = false;
   }
+}
+
+// Validate 96-char state string before sending to solver
+function validateStateString(s) {
+  if (s.length !== 96) return `State string is ${s.length} chars — must be exactly 96.`;
+  const valid = new Set(["U","R","F","D","L","B"]);
+  for (const ch of s) {
+    if (!valid.has(ch)) return `Unexpected character "${ch}" in state string.`;
+  }
+  const counts = {};
+  for (const ch of s) counts[ch] = (counts[ch] || 0) + 1;
+  const wrong = Object.entries(counts).filter(([,n]) => n !== 16);
+  if (wrong.length) {
+    return "Colour count mismatch — each face must appear exactly 16 times. " +
+      wrong.map(([f,n]) => `${f}: ${n}/16`).join(", ") +
+      ". Open Fix Colours and correct the highlighted faces.";
+  }
+  return null;
+}
+
+// Invert an alg string for twisty-player setup
+function invertAlg(algStr) {
+  return algStr.trim().split(/\s+/).reverse().map(m => {
+    if (m.endsWith("2")) return m;
+    if (m.endsWith("'")) return m.slice(0,-1);
+    return m + "'";
+  }).join(" ");
+}
+
+function showSolveError(html) {
+  document.getElementById("solution-area").style.display = "block";
+  document.getElementById("twisty-wrap").style.display   = "none";
+  document.getElementById("moves-wrap").innerHTML = `
+    <div class="error-box">
+      <strong>Could not solve.</strong><br><br>${html}
+    </div>`;
 }
 
 function showSolution(algStr) {
@@ -334,7 +404,6 @@ function showSolution(algStr) {
   activeChip = chips.firstChild;
   renderExplanation(moves[0], 0, moves.length);
 
-  document.getElementById("twisty").setAttribute("alg", algStr);
   document.getElementById("twisty-wrap").style.display   = "block";
   document.getElementById("solution-area").style.display = "block";
   document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
