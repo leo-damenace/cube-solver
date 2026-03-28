@@ -7,7 +7,7 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-# ── RATE LIMITING ─────────────────────────────────────────
+# ── RATE LIMITING ───────────────────────────────────────── 
 request_log = defaultdict(list)
 
 def is_rate_limited(ip):
