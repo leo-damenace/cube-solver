@@ -37,7 +37,7 @@ def analyze():
         return jsonify({"ok": False, "error": "Server misconfigured — GEMINI_API_KEY missing."}), 500
 
     data   = request.get_json()
-    images = data.get("images", [])  # list of up to 4 base64 strings
+    images = data.get("images", [])
 
     if not images or len(images) < 1:
         return jsonify({"ok": False, "error": "No images received."}), 400
@@ -49,7 +49,9 @@ Your job is to identify ALL 6 faces of the cube by reading the sticker colours a
 The 6 faces are: TOP (U), BOTTOM (D), FRONT (F), BACK (B), LEFT (L), RIGHT (R).
 
 For each face, read the 4x4 grid of 16 stickers left-to-right, top-to-bottom, row by row.
-Each sticker is exactly one of: white, yellow, red, orange, blue, green.
+Each sticker is exactly one of these 6 words: white, yellow, red, orange, blue, green.
+You MUST use only these exact words. Never use: lime, light green, neon, bright, dark, teal, cyan, crimson, scarlet, or any other variation.
+If a sticker looks lime or neon green, call it green. If it looks light yellow or yellow-green, call it yellow. If it looks dark red or crimson, call it red. If it looks dark orange or brown-orange, call it orange.
 
 Important:
 - orange and red look similar — be precise
@@ -74,7 +76,7 @@ Replace every "c" with the actual colour name. Every array must have exactly 16 
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
     }).encode("utf-8")
 
     last_error = ""
@@ -93,20 +95,7 @@ Replace every "c" with the actual colour name. Every array must have exactly 16 
                 return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
 
             text  = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-            # Log raw response for debugging
-            print(f"[GEMINI RAW] {repr(text[:400])}", flush=True)
-
-            # Strip ALL markdown fences (```json, ```, etc.)
-            text = re.sub(r"```[a-z]*", "", text, flags=re.IGNORECASE).replace("```", "").strip()
-
-            # Extract just the JSON object — find first { and last }
-            start = text.find("{")
-            end   = text.rfind("}")
-            if start == -1 or end == -1:
-                raise ValueError(f"No JSON object found in response: {text[:200]}")
-            text = text[start:end+1]
-
+            text  = re.sub(r"```json|```", "", text).strip()
             faces = json.loads(text)
 
             # Validate
