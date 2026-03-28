@@ -7,7 +7,7 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
-# ── RATE LIMITING ───────────────────────────────────────── 
+# ── RATE LIMITING ─────────────────────────────────────────
 request_log = defaultdict(list)
 
 def is_rate_limited(ip):
@@ -37,7 +37,7 @@ def analyze():
         return jsonify({"ok": False, "error": "Server misconfigured — GEMINI_API_KEY missing."}), 500
 
     data   = request.get_json()
-    images = data.get("images", [])
+    images = data.get("images", [])  # list of up to 4 base64 strings
 
     if not images or len(images) < 1:
         return jsonify({"ok": False, "error": "No images received."}), 400
@@ -49,9 +49,7 @@ Your job is to identify ALL 6 faces of the cube by reading the sticker colours a
 The 6 faces are: TOP (U), BOTTOM (D), FRONT (F), BACK (B), LEFT (L), RIGHT (R).
 
 For each face, read the 4x4 grid of 16 stickers left-to-right, top-to-bottom, row by row.
-Each sticker is exactly one of these 6 words: white, yellow, red, orange, blue, green.
-You MUST use only these exact words. Never use: lime, light green, neon, bright, dark, teal, cyan, crimson, scarlet, or any other variation.
-If a sticker looks lime or neon green, call it green. If it looks light yellow or yellow-green, call it yellow. If it looks dark red or crimson, call it red. If it looks dark orange or brown-orange, call it orange.
+Each sticker is exactly one of: white, yellow, red, orange, blue, green.
 
 Important:
 - orange and red look similar — be precise
@@ -103,7 +101,7 @@ Replace every "c" with the actual colour name. Every array must have exactly 16 
                 if face not in faces or len(faces[face]) != 16:
                     raise ValueError(f"Face {face} missing or wrong length")
 
-            return jsonify({"ok": True, "faces": faces})
+            return jsonify({"ok": True, "faces": faces, "raw": text})
 
         except urllib.error.HTTPError as e:
             body = e.read().decode()
