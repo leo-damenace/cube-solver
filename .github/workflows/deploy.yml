@@ -15,7 +15,7 @@ jobs:
             -d '[{"key":"GEMINI_API_KEY","value":"${{ secrets.GEMINI_API_KEY }}"}]'
       - name: Trigger deploy
         run: |
-          curl -s -X POST \
+          curl -s -X POST \ 
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
