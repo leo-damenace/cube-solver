@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════
-//  CubeSolve — UPDATED script.js (STABLE SOLVER VERSION)
+//  CubeSolve — FIXED script.js (AUTH + SOLVER SAFE)
 // ═══════════════════════════════════════════════════════
 
 // ── COLOURS ──────────────────────────────────────────────
@@ -17,10 +17,65 @@ const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", orange:"L", 
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 
 // ── STATE ────────────────────────────────────────────────
-let photosTaken   = [];
-let faceColors    = {};
-let isAnalysing   = false;
-let activePaint   = COLOUR_NAMES[0];
+let supabase = null;
+let currentUser = null;
+let photosTaken = [];
+let faceColors = {};
+let isAnalysing = false;
+let activePaint = COLOUR_NAMES[0];
+
+// ── INIT SUPABASE ─────────────────────────────────────────
+window.addEventListener("load", () => {
+  supabase = window.supabase.createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_ANON_KEY
+  );
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) showApp(data.session.user);
+  });
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) showApp(session.user);
+    else showAuth();
+  });
+});
+
+// ── AUTH ─────────────────────────────────────────────────
+document.getElementById("google-btn").onclick = async () => {
+  const btn = document.getElementById("google-btn");
+  btn.disabled = true;
+  btn.textContent = "Signing in...";
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin }
+  });
+
+  if (error) {
+    alert(error.message);
+    btn.disabled = false;
+    btn.textContent = "Sign in with Google";
+  }
+};
+
+async function signOut() {
+  await supabase.auth.signOut();
+  showAuth();
+}
+
+function showAuth() {
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+}
+
+function showApp(user) {
+  currentUser = user;
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  startCamera();
+}
 
 // ── CAMERA ───────────────────────────────────────────────
 async function startCamera() {
@@ -69,7 +124,6 @@ async function analysePhotos() {
   }
 
   faceColors = data.faces;
-
   document.getElementById("action-row").style.display = "flex";
 }
 
@@ -88,10 +142,9 @@ function getColourCounts() {
 async function solveCube() {
   const btn = document.getElementById("solve-btn");
 
-  // ✅ VALIDATE COUNTS FIRST
   const counts = getColourCounts();
-
   let errorMsg = "";
+
   for (const colour of COLOUR_NAMES) {
     if (counts[colour] !== 16) {
       errorMsg += `${colour}: ${counts[colour] || 0}/16\n`;
@@ -99,26 +152,16 @@ async function solveCube() {
   }
 
   if (errorMsg) {
-    alert(
-`Invalid cube colours:
-
-${errorMsg}
-
-Each colour must appear exactly 16 times.
-
-Fix colours before solving.`
-    );
+    alert(`Fix colours first:\n\n${errorMsg}`);
     return;
   }
 
   btn.innerHTML = "Solving...";
   btn.disabled  = true;
 
-  // Build state string
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
-    const face = faceColors[letter];
-    for (const c of face) {
+    for (const c of faceColors[letter]) {
       stateStr += (COLOR_TO_FACE[c] || "U");
     }
   }
@@ -130,17 +173,7 @@ Fix colours before solving.`
     showSolution(solution.toString());
 
   } catch (err) {
-    console.error(err);
-
-    document.getElementById("solution-area").style.display = "block";
-    document.getElementById("moves-wrap").innerHTML = `
-      <div style="color:red;">
-        <strong>Invalid cube state.</strong><br><br>
-        This cube configuration is impossible.<br><br>
-        👉 Fix colours in the editor and try again.
-      </div>
-    `;
-
+    alert("Invalid cube — fix colours.");
     btn.innerHTML = "Solve";
     btn.disabled  = false;
   }
@@ -148,47 +181,6 @@ Fix colours before solving.`
 
 // ── SHOW SOLUTION ────────────────────────────────────────
 function showSolution(algStr) {
-  const moves = algStr.split(" ");
-
-  const wrap = document.getElementById("moves-wrap");
-  wrap.innerHTML = "";
-
-  moves.forEach(m => {
-    const span = document.createElement("span");
-    span.textContent = m + " ";
-    wrap.appendChild(span);
-  });
-
   document.getElementById("solution-area").style.display = "block";
+  document.getElementById("moves-wrap").textContent = algStr;
 }
-
-// ── EDITOR (UNCHANGED BASIC) ─────────────────────────────
-function openEditor() {
-  const container = document.getElementById("editor-faces");
-  container.innerHTML = "";
-
-  for (const face of ["U","D","F","B","L","R"]) {
-    const grid = document.createElement("div");
-
-    (faceColors[face] || []).forEach((c, i) => {
-      const cell = document.createElement("div");
-      cell.style.background = COLOURS[c]?.hex || "#333";
-
-      cell.onclick = () => {
-        faceColors[face][i] = activePaint;
-        cell.style.background = COLOURS[activePaint].hex;
-      };
-
-      grid.appendChild(cell);
-    });
-
-    container.appendChild(grid);
-  }
-
-  document.getElementById("editor-modal").style.display = "block";
-}
-
-// ── INIT ─────────────────────────────────────────────────
-window.onload = () => {
-  startCamera();
-};
