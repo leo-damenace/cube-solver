@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import os, json, re, time
+import os, json, time
 import urllib.request
 from collections import defaultdict
 
@@ -39,25 +39,21 @@ def analyze():
     if not images:
         return jsonify({"ok": False, "error": "No images received"}), 400
 
-    prompt = f"""I am sending you {len(images)} photo(s) of a scrambled 4x4 Rubik's cube taken from different angles.
-
-Look carefully at all the photos and identify the current state of every face.
-
-Then give me a complete solution to solve this cube. Use standard Rubik's cube notation:
-- U D F B L R for face moves
-- ' for counter-clockwise (e.g. U')
-- 2 for 180 degrees (e.g. U2)
-- Uw Dw Fw Bw Lw Rw for wide two-layer moves
-
-Structure your response like this:
-
-FACE COLOURS:
-(briefly describe what you see on each face)
-
-SOLUTION:
-(the full move sequence, e.g. U R' F2 Uw R ...)
-
-MOVE COUNT: (number)"""
+    num = len(images)
+    prompt = (
+        "You are a 4x4 Rubik's cube expert. "
+        f"I am sending you {num} photo(s) of a scrambled 4x4 cube. "
+        "Orient the cube with WHITE on top and GREEN facing you before solving. "
+        "This means RED=Right, ORANGE=Left, YELLOW=Bottom, BLUE=Back. "
+        "Carefully read every sticker in all photos, then output ONLY this:\n\n"
+        "ORIENTATION:\n"
+        "Hold cube with WHITE on top and GREEN facing you.\n\n"
+        "SOLUTION:\n"
+        "[full move sequence on a single line]\n\n"
+        "Use standard notation: U D F B L R (clockwise), U' D' F' B' L' R' (counter-clockwise), "
+        "U2 etc (180 degrees), Uw Rw Fw Lw Bw Dw (wide 2-layer moves for 4x4), Uw' Rw2 etc. "
+        "Output nothing else. No explanation. No face descriptions. Just the two sections."
+    )
 
     parts = [{"text": prompt}]
     for img_b64 in images:
@@ -65,7 +61,7 @@ MOVE COUNT: (number)"""
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024}
     }).encode("utf-8")
 
     try:
