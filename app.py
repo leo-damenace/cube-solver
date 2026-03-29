@@ -41,18 +41,21 @@ def analyze():
 
     num = len(images)
     prompt = (
-        "You are a 4x4 Rubik's cube expert. "
-        f"I am sending you {num} photo(s) of a scrambled 4x4 cube. "
-        "Orient the cube with WHITE on top and GREEN facing you before solving. "
-        "This means RED=Right, ORANGE=Left, YELLOW=Bottom, BLUE=Back. "
-        "Carefully read every sticker in all photos, then output ONLY this:\n\n"
+        "IMPORTANT: This is a 4x4x4 Rubik's cube (Revenge cube), NOT a 3x3x3. "
+        "Each face has 16 stickers in a 4x4 grid. There are NO fixed centre pieces. "
+        "The solve requires wide moves (Uw, Rw, etc.) to pair up edges and solve centres. "
+        "A correct 4x4 solution is typically 40-80 moves long. "
+        "If your solution has no wide moves or is under 20 moves, you are solving it as a 3x3 which is WRONG.\n\n"
+        f"I am sending you {num} photo(s) of this scrambled 4x4x4 cube. "
+        "Orient it with WHITE on top and GREEN facing you (RED=Right, ORANGE=Left, YELLOW=Bottom, BLUE=Back). "
+        "Read every sticker carefully across all photos, then output ONLY this:\n\n"
         "ORIENTATION:\n"
         "Hold cube with WHITE on top and GREEN facing you.\n\n"
         "SOLUTION:\n"
-        "[full move sequence on a single line]\n\n"
-        "Use standard notation: U D F B L R (clockwise), U' D' F' B' L' R' (counter-clockwise), "
-        "U2 etc (180 degrees), Uw Rw Fw Lw Bw Dw (wide 2-layer moves for 4x4), Uw' Rw2 etc. "
-        "Output nothing else. No explanation. No face descriptions. Just the two sections."
+        "[full 4x4 move sequence on one line, must include wide moves like Uw Rw etc]\n\n"
+        "Notation: U D F B L R (clockwise 90), U' D' F' (counter-clockwise), U2 D2 (180 degrees), "
+        "Uw Rw Fw Lw Bw Dw (wide 2-layer moves), Uw' Rw2 Fw2 etc. "
+        "No explanations. No face descriptions. No step labels. Just the two sections."
     )
 
     parts = [{"text": prompt}]
@@ -61,7 +64,7 @@ def analyze():
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
     }).encode("utf-8")
 
     try:
