@@ -39,22 +39,25 @@ def analyze():
     if not images:
         return jsonify({"ok": False, "error": "No images received"}), 400
 
-    prompt = f"""I am sending you {len(images)} photo(s) of a 4x4 Rubik's cube.
+    prompt = f"""I am sending you {len(images)} photo(s) of a scrambled 4x4 Rubik's cube taken from different angles.
 
-Read ALL 6 faces. For each face give me the 4x4 grid of 16 stickers, row by row left to right.
-Use only these exact colour words: white, yellow, red, orange, blue, green.
+Look carefully at all the photos and identify the current state of every face.
 
-Return ONLY this JSON:
-{{
-  "U": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "D": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "F": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "B": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "L": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
-  "R": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]
-}}
+Then give me a complete solution to solve this cube. Use standard Rubik's cube notation:
+- U D F B L R for face moves
+- ' for counter-clockwise (e.g. U')
+- 2 for 180 degrees (e.g. U2)
+- Uw Dw Fw Bw Lw Rw for wide two-layer moves
 
-Every array must have exactly 16 colour words. No markdown, no explanation."""
+Structure your response like this:
+
+FACE COLOURS:
+(briefly describe what you see on each face)
+
+SOLUTION:
+(the full move sequence, e.g. U R' F2 Uw R ...)
+
+MOVE COUNT: (number)"""
 
     parts = [{"text": prompt}]
     for img_b64 in images:
