@@ -40,162 +40,47 @@ def analyze():
         return jsonify({"ok": False, "error": "No images received"}), 400
 
     num = len(images)
-    prompt = """
-         You are a deterministic 4×4 Rubik’s Cube solver. You must NOT guess or hallucinate. Treat this like a state reconstruction + verification + solve pipeline.
+    prompt = (
+        "You are solving a physical 4x4x4 Rubik's Revenge cube. NOT a 3x3. "
+        "Each face is a 4x4 grid of 16 stickers. There are no fixed centres.\n\n"
 
-INPUT:
-You will receive 4 images of the SAME cube:
+        f"You have {num} photos of the same scrambled cube. "
+        "Photos 1 and 2 are from opposite corners each showing 3 faces at once. "
+        "Photos 3 and 4 are extra angles to fill in any missing stickers. "
+        "Use all photos together to determine the exact state of every sticker on all 6 faces.\n\n"
 
-- Image 1: Front + Right + Top  
-- Image 2: Back + Left + Bottom (cube rotated 180° from Image 1)  
-- Image 3: Front + Left (same orientation as Image 1)  
-- Image 4: Back + Right (same orientation as Image 2)
+        "Choose the best orientation to solve from. Then write the ORIENTATION section by telling "
+        "the user how to get the cube into that position starting from how it looks in Photo 1. "
+        "For example: 'Start from Photo 1 position, rotate 180 degrees to the right' or "
+        "'Start from Photo 1 position, flip upside down, then rotate 90 degrees left' — "
+        "whatever simple physical moves get the cube from Photo 1 into your chosen solving orientation. "
+        "Be specific and clear so anyone can follow it.\n\n"
 
---------------------------------
-PHASE 1 — RECONSTRUCTION
---------------------------------
-Reconstruct the FULL cube state:
+        "Then solve the cube using the Yau method in this order:\n"
+        "1. Solve two opposite centres (bottom and back)\n"
+        "2. Pair 3 bottom cross edges\n"
+        "3. Solve remaining 4 centres\n"
+        "4. Pair all remaining edges\n"
+        "5. Finish like a 3x3 using CFOP (cross, F2L, OLL, PLL)\n"
+        "6. Fix OLL parity if needed: Rw U2 x Rw U2 Rw' U2 Rw' U2 Lw' U2 Rw U2 Rw' U2 Rw' U2 x' Rw'\n"
+        "7. Fix PLL parity if needed: Rw2 U2 Rw2 Uw2 Rw2 Uw2\n\n"
 
-- Identify all 24 center pieces (4 per face)
-- Identify all 24 edge pieces (paired into 12 edges)
-- Identify all 8 corner pieces
+        "Notation:\n"
+        "Single layer: U U' U2 / D D' D2 / F F' F2 / B B' B2 / L L' L2 / R R' R2\n"
+        "Wide two layers: Uw Uw' Uw2 / Dw Dw' Dw2 / Rw Rw' Rw2 / Lw Lw' Lw2 / Fw Fw' Fw2 / Bw Bw' Bw2\n\n"
 
-Output the reconstructed cube state in a structured format:
-- List each face (U, D, F, B, L, R)
-- Provide a 4×4 grid of colors for each face
+        "Requirements:\n"
+        "- Must use wide moves (Uw, Rw, Lw, Fw, Bw, Dw) — impossible to solve 4x4 without them\n"
+        "- Solution must be 40-100 moves long\n"
+        "- No repeated patterns\n"
+        "- No explanations in output\n\n"
 
---------------------------------
-PHASE 2 — VALIDATION
---------------------------------
-Before solving, verify:
-
-- Each color appears exactly 16 times
-- All pieces exist exactly once (no duplicates or missing pieces)
-- The cube is physically solvable for a 4×4
-- Edge pairings are consistent
-
-If ANY issue is found:
-→ STOP and ask for clearer images
-→ DO NOT proceed to solving
-
---------------------------------
-PHASE 3 — SOLVE
---------------------------------
-Solve using a correct 4×4 method:
-
-1. Solve centers  
-2. Pair edges  
-3. Solve as a 3×3  
-4. Detect and fix parity (OLL/PLL if present)
-
---------------------------------
-PHASE 4 — SELF-CHECK
---------------------------------
-Before output:
-
-- Verify the move sequence would solve the reconstructed state
-- Ensure no unnecessary repetition or random patterns
-- Ensure logical consistency
-
---------------------------------
-OUTPUT FORMAT
---------------------------------
-Return:
-
-1. "RECONSTRUCTED STATE:" (faces with 4×4 grids)
-2. "VALIDATION: PASSED" (or failure reason)
-3. "SOLUTION:" followed by ONE clean move sequence
-
-Use standard notation:
-R L U D F B Rw Lw Uw Dw Fw Bw
-' = counterclockwise
-2 = double turn
-You are a deterministic 4×4 Rubik’s Cube solver. You must NOT guess or hallucinate. Treat this like a state reconstruction + verification + solve pipeline.
-
-INPUT:
-You will receive 4 images of the SAME cube:
-
-- Image 1: Front + Right + Top  
-- Image 2: Back + Left + Bottom (cube rotated 180° from Image 1)  
-- Image 3: Front + Left (same orientation as Image 1)  
-- Image 4: Back + Right (same orientation as Image 2)
-
---------------------------------
-PHASE 1 — RECONSTRUCTION
---------------------------------
-Reconstruct the FULL cube state:
-
-- Identify all 24 center pieces (4 per face)
-- Identify all 24 edge pieces (paired into 12 edges)
-- Identify all 8 corner pieces
-
-Output the reconstructed cube state in a structured format:
-- List each face (U, D, F, B, L, R)
-- Provide a 4×4 grid of colors for each face
-
---------------------------------
-PHASE 2 — VALIDATION
---------------------------------
-Before solving, verify:
-
-- Each color appears exactly 16 times
-- All pieces exist exactly once (no duplicates or missing pieces)
-- The cube is physically solvable for a 4×4
-- Edge pairings are consistent
-
-If ANY issue is found:
-→ STOP and ask for clearer images
-→ DO NOT proceed to solving
-
---------------------------------
-PHASE 3 — SOLVE
---------------------------------
-Solve using a correct 4×4 method:
-
-1. Solve centers  
-2. Pair edges  
-3. Solve as a 3×3  
-4. Detect and fix parity (OLL/PLL if present)
-
---------------------------------
-PHASE 4 — VERIFICATION
---------------------------------
-Simulate the solution step-by-step on the reconstructed cube state.
-
-- Track piece positions after each move
-- Confirm that the final state is a fully solved cube
-
-If the cube is NOT solved:
-→ The solution is invalid
-→ You MUST recompute a new solution
-
-Do NOT output a solution unless it has been verified to fully solve the cube.
-
---------------------------------
-OUTPUT FORMAT
---------------------------------
-Return:
-
-1. "RECONSTRUCTED STATE:" (faces with 4×4 grids)
-2. "VALIDATION: PASSED" (or failure reason)
-3. "SOLUTION:" followed by ONE verified move sequence
-
-Use standard notation:
-R L U D F B Rw Lw Uw Dw Fw Bw
-' = counterclockwise
-2 = double turn
-
---------------------------------
-CRITICAL RULES
---------------------------------
-- Do NOT invent cube states
-- Do NOT output a solution without reconstruction
-- Do NOT generate short or trivial solutions unless mathematically valid
-- Do NOT generate long repetitive patterns unless necessary
-- If uncertain, ASK for clarification instead of guessing
-
-Accuracy is required.
-     """
+        "Output only this, nothing else:\n\n"
+        "ORIENTATION:\n"
+        "[clear physical instructions referencing Photo 1 to get cube into solving position]\n\n"
+        "SOLUTION:\n"
+        "[all moves on one line separated by spaces]"
+    )
 
     parts = [{"text": prompt}]
     for img_b64 in images:
