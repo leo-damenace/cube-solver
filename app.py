@@ -41,21 +41,39 @@ def analyze():
 
     num = len(images)
     prompt = (
-        "IMPORTANT: This is a 4x4x4 Rubik's cube (Revenge cube), NOT a 3x3x3. "
-        "Each face has 16 stickers in a 4x4 grid. There are NO fixed centre pieces. "
-        "The solve requires wide moves (Uw, Rw, etc.) to pair up edges and solve centres. "
-        "A correct 4x4 solution is typically 40-80 moves long. "
-        "If your solution has no wide moves or is under 20 moves, you are solving it as a 3x3 which is WRONG.\n\n"
-        f"I am sending you {num} photo(s) of this scrambled 4x4x4 cube. "
-        "Orient it with WHITE on top and GREEN facing you (RED=Right, ORANGE=Left, YELLOW=Bottom, BLUE=Back). "
-        "Read every sticker carefully across all photos, then output ONLY this:\n\n"
+        "You are an expert 4x4x4 Rubik's Cube (Revenge Cube) solver with deep knowledge of the reduction method.\n\n"
+
+        "THIS IS A 4x4x4 CUBE. Each face has 4 rows and 4 columns = 16 stickers. "
+        "There are 6 faces: U (top), D (bottom), F (front), B (back), L (left), R (right).\n\n"
+
+        f"I am sending you {num} photos of a scrambled 4x4x4 cube from different angles. "
+        "Orient it with WHITE on top (U) and GREEN facing you (F). "
+        "This means: RED=R, ORANGE=L, YELLOW=D, BLUE=B.\n\n"
+
+        "Step 1: Read each face carefully from the photos. For each face, mentally map the 4x4 grid of 16 stickers.\n\n"
+
+        "Step 2: Solve the cube using the REDUCTION METHOD in this order:\n"
+        "  Phase 1 - Solve the 6 centres (each centre is a 2x2 block of same-colour stickers)\n"
+        "  Phase 2 - Pair up all 12 edges (each edge has 2 matching stickers)\n"
+        "  Phase 3 - Solve like a 3x3 using standard CFOP or layer-by-layer\n"
+        "  Phase 4 - Fix any parity errors (OLL parity: Rw U2 x Rw U2 Rw U2 Rw' U2 Lw U2 Rw' U2 Rw U2 Rw' U2 Rw', "
+        "PLL parity: Rw2 U2 Rw2 Uw2 Rw2 Uw2)\n\n"
+
+        "Step 3: Output the full verified move sequence.\n\n"
+
+        "RULES:\n"
+        "- Use ONLY these moves: U U' U2, D D' D2, F F' F2, B B' B2, L L' L2, R R' R2, "
+        "Uw Uw' Uw2, Dw Dw' Dw2, Fw Fw' Fw2, Bw Bw' Bw2, Lw Lw' Lw2, Rw Rw' Rw2\n"
+        "- Wide moves (Uw, Rw, etc.) move the 2 outer layers together\n"
+        "- A real 4x4 solve is 40-100 moves. Anything under 20 moves is wrong.\n"
+        "- Do NOT repeat the same short pattern over and over\n"
+        "- Every move must be purposeful and advance the solve\n\n"
+
+        "OUTPUT FORMAT (nothing else, no explanations):\n\n"
         "ORIENTATION:\n"
         "Hold cube with WHITE on top and GREEN facing you.\n\n"
         "SOLUTION:\n"
-        "[full 4x4 move sequence on one line, must include wide moves like Uw Rw etc]\n\n"
-        "Notation: U D F B L R (clockwise 90), U' D' F' (counter-clockwise), U2 D2 (180 degrees), "
-        "Uw Rw Fw Lw Bw Dw (wide 2-layer moves), Uw' Rw2 Fw2 etc. "
-        "No explanations. No face descriptions. No step labels. Just the two sections."
+        "[the complete move sequence on one line]"
     )
 
     parts = [{"text": prompt}]
@@ -64,7 +82,7 @@ def analyze():
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
     }).encode("utf-8")
 
     try:
