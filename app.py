@@ -40,7 +40,7 @@ def analyze():
         return jsonify({"ok": False, "error": "No images received"}), 400
 
     num = len(images)
-    prompt = (
+    prompt = """
          You are a deterministic 4×4 Rubik’s Cube solver. You must NOT guess or hallucinate. Treat this like a state reconstruction + verification + solve pipeline.
 
 INPUT:
@@ -120,8 +120,7 @@ CRITICAL RULES
 - If uncertain, ASK for clarification instead of guessing
 
 Accuracy is required.
-
-    )
+     """
 
     parts = [{"text": prompt}]
     for img_b64 in images:
