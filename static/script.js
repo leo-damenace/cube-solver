@@ -16,8 +16,8 @@ const COLOURS = {
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
-// faceColors: U=0, D=1, F=2, B=3, L=4, R=5
-let COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
+// Standard orientation: U=white, D=yellow, F=green, B=blue, L=orange, R=red
+const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", orange:"L", red:"R" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
 const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
@@ -67,7 +67,7 @@ function explainMove(m) {
 }
 
 // ── STATE ─────────────────────────────────────────────────
-let supabaseClient = null;
+let supabase      = null;
 let currentUser   = null;
 let photosTaken   = [];          // array of base64 strings (up to 4)
 let faceColors    = {};          // { U:[16], D:[16], F:[16], B:[16], L:[16], R:[16] }
@@ -75,36 +75,46 @@ let isAnalysing   = false;
 let activePaint   = COLOUR_NAMES[0];
 
 // ── INIT SUPABASE ─────────────────────────────────────────
-window.addEventListener("load", () => {
-  supabaseClient = window.supabase.createClient(
+function initSupabase() {
+  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+    console.error("Supabase config missing!");
+    return;
+  }
+
+  supabase = window.supabase.createClient(
     window.SUPABASE_URL,
     window.SUPABASE_ANON_KEY
   );
 
   // Check if user is already signed in
-  supabaseClient.auth.getSession().then(({ data }) => {
+  supabase.auth.getSession().then(({ data }) => {
     if (data.session) {
       showApp(data.session.user);
     }
   });
 
-  // Listen for auth state changes (e.g. after OAuth redirect)
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  // Listen for auth state changes
+  supabase.auth.onAuthStateChange((_event, session) => {
     if (session) {
       showApp(session.user);
     } else {
       showAuth();
     }
   });
-});
+}
 
 // ── GOOGLE SIGN IN ────────────────────────────────────────
-document.getElementById("google-btn").onclick = async () => {
+async function signInWithGoogle() {
+  if (!supabase) {
+    console.error("Supabase not initialized!");
+    return;
+  }
+
   const btn = document.getElementById("google-btn");
   btn.disabled = true;
   btn.textContent = "Signing in...";
 
-  const { error } = await supabaseClient.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: window.location.origin }
   });
@@ -112,13 +122,21 @@ document.getElementById("google-btn").onclick = async () => {
   if (error) {
     document.getElementById("auth-error").textContent = error.message;
     btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Sign in with Google`;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Sign in with Google`;
   }
-};
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  initSupabase();
+  const googleBtn = document.getElementById("google-btn");
+  if (googleBtn) {
+    googleBtn.addEventListener("click", signInWithGoogle);
+  }
+});
 
 // ── SIGN OUT ──────────────────────────────────────────────
 async function signOut() {
-  await supabaseClient.auth.signOut();
+  await supabase.auth.signOut();
   showAuth();
   doRestart();
 }
@@ -206,7 +224,7 @@ function takePhoto() {
     document.getElementById("capture-btn").style.display = "none";
     document.getElementById("restart-btn").style.display = "block";
     document.getElementById("main-title").textContent    = "ANALYSING...";
-    document.getElementById("main-desc").textContent     = "Gemini AI is reading all 6 faces from your 4 photos. This takes a few seconds.";
+    document.getElementById("main-desc").textContent     = "Sending photos to Gemini for color recognition...";
     analysePhotos();
   }
 }
@@ -253,15 +271,6 @@ async function analysePhotos() {
       faceColors[face] = colours.map(c => c.toLowerCase().trim());
     }
 
-    // Rebuild COLOR_TO_FACE from Gemini orientation so solver gets correct mapping
-    // orientation = { U:"white", D:"yellow", F:"green", ... } -> invert to { white:"U", ... }
-    if (data.orientation) {
-      COLOR_TO_FACE = {};
-      for (const [face, colour] of Object.entries(data.orientation)) {
-        COLOR_TO_FACE[colour.toLowerCase().trim()] = face;
-      }
-    }
-
     isAnalysing = false;
     markStep(3, "done");
     document.getElementById("main-title").textContent = "ALL FACES SCANNED";
@@ -283,61 +292,30 @@ async function solveCube() {
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // Build 96-char reid state string — order: U R F D L B
+  // Build 96-char state string: U R F D L B
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
-    if (!face || face.length !== 16) {
-      showSolveError(`Face ${letter} has missing data. Please rescan.`);
-      btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
-    }
-    for (const c of face) {
-      const mapped = COLOR_TO_FACE[c];
-      if (!mapped) {
-        showSolveError(`Unknown colour "${c}" on face ${letter}. Open Fix Colours and correct it.`);
-        btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
-      }
-      stateStr += mapped;
-    }
-  }
-
-  // Validate counts
-  const counts = {};
-  for (const ch of stateStr) counts[ch] = (counts[ch]||0)+1;
-  const wrong = Object.entries(counts).filter(([,n])=>n!==16);
-  if (wrong.length) {
-    showSolveError("Colour count mismatch: " + wrong.map(([f,n])=>`${f}=${n}/16`).join(", ") + ". Open Fix Colours and correct.");
-    btn.innerHTML = "✅ Solve!"; btn.disabled = false; return;
+    if (!face) { stateStr += "U".repeat(16); continue; }
+    for (const c of face) stateStr += (COLOR_TO_FACE[c] || "U");
   }
 
   try {
+    // Using the dedicated cubing.js 4x4x4 solver
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
-    const algStr = solution.toString().trim();
-    const twisty = document.getElementById("twisty");
-    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
-    twisty.setAttribute("alg", algStr);
-    showSolution(algStr);
+    showSolution(solution.toString());
   } catch (err) {
-    showSolveError(
-      "Solver rejected this state.<br>State string: <code style='font-size:.65rem;word-break:break-all;color:#aaa'>" + stateStr + "</code><br><br>Press Fix Colours to correct any wrong stickers."
-    );
-    btn.innerHTML = "✅ Solve!"; btn.disabled = false;
+    console.error(err);
+    document.getElementById("solution-area").style.display = "block";
+    document.getElementById("moves-wrap").innerHTML = `
+      <div class="error-box">
+        <strong>Could not solve.</strong> The cube state looks invalid.<br><br>
+        Press <strong>Fix Colours</strong> to correct any wrong stickers. Make sure each colour appears exactly 16 times across all 6 faces.
+      </div>`;
+    btn.innerHTML = "✅ Solve!";
+    btn.disabled  = false;
   }
-}
-
-function invertAlg(algStr) {
-  return algStr.trim().split(/\s+/).reverse().map(m => {
-    if (m.endsWith("2")) return m;
-    if (m.endsWith("'")) return m.slice(0,-1);
-    return m + "'";
-  }).join(" ");
-}
-
-function showSolveError(html) {
-  document.getElementById("solution-area").style.display = "block";
-  document.getElementById("twisty-wrap").style.display = "none";
-  document.getElementById("moves-wrap").innerHTML = `<div class="error-box"><strong>Could not solve.</strong><br><br>${html}</div>`;
 }
 
 function showSolution(algStr) {
@@ -375,6 +353,7 @@ function showSolution(algStr) {
   activeChip = chips.firstChild;
   renderExplanation(moves[0], 0, moves.length);
 
+  document.getElementById("twisty").setAttribute("alg", algStr);
   document.getElementById("twisty-wrap").style.display   = "block";
   document.getElementById("solution-area").style.display = "block";
   document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
