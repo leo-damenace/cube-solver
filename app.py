@@ -7,6 +7,7 @@ app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
+# ── RATE LIMITING ─────────────────────────────────────────
 request_log = defaultdict(list)
 
 def is_rate_limited(ip):
@@ -17,6 +18,7 @@ def is_rate_limited(ip):
     request_log[ip].append(now)
     return False
 
+# ── ROUTES ────────────────────────────────────────────────
 @app.route("/")
 def index():
     return render_template("index.html",
@@ -32,57 +34,42 @@ def analyze():
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
-        return jsonify({"ok": False, "error": "GEMINI_API_KEY missing"}), 500
+        return jsonify({"ok": False, "error": "Server misconfigured — GEMINI_API_KEY missing."}), 500
 
     data   = request.get_json()
-    images = data.get("images", [])
-    if not images:
-        return jsonify({"ok": False, "error": "No images received"}), 400
+    images = data.get("images", [])  # list of up to 4 base64 strings
 
-    num = len(images)
-    prompt = (
-        "You are reading the sticker colours of a 4x4x4 Rubik's Revenge cube. "
-        "This is NOT a 3x3. Each face is a 4x4 grid of 16 stickers. There are no fixed centres.\n\n"
+    if not images or len(images) < 1:
+        return jsonify({"ok": False, "error": "No images received."}), 400
 
-        f"You have {num} photos. Here is exactly what each photo shows:\n"
-        "- Photo 1: The cube shot from one corner at a 45-degree angle. "
-        "You can see 3 faces: the top face, and the 2 side faces on that corner.\n"
-        "- Photo 2: The cube shot from the OPPOSITE corner at a 45-degree angle. "
-        "You can see the other 3 faces: the bottom face, and the 2 remaining side faces.\n"
-        "- Photo 3: A straight-on shot of one of the 4 side faces (not the top, not the bottom).\n"
-        "- Photo 4: A straight-on shot of another side face (not the top, not the bottom).\n\n"
+    prompt = f"""You are an expert at identifying Rubik's Cube colors from images. I am sending you {len(images)} photo(s) of the same 4x4 Rubik's cube taken from different angles. Your task is to accurately identify the color of each of the 16 stickers on ALL 6 faces of the cube.
 
-        "Together these 4 photos show all 6 faces of the cube. "
-        "Use all photos to reconstruct the exact state of every sticker.\n\n"
+Here are the 6 faces and their standard center colors for a 4x4x4 cube:
+- TOP (U): White center
+- BOTTOM (D): Yellow center
+- FRONT (F): Green center
+- BACK (B): Blue center
+- LEFT (L): Orange center
+- RIGHT (R): Red center
 
-        "IMPORTANT — you must figure out the orientation yourself from the photos. "
-        "Look at which colour dominates each face and identify U (top), D (bottom), F (front), B (back), L (left), R (right) "
-        "based on what you actually see. Do not assume any fixed colour-to-face mapping.\n\n"
+For each face, read the 4x4 grid of 16 stickers from left-to-right, top-to-bottom, row by row. The only valid sticker colors are: white, yellow, red, orange, blue, green. If a color is ambiguous, choose the closest one from this list.
 
-        "Once you have identified the orientation, return two things:\n\n"
-        "1. The orientation mapping — which colour is on which face:\n"
-        '{"orientation": {"U": "colour", "D": "colour", "F": "colour", "B": "colour", "L": "colour", "R": "colour"}}\n\n'
-        "2. The 6 face arrays — each face read left-to-right, top-to-bottom from the perspective "
-        "of someone looking directly at that face from outside the cube:\n"
-        '{"U": [16 colours], "R": [16 colours], "F": [16 colours], "D": [16 colours], "L": [16 colours], "B": [16 colours]}\n\n'
+Important considerations:
+- Analyze all provided photos together to ensure a complete and accurate reading of all 6 faces. Some faces might only be partially visible in certain photos.
+- Pay close attention to distinguishing between similar colors like orange/red and white/yellow, especially under varying lighting conditions. Use context from other stickers and photos to make the best judgment.
+- Ensure that the final output represents a physically possible cube state. For a solved 4x4x4 cube, each of the 6 colors appears exactly 16 times across all faces. Your output should reflect this distribution as closely as possible, even if some stickers are obscured or difficult to discern.
 
-        "Only use these 6 colour words: white yellow red orange blue green\n"
-        "- lime or neon green = green\n"
-        "- cream or off-white = white\n"
-        "- crimson or dark red = red\n"
-        "- amber or dark orange = orange\n\n"
+Return ONLY a JSON object, with no additional markdown, text, or explanation. The JSON structure must be as follows:
+{{
+  "U": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
+  "D": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
+  "F": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
+  "B": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
+  "L": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],
+  "R": ["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]
+}}
 
-        "Validate before returning: each colour must appear exactly 16 times across all 6 faces.\n\n"
-
-        "Return ONLY this JSON, no markdown, no explanation:\n"
-        '{"orientation":{"U":"?","D":"?","F":"?","B":"?","L":"?","R":"?"},'
-        '"U":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
-        '"R":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
-        '"F":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
-        '"D":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
-        '"L":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
-        '"B":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]}'
-    )
+Replace every "c" with one of the exact color names: "white", "yellow", "red", "orange", "blue", "green". Each array must contain exactly 16 color strings."""
 
     parts = [{"text": prompt}]
     for img_b64 in images:
@@ -90,7 +77,7 @@ def analyze():
 
     payload = json.dumps({
         "contents": [{"parts": parts}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024}
     }).encode("utf-8")
 
     last_error = ""
@@ -106,57 +93,63 @@ def analyze():
                 result = json.loads(resp.read().decode("utf-8"))
 
             if "error" in result:
-                return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
+                return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")}), 500
 
             text  = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            # Remove markdown code block fences if present
             text  = re.sub(r"```json|```", "", text).strip()
-            data_out = json.loads(text)
+            faces = json.loads(text)
 
-            # Extract orientation and faces
-            orientation = data_out.get("orientation", {})
-            faces = {k: data_out[k] for k in ["U","R","F","D","L","B"]}
+            # Validate structure and content
+            expected_faces = ["U","D","F","B","L","R"]
+            valid_colors = {"white", "yellow", "red", "orange", "blue", "green"}
+            all_colors = []
 
-            # Validate all 6 faces present with 16 stickers each
-            for face in ["U","R","F","D","L","B"]:
-                if face not in faces or len(faces[face]) != 16:
-                    raise ValueError(f"Face {face} missing or wrong length")
+            if not isinstance(faces, dict):
+                raise ValueError("Gemini response is not a JSON object.")
 
-            # Normalise and validate colours
-            allowed = {"white","yellow","red","orange","blue","green"}
-            for face in ["U","R","F","D","L","B"]:
-                faces[face] = [c.lower().strip() for c in faces[face]]
-                for c in faces[face]:
-                    if c not in allowed:
-                        raise ValueError(f"Unknown colour '{c}' on face {face}")
+            for face_key in expected_faces:
+                if face_key not in faces:
+                    raise ValueError(f"Missing face: {face_key}")
+                if not isinstance(faces[face_key], list):
+                    raise ValueError(f"Face {face_key} is not a list.")
+                if len(faces[face_key]) != 16:
+                    raise ValueError(f"Face {face_key} has {len(faces[face_key])} stickers, expected 16.")
+                for color in faces[face_key]:
+                    if not isinstance(color, str) or color.lower() not in valid_colors:
+                        raise ValueError(f"Invalid color '{color}' found on face {face_key}.")
+                    all_colors.append(color.lower())
+            
+            # Validate color distribution (each color must appear 16 times)
+            color_counts = defaultdict(int)
+            for color in all_colors:
+                color_counts[color] += 1
+            
+            for color_name in valid_colors:
+                if color_counts[color_name] != 16:
+                    raise ValueError(f"Color '{color_name}' appears {color_counts[color_name]} times, expected 16.")
 
-            # Validate counts
-            counts = {}
-            for face in ["U","R","F","D","L","B"]:
-                for c in faces[face]:
-                    counts[c] = counts.get(c, 0) + 1
-            wrong = {c: n for c, n in counts.items() if n != 16}
-            if wrong:
-                raise ValueError(f"Colour counts wrong: {wrong}")
+            return jsonify({"ok": True, "faces": faces})
 
-            return jsonify({"ok": True, "faces": faces, "orientation": orientation})
-
-        except (json.JSONDecodeError, ValueError) as e:
-            last_error = str(e)
-            time.sleep(2)
-            continue
         except urllib.error.HTTPError as e:
             body = e.read().decode()
             last_error = f"HTTP {e.code}"
             if e.code in [429, 500, 503]:
                 time.sleep(2 ** (attempt + 1))
                 continue
-            return jsonify({"ok": False, "error": f"Gemini API error {e.code}: {body[:200]}"})
+            return jsonify({"ok": False, "error": f"Gemini API error {e.code}: {body[:200]}"}), 500
+
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            last_error = str(e)
+            time.sleep(2)
+            continue
+
         except Exception as e:
             last_error = str(e)
             time.sleep(2)
             continue
 
-    return jsonify({"ok": False, "error": f"Failed after retries: {last_error}"})
+    return jsonify({"ok": False, "error": f"Failed after retries: {last_error}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
