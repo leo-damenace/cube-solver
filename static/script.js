@@ -17,7 +17,7 @@ const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
 
 // cubing.js face mapping
 // faceColors: U=0, D=1, F=2, B=3, L=4, R=5
-const COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
+let COLOR_TO_FACE = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
 const CUBING_ORDER  = ["U","R","F","D","L","B"];
 const FACE_IDX      = { U:0, D:1, F:2, B:3, L:4, R:5 };
 const FACE_LABELS   = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
@@ -253,22 +253,20 @@ async function analysePhotos() {
       faceColors[face] = colours.map(c => c.toLowerCase().trim());
     }
 
+    // Rebuild COLOR_TO_FACE from Gemini orientation so solver gets correct mapping
+    // orientation = { U:"white", D:"yellow", F:"green", ... } -> invert to { white:"U", ... }
+    if (data.orientation) {
+      COLOR_TO_FACE = {};
+      for (const [face, colour] of Object.entries(data.orientation)) {
+        COLOR_TO_FACE[colour.toLowerCase().trim()] = face;
+      }
+    }
+
     isAnalysing = false;
     markStep(3, "done");
     document.getElementById("main-title").textContent = "ALL FACES SCANNED";
     document.getElementById("main-desc").innerHTML    = "Gemini read all 6 faces. Fix any wrong colours if needed, then press Solve.";
-
-    // Show colour counts validation
-    const counts = {};
-    for (const face of ["U","R","F","D","L","B"]) {
-      for (const c of (faceColors[face] || [])) counts[c] = (counts[c]||0)+1;
-    }
-    const wrong = Object.entries(counts).filter(([,n])=>n!==16);
-    if (wrong.length) {
-      showBanner("⚠️ Colour counts off: " + wrong.map(([f,n])=>`${f}=${n}`).join(", ") + " — fix before solving.", "error");
-    } else {
-      showBanner("✅ All 6 colours read correctly (16 each). Press Solve!");
-    }
+    showBanner("✅ All 6 faces identified! Review colours or press Solve.");
     document.getElementById("action-row").style.display = "flex";
 
   } catch (err) {
@@ -285,7 +283,7 @@ async function solveCube() {
   btn.innerHTML = '<span class="spinner"></span> Solving...';
   btn.disabled  = true;
 
-  // Build 96-char reid state string — order must be U R F D L B
+  // Build 96-char reid state string — order: U R F D L B
   let stateStr = "";
   for (const letter of CUBING_ORDER) {
     const face = faceColors[letter];
@@ -303,7 +301,7 @@ async function solveCube() {
     }
   }
 
-  // Validate counts before sending to solver
+  // Validate counts
   const counts = {};
   for (const ch of stateStr) counts[ch] = (counts[ch]||0)+1;
   const wrong = Object.entries(counts).filter(([,n])=>n!==16);
@@ -316,15 +314,13 @@ async function solveCube() {
     const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
     const solution = await experimental4x4x4Solve(stateStr);
     const algStr = solution.toString().trim();
-
     const twisty = document.getElementById("twisty");
     twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
     twisty.setAttribute("alg", algStr);
-
     showSolution(algStr);
   } catch (err) {
     showSolveError(
-      "Solver rejected this state. State string: <br><code style='font-size:.65rem;word-break:break-all;color:#aaa'>" + stateStr + "</code><br><br>Press Fix Colours to correct any wrong stickers."
+      "Solver rejected this state.<br>State string: <code style='font-size:.65rem;word-break:break-all;color:#aaa'>" + stateStr + "</code><br><br>Press Fix Colours to correct any wrong stickers."
     );
     btn.innerHTML = "✅ Solve!"; btn.disabled = false;
   }
