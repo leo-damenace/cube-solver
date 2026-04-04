@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import os, json, time
+import os, json, re, time
 import urllib.request
 from collections import defaultdict
 
@@ -41,45 +41,41 @@ def analyze():
 
     num = len(images)
     prompt = (
-        "You are solving a physical 4x4x4 Rubik's Revenge cube. NOT a 3x3. "
-        "Each face is a 4x4 grid of 16 stickers. There are no fixed centres.\n\n"
+        "You are a colour-reading machine for a 4x4x4 Rubik's Revenge cube. "
+        "Your ONLY job is to read the colour of every sticker and return JSON. Nothing else.\n\n"
 
-        f"You have {num} photos of the same scrambled cube. "
-        "Photos 1 and 2 are from opposite corners each showing 3 faces at once. "
-        "Photos 3 and 4 are extra angles to fill in any missing stickers. "
-        "Use all photos together to determine the exact state of every sticker on all 6 faces.\n\n"
+        f"I am giving you {num} photos of the SAME 4x4x4 cube from different angles. "
+        "Use ALL photos together to determine every sticker.\n\n"
 
-        "Choose the best orientation to solve from. Then write the ORIENTATION section by telling "
-        "the user how to get the cube into that position starting from how it looks in Photo 1. "
-        "For example: 'Start from Photo 1 position, rotate 180 degrees to the right' or "
-        "'Start from Photo 1 position, flip upside down, then rotate 90 degrees left' — "
-        "whatever simple physical moves get the cube from Photo 1 into your chosen solving orientation. "
-        "Be specific and clear so anyone can follow it.\n\n"
+        "The cube has 6 faces: U (top), D (bottom), F (front), B (back), L (left), R (right). "
+        "Each face has exactly 16 stickers in a 4x4 grid. "
+        "Read each face left-to-right, top-to-bottom, row by row.\n\n"
 
-        "Then solve the cube using the Yau method in this order:\n"
-        "1. Solve two opposite centres (bottom and back)\n"
-        "2. Pair 3 bottom cross edges\n"
-        "3. Solve remaining 4 centres\n"
-        "4. Pair all remaining edges\n"
-        "5. Finish like a 3x3 using CFOP (cross, F2L, OLL, PLL)\n"
-        "6. Fix OLL parity if needed: Rw U2 x Rw U2 Rw' U2 Rw' U2 Lw' U2 Rw U2 Rw' U2 Rw' U2 x' Rw'\n"
-        "7. Fix PLL parity if needed: Rw2 U2 Rw2 Uw2 Rw2 Uw2\n\n"
+        "The cube uses exactly these 6 colours and no others:\n"
+        "  white, yellow, red, orange, blue, green\n\n"
 
-        "Notation:\n"
-        "Single layer: U U' U2 / D D' D2 / F F' F2 / B B' B2 / L L' L2 / R R' R2\n"
-        "Wide two layers: Uw Uw' Uw2 / Dw Dw' Dw2 / Rw Rw' Rw2 / Lw Lw' Lw2 / Fw Fw' Fw2 / Bw Bw' Bw2\n\n"
+        "STRICT COLOUR RULES — you must follow these exactly:\n"
+        "- If a sticker looks lime, neon green, or yellow-green: call it GREEN\n"
+        "- If a sticker looks cream, off-white, or light: call it WHITE\n"
+        "- If a sticker looks dark red, crimson, or maroon: call it RED\n"
+        "- If a sticker looks amber, dark orange, or brown-orange: call it ORANGE\n"
+        "- If a sticker looks light yellow or gold: call it YELLOW\n"
+        "- If a sticker looks teal, navy, or dark blue: call it BLUE\n"
+        "- NEVER use any word other than: white yellow red orange blue green\n\n"
 
-        "Requirements:\n"
-        "- Must use wide moves (Uw, Rw, Lw, Fw, Bw, Dw) — impossible to solve 4x4 without them\n"
-        "- Solution must be 40-100 moves long\n"
-        "- No repeated patterns\n"
-        "- No explanations in output\n\n"
+        "VALIDATION — before returning, check:\n"
+        "- Every array has exactly 16 values\n"
+        "- Across all 6 faces, each colour appears exactly 16 times (total 96 stickers)\n"
+        "- Only the 6 allowed colour words are used\n"
+        "- If your counts are wrong, re-examine the photos and correct them\n\n"
 
-        "Output only this, nothing else:\n\n"
-        "ORIENTATION:\n"
-        "[clear physical instructions referencing Photo 1 to get cube into solving position]\n\n"
-        "SOLUTION:\n"
-        "[all moves on one line separated by spaces]"
+        "Return ONLY this JSON with no markdown, no explanation, no extra text:\n"
+        '{"U":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
+        '"R":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
+        '"F":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
+        '"D":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
+        '"L":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
+        '"B":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"]}'
     )
 
     parts = [{"text": prompt}]
@@ -91,24 +87,66 @@ def analyze():
         "generationConfig": {"temperature": 0, "maxOutputTokens": 4096}
     }).encode("utf-8")
 
-    try:
-        req = urllib.request.Request(
-            f"{GEMINI_URL}?key={api_key}",
-            data=payload,
-            headers={"Content-Type": "application/json", "User-Agent": "CubeSolveApp/1.0"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
+    last_error = ""
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(
+                f"{GEMINI_URL}?key={api_key}",
+                data=payload,
+                headers={"Content-Type": "application/json", "User-Agent": "CubeSolveApp/1.0"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
 
-        if "error" in result:
-            return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
+            if "error" in result:
+                return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
 
-        raw = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return jsonify({"ok": True, "raw": raw})
+            text  = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            text  = re.sub(r"```json|```", "", text).strip()
+            faces = json.loads(text)
 
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+            # Validate all 6 faces present with 16 stickers each
+            for face in ["U","R","F","D","L","B"]:
+                if face not in faces or len(faces[face]) != 16:
+                    raise ValueError(f"Face {face} missing or wrong length")
+
+            # Normalise colours
+            allowed = {"white","yellow","red","orange","blue","green"}
+            for face in ["U","R","F","D","L","B"]:
+                faces[face] = [c.lower().strip() for c in faces[face]]
+                for c in faces[face]:
+                    if c not in allowed:
+                        raise ValueError(f"Unknown colour '{c}' on face {face}")
+
+            # Validate counts
+            counts = {}
+            for face in ["U","R","F","D","L","B"]:
+                for c in faces[face]:
+                    counts[c] = counts.get(c, 0) + 1
+            wrong = {c: n for c, n in counts.items() if n != 16}
+            if wrong:
+                raise ValueError(f"Colour counts wrong: {wrong}")
+
+            return jsonify({"ok": True, "faces": faces, "raw": text})
+
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = str(e)
+            time.sleep(2)
+            continue
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            last_error = f"HTTP {e.code}"
+            if e.code in [429, 500, 503]:
+                time.sleep(2 ** (attempt + 1))
+                continue
+            return jsonify({"ok": False, "error": f"Gemini API error {e.code}: {body[:200]}"})
+        except Exception as e:
+            last_error = str(e)
+            time.sleep(2)
+            continue
+
+    return jsonify({"ok": False, "error": f"Failed after retries: {last_error}"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
