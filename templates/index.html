@@ -8,22 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-
     :root {
-      --bg:      #0c0c0c;
-      --surface: #161616;
-      --card:    #1e1e1e;
-      --border:  #2c2c2c;
-      --border2: #3a3a3a;
-      --accent:  #c8f135;
-      --accent2: #35f1b0;
-      --text:    #efefef;
-      --muted:   #666;
-      --muted2:  #444;
-      --red:     #ff4d4d;
-      --r:       12px;
+      --bg:#0c0c0c; --surface:#161616; --card:#1e1e1e; --border:#2c2c2c; --border2:#3a3a3a;
+      --accent:#c8f135; --accent2:#35f1b0; --text:#efefef; --muted:#666; --muted2:#444; --red:#ff4d4d; --r:12px;
     }
-
     body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
 
     /* AUTH */
@@ -54,13 +42,6 @@
     #signout-btn { background:transparent; border:none; color:var(--muted); font-size:.7rem; cursor:pointer; font-family:'DM Mono',monospace; padding:2px 4px; flex-shrink:0; }
     #signout-btn:hover { color:var(--red); }
     .section-label { font-size:.62rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:.6rem; }
-
-    /* MODE SWITCHER */
-    .mode-switcher { display:flex; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:4px; gap:4px; margin-bottom:1.2rem; }
-    .mode-btn { flex:1; padding:.6rem; border:none; border-radius:7px; font-family:'DM Sans',sans-serif; font-size:.82rem; font-weight:500; cursor:pointer; transition:all .2s; background:transparent; color:var(--muted); touch-action:manipulation; }
-    .mode-btn.active { background:var(--accent); color:#000; }
-
-    /* PHOTO STEPS */
     .photo-steps { display:flex; flex-direction:column; gap:6px; }
     .photo-step { display:flex; align-items:flex-start; gap:10px; padding:.6rem .8rem; border-radius:8px; border:1px solid transparent; transition:all .2s; }
     .photo-step .dot { width:10px; height:10px; border-radius:50%; border:2px solid var(--muted2); flex-shrink:0; margin-top:3px; transition:all .2s; }
@@ -79,6 +60,11 @@
     .main-header h2 { font-family:'Bebas Neue',sans-serif; font-size:1.9rem; letter-spacing:2px; line-height:1; margin-bottom:.4rem; }
     .main-header p { font-size:.85rem; color:var(--muted); line-height:1.6; }
     #status-banner { display:none; background:rgba(200,241,53,0.07); border:1px solid rgba(200,241,53,0.2); border-radius:10px; padding:.85rem 1.1rem; font-size:.85rem; color:var(--accent); margin-bottom:1.2rem; line-height:1.5; text-align:center; }
+
+    /* MODE SWITCHER */
+    .mode-switcher { display:flex; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:4px; gap:4px; margin-bottom:1.2rem; }
+    .mode-btn { flex:1; padding:.6rem; border:none; border-radius:7px; font-family:'DM Sans',sans-serif; font-size:.82rem; font-weight:500; cursor:pointer; transition:all .2s; background:transparent; color:var(--muted); touch-action:manipulation; }
+    .mode-btn.active { background:var(--accent); color:#000; }
 
     /* CAMERA */
     .camera-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
@@ -107,18 +93,18 @@
     .photo-slot-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.65); padding:4px 8px; font-size:.68rem; color:#ccc; text-align:center; font-family:'DM Mono',monospace; }
     .photo-slot-empty { font-size:.75rem; color:var(--muted2); text-align:center; padding:1rem; line-height:1.5; }
 
-    /* MANUAL MODE — 3D CUBE */
+    /* MANUAL MODE */
     #manual-mode { display:none; }
-    #cube-canvas-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1rem; touch-action:none; }
-    #cube-canvas { display:block; width:100%; cursor:grab; }
-    #cube-canvas:active { cursor:grabbing; }
+    #threejs-wrap { background:#111; border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1rem; height:380px; position:relative; cursor:grab; }
+    #threejs-wrap:active { cursor:grabbing; }
+    #threejs-canvas { display:block; width:100% !important; height:100% !important; }
 
-    /* COLOUR PALETTE for manual mode */
+    /* COLOUR PALETTE */
     .colour-palette { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.2rem; align-items:center; }
     .colour-palette .palette-label { font-size:.62rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted); width:100%; margin-bottom:2px; }
-    .palette-swatch { width:40px; height:40px; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:transform .1s,border-color .1s; touch-action:manipulation; }
+    .palette-swatch { width:44px; height:44px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:transform .1s,border-color .1s; touch-action:manipulation; flex-shrink:0; }
     .palette-swatch:hover { transform:scale(1.1); }
-    .palette-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 10px rgba(255,255,255,0.3); }
+    .palette-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 12px rgba(255,255,255,0.3); }
 
     /* SOLUTION */
     .solution-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
@@ -136,7 +122,7 @@
     .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,0,0,0.15); border-top-color:#000; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px; }
     @keyframes spin { to { transform:rotate(360deg); } }
 
-    /* COLOUR EDITOR MODAL */
+    /* EDITOR MODAL */
     #editor-modal { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5rem 1rem 2rem; overflow-y:auto; gap:1rem; }
     #editor-modal.open { display:flex; }
     .editor-header { width:100%; max-width:440px; display:flex; align-items:center; justify-content:space-between; }
@@ -189,7 +175,6 @@
 <!-- APP -->
 <div id="app">
   <div class="layout">
-
     <aside class="sidebar">
       <div class="sidebar-logo">CUBE<span>SOLVE</span></div>
       <div class="user-chip">
@@ -207,14 +192,12 @@
         </div>
       </div>
       <div class="sidebar-tip">
-        <strong>Camera mode</strong>
-        Photo 1 &amp; 2: opposite corners (each shows 3 faces). Photo 3 &amp; 4: two side faces straight-on.
+        <strong id="tip-title">Camera mode</strong>
+        <span id="tip-body">Photo 1 &amp; 2: opposite corners. Photo 3 &amp; 4: two side faces straight-on.</span>
       </div>
     </aside>
 
     <main class="main">
-
-      <!-- MODE SWITCHER -->
       <div class="mode-switcher">
         <button class="mode-btn active" id="mode-camera-btn" onclick="setMode('camera')">📸 Camera</button>
         <button class="mode-btn" id="mode-manual-btn" onclick="setMode('manual')">🎲 Manual Input</button>
@@ -222,28 +205,23 @@
 
       <div id="status-banner"></div>
 
-      <!-- ── CAMERA MODE ── -->
+      <!-- CAMERA MODE -->
       <div id="camera-mode">
         <div class="main-header">
           <h2 id="main-title">TAKE PHOTO 1</h2>
-          <p id="main-desc">Point at the front-top corner of the cube so 3 faces are visible.</p>
+          <p id="main-desc">Point at the front-top corner so 3 faces are visible.</p>
         </div>
-
         <div class="camera-card">
-          <div class="camera-wrap">
-            <video id="camera" autoplay playsinline muted></video>
-          </div>
+          <div class="camera-wrap"><video id="camera" autoplay playsinline muted></video></div>
           <div class="camera-footer">
             <div class="camera-footer-left">Photo <strong id="shot-num">1</strong> of 4</div>
             <div class="camera-footer-right">Ready</div>
           </div>
         </div>
-
         <div class="btn-row">
           <button class="btn btn-primary" id="capture-btn" onclick="takePhoto()">📸 &nbsp;Take Photo</button>
           <button class="btn btn-ghost" id="restart-btn" onclick="doRestart()" style="display:none">↺</button>
         </div>
-
         <div class="section-label">Photos Taken</div>
         <div class="photos-grid">
           <div class="photo-slot" id="slot-0"><div class="photo-slot-empty">Photo 1<br>not taken</div></div>
@@ -251,24 +229,21 @@
           <div class="photo-slot" id="slot-2"><div class="photo-slot-empty">Photo 3<br>not taken</div></div>
           <div class="photo-slot" id="slot-3"><div class="photo-slot-empty">Photo 4<br>not taken</div></div>
         </div>
-
         <div class="btn-row" id="action-row" style="display:none">
           <button class="btn btn-ghost" style="flex:1" onclick="openEditor()">✏️ &nbsp;Fix Colours</button>
           <button class="btn btn-success" style="flex:2" id="solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
         </div>
       </div>
 
-      <!-- ── MANUAL MODE ── -->
+      <!-- MANUAL MODE -->
       <div id="manual-mode">
         <div class="main-header">
           <h2>MANUAL INPUT</h2>
-          <p>Drag to rotate the cube. Tap a sticker then pick a colour to paint it. Set all 96 stickers then press Solve.</p>
+          <p>Drag to rotate. Tap a sticker then pick a colour to paint it.</p>
         </div>
-
-        <div id="cube-canvas-wrap">
-          <canvas id="cube-canvas" height="360"></canvas>
+        <div id="threejs-wrap">
+          <canvas id="threejs-canvas"></canvas>
         </div>
-
         <div class="colour-palette">
           <div class="palette-label">Active colour</div>
           <div class="palette-swatch active" data-colour="white"  style="background:#f0f0f0" onclick="setPaintColour('white')"></div>
@@ -278,14 +253,13 @@
           <div class="palette-swatch" data-colour="blue"   style="background:#0046c8" onclick="setPaintColour('blue')"></div>
           <div class="palette-swatch" data-colour="green"  style="background:#009b2d" onclick="setPaintColour('green')"></div>
         </div>
-
         <div class="btn-row">
           <button class="btn btn-ghost" onclick="resetManualCube()">↺ Reset</button>
           <button class="btn btn-success" id="manual-solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
         </div>
       </div>
 
-      <!-- SOLUTION (shared) -->
+      <!-- SOLUTION -->
       <div id="solution-area" style="display:none">
         <div class="solution-card">
           <div class="solution-header">
@@ -301,23 +275,23 @@
           </div>
         </div>
       </div>
-
     </main>
   </div>
 </div>
 
-<!-- COLOUR EDITOR MODAL (camera mode fix) -->
+<!-- EDITOR MODAL -->
 <div id="editor-modal">
   <div class="editor-header">
     <div class="editor-title">FIX COLOURS</div>
     <button id="editor-close" onclick="closeEditor()">✕</button>
   </div>
-  <div class="editor-hint">Pick a colour from the palette, then tap any square to paint it.</div>
+  <div class="editor-hint">Pick a colour then tap any square to paint it.</div>
   <div class="editor-faces" id="editor-faces"></div>
   <button id="editor-save" onclick="saveEditor()">Save &amp; Close</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
 <script src="/static/script.js"></script>
 <script>
