@@ -7,7 +7,7 @@ const COLOURS = {
   yellow: { hex: "#ffd200", label: "Yellow" },
   red:    { hex: "#c41e1e", label: "Red"    },
   orange: { hex: "#ff6400", label: "Orange" },
-  blue:   { hex: "#0046c8", label: "Blue"   },
+  blue:   { hex: "#0046c8", label: "Blue"   }, 
   green:  { hex: "#009b2d", label: "Green"  },
 };
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
