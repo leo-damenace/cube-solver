@@ -42,40 +42,35 @@ def analyze():
     num = len(images)
     prompt = (
         "You are reading the sticker colours of a 4x4x4 Rubik's Revenge cube. "
-        "This is NOT a 3x3. Each face is a 4x4 grid of 16 stickers. There are no fixed centres.\n\n"
+        "Your ONLY job is to read colours and return JSON. Do not solve. Do not explain.\n\n"
 
-        f"You have {num} photos. Here is exactly what each photo shows:\n"
-        "- Photo 1: The cube shot from one corner at a 45-degree angle. "
-        "You can see 3 faces: the top face, and the 2 side faces on that corner.\n"
-        "- Photo 2: The cube shot from the OPPOSITE corner at a 45-degree angle. "
-        "You can see the other 3 faces: the bottom face, and the 2 remaining side faces.\n"
-        "- Photo 3: A straight-on shot of one of the 4 side faces (not the top, not the bottom).\n"
-        "- Photo 4: A straight-on shot of another side face (not the top, not the bottom).\n\n"
+        f"You have {num} photos of the same cube:\n"
+        "- Photo 1: diagonal corner shot showing the top face and 2 side faces\n"
+        "- Photo 2: opposite diagonal corner shot showing the bottom face and the other 2 side faces\n"
+        "- Photo 3: straight-on shot of one side face (not top or bottom)\n"
+        "- Photo 4: straight-on shot of another side face (not top or bottom)\n\n"
 
-        "Together these 4 photos show all 6 faces of the cube. "
-        "Use all photos to reconstruct the exact state of every sticker.\n\n"
+        "Together these 4 photos show all 6 faces. Use ALL photos to determine every sticker.\n\n"
 
-        "IMPORTANT — you must figure out the orientation yourself from the photos. "
-        "Look at which colour dominates each face and identify U (top), D (bottom), F (front), B (back), L (left), R (right) "
-        "based on what you actually see. Do not assume any fixed colour-to-face mapping.\n\n"
+        "The cube has 6 faces. Look at the photos and figure out which colour dominates each face:\n"
+        "U = top face, D = bottom face, F = front face, B = back face, L = left face, R = right face\n\n"
 
-        "Once you have identified the orientation, return two things:\n\n"
-        "1. The orientation mapping — which colour is on which face:\n"
-        '{"orientation": {"U": "colour", "D": "colour", "F": "colour", "B": "colour", "L": "colour", "R": "colour"}}\n\n'
-        "2. The 6 face arrays — each face read left-to-right, top-to-bottom from the perspective "
-        "of someone looking directly at that face from outside the cube:\n"
-        '{"U": [16 colours], "R": [16 colours], "F": [16 colours], "D": [16 colours], "L": [16 colours], "B": [16 colours]}\n\n'
+        "For each face, read the 4x4 grid of 16 stickers left-to-right, top-to-bottom "
+        "as seen when looking directly at that face from outside the cube.\n\n"
 
-        "Only use these 6 colour words: white yellow red orange blue green\n"
-        "- lime or neon green = green\n"
-        "- cream or off-white = white\n"
-        "- crimson or dark red = red\n"
-        "- amber or dark orange = orange\n\n"
+        "ONLY use these exact 6 words: white yellow red orange blue green\n"
+        "- lime, neon, or bright green = green\n"
+        "- cream, ivory, or off-white = white\n"
+        "- crimson, dark red, maroon = red\n"
+        "- amber, rust, or brown-orange = orange\n"
+        "- gold or light yellow = yellow\n"
+        "- navy, teal, or dark blue = blue\n\n"
 
-        "Validate before returning: each colour must appear exactly 16 times across all 6 faces.\n\n"
+        "Before returning, verify: each colour appears exactly 16 times across all 6 faces (96 total).\n"
+        "Also return the orientation you determined: which colour is on which face.\n\n"
 
-        "Return ONLY this JSON, no markdown, no explanation:\n"
-        '{"orientation":{"U":"?","D":"?","F":"?","B":"?","L":"?","R":"?"},'
+        "Return ONLY this JSON — no markdown, no explanation, nothing else:\n"
+        '{"orientation":{"U":"colour","D":"colour","F":"colour","B":"colour","L":"colour","R":"colour"},'
         '"U":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
         '"R":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
         '"F":["c","c","c","c","c","c","c","c","c","c","c","c","c","c","c","c"],'
@@ -108,28 +103,22 @@ def analyze():
             if "error" in result:
                 return jsonify({"ok": False, "error": result["error"].get("message", "Gemini error")})
 
-            text  = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            text  = re.sub(r"```json|```", "", text).strip()
-            data_out = json.loads(text)
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            text = re.sub(r"```json|```", "", text).strip()
+            parsed = json.loads(text)
 
-            # Extract orientation and faces
-            orientation = data_out.get("orientation", {})
-            faces = {k: data_out[k] for k in ["U","R","F","D","L","B"]}
+            orientation = parsed.get("orientation", {})
+            faces = {k: parsed[k] for k in ["U","R","F","D","L","B"]}
 
-            # Validate all 6 faces present with 16 stickers each
+            allowed = {"white","yellow","red","orange","blue","green"}
             for face in ["U","R","F","D","L","B"]:
                 if face not in faces or len(faces[face]) != 16:
                     raise ValueError(f"Face {face} missing or wrong length")
-
-            # Normalise and validate colours
-            allowed = {"white","yellow","red","orange","blue","green"}
-            for face in ["U","R","F","D","L","B"]:
                 faces[face] = [c.lower().strip() for c in faces[face]]
                 for c in faces[face]:
                     if c not in allowed:
                         raise ValueError(f"Unknown colour '{c}' on face {face}")
 
-            # Validate counts
             counts = {}
             for face in ["U","R","F","D","L","B"]:
                 for c in faces[face]:
