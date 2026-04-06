@@ -492,3 +492,4 @@ function showBanner(msg, type = "info") {
   b.style.color       = type === "error" ? "#ff9090"                 : "var(--accent)";
   b.textContent       = msg;
 }
+ 
