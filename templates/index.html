@@ -24,696 +24,268 @@
       --r:       12px;
     }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
 
-    /* ── AUTH SCREEN ── */
-    #auth-screen {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
+    /* AUTH */
+    #auth-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+    #auth-screen::before { content:''; position:absolute; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(200,241,53,0.06) 0%,transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
+    .auth-box { position:relative; z-index:2; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:3rem 2.5rem; width:min(420px,92vw); text-align:center; }
+    .logo { font-family:'Bebas Neue',sans-serif; font-size:3rem; letter-spacing:3px; line-height:1; margin-bottom:.2rem; }
+    .logo span { color:var(--accent); }
+    .logo-sub { font-size:.75rem; color:var(--muted); letter-spacing:4px; text-transform:uppercase; margin-bottom:2.5rem; display:block; }
+    #google-btn { width:100%; background:#fff; color:#333; border:none; border-radius:10px; padding:.9rem 1.2rem; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:opacity .15s,transform .1s; touch-action:manipulation; min-height:52px; }
+    #google-btn:hover { opacity:.92; transform:translateY(-1px); }
+    #google-btn:active { transform:scale(.98); }
+    .auth-footer { margin-top:1.5rem; font-size:.72rem; color:var(--muted2); line-height:1.6; }
+    #auth-error { color:var(--red); font-size:.8rem; margin-top:1rem; min-height:1em; font-family:'DM Mono',monospace; }
 
-    #auth-screen::before {
-      content: '';
-      position: absolute;
-      width: 500px; height: 500px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(200,241,53,0.06) 0%, transparent 70%);
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
-
-    .auth-box {
-      position: relative;
-      z-index: 2;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 3rem 2.5rem;
-      width: min(420px, 92vw);
-      text-align: center;
-    }
-
-    .logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 3rem;
-      letter-spacing: 3px;
-      line-height: 1;
-      margin-bottom: 0.2rem;
-    }
-
-    .logo span { color: var(--accent); }
-
-    .logo-sub {
-      font-size: 0.75rem;
-      color: var(--muted);
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      margin-bottom: 2.5rem;
-      display: block;
-    }
-
-    #google-btn {
-      width: 100%;
-      background: #fff;
-      color: #333;
-      border: none;
-      border-radius: 10px;
-      padding: 0.9rem 1.2rem;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.95rem;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: opacity 0.15s, transform 0.1s;
-      touch-action: manipulation;
-      min-height: 52px;
-    }
-
-    #google-btn:hover  { opacity: 0.92; transform: translateY(-1px); }
-    #google-btn:active { transform: scale(0.98); }
-
-    #google-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
-
-    .auth-footer {
-      margin-top: 1.5rem;
-      font-size: 0.72rem;
-      color: var(--muted2);
-      line-height: 1.6;
-    }
-
-    #auth-error {
-      color: var(--red);
-      font-size: 0.8rem;
-      margin-top: 1rem;
-      min-height: 1em;
-      font-family: 'DM Mono', monospace;
-    }
-
-    /* ── APP ── */
-    #app { display: none; min-height: 100vh; }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
+    /* APP */
+    #app { display:none; min-height:100vh; }
+    .layout { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
 
     /* SIDEBAR */
-    .sidebar {
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-    }
+    .sidebar { background:var(--surface); border-right:1px solid var(--border); padding:1.5rem; display:flex; flex-direction:column; gap:1.5rem; position:sticky; top:0; height:100vh; overflow-y:auto; }
+    .sidebar-logo { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:2px; }
+    .sidebar-logo span { color:var(--accent); }
+    .user-chip { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.6rem .8rem; }
+    .user-avatar { width:28px; height:28px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:600; color:#000; flex-shrink:0; overflow:hidden; }
+    .user-avatar img { width:100%; height:100%; object-fit:cover; }
+    .user-name { font-size:.78rem; color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #signout-btn { background:transparent; border:none; color:var(--muted); font-size:.7rem; cursor:pointer; font-family:'DM Mono',monospace; padding:2px 4px; flex-shrink:0; }
+    #signout-btn:hover { color:var(--red); }
+    .section-label { font-size:.62rem; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:.6rem; }
 
-    .sidebar-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 2px; }
-    .sidebar-logo span { color: var(--accent); }
+    /* MODE SWITCHER */
+    .mode-switcher { display:flex; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:4px; gap:4px; margin-bottom:1.2rem; }
+    .mode-btn { flex:1; padding:.6rem; border:none; border-radius:7px; font-family:'DM Sans',sans-serif; font-size:.82rem; font-weight:500; cursor:pointer; transition:all .2s; background:transparent; color:var(--muted); touch-action:manipulation; }
+    .mode-btn.active { background:var(--accent); color:#000; }
 
-    .user-chip {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem 0.8rem;
-    }
-
-    .user-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 600; color: #000;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-
-    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .user-name { font-size: 0.78rem; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    #signout-btn {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      font-size: 0.7rem;
-      cursor: pointer;
-      font-family: 'DM Mono', monospace;
-      padding: 2px 4px;
-      flex-shrink: 0;
-    }
-
-    #signout-btn:hover { color: var(--red); }
-
-    .section-label {
-      font-size: 0.62rem;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.6rem;
-    }
-
-    .photo-steps { display: flex; flex-direction: column; gap: 6px; }
-
-    .photo-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 0.6rem 0.8rem;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      transition: all 0.2s;
-    }
-
-    .photo-step .dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      border: 2px solid var(--muted2);
-      flex-shrink: 0;
-      margin-top: 3px;
-      transition: all 0.2s;
-    }
-
-    .photo-step .step-text { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
-
-    .photo-step.active { background: rgba(200,241,53,0.05); border-color: rgba(200,241,53,0.2); }
-    .photo-step.active .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(200,241,53,0.4); }
-    .photo-step.active .step-text { color: var(--accent); font-weight: 500; }
-    .photo-step.done .dot { background: var(--accent2); border-color: var(--accent2); }
-    .photo-step.done .step-text { color: var(--accent2); }
-
-    .sidebar-tip {
-      margin-top: auto;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      font-size: 0.76rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .sidebar-tip strong { color: var(--text); display: block; margin-bottom: 4px; }
+    /* PHOTO STEPS */
+    .photo-steps { display:flex; flex-direction:column; gap:6px; }
+    .photo-step { display:flex; align-items:flex-start; gap:10px; padding:.6rem .8rem; border-radius:8px; border:1px solid transparent; transition:all .2s; }
+    .photo-step .dot { width:10px; height:10px; border-radius:50%; border:2px solid var(--muted2); flex-shrink:0; margin-top:3px; transition:all .2s; }
+    .photo-step .step-text { font-size:.78rem; color:var(--muted); line-height:1.4; }
+    .photo-step.active { background:rgba(200,241,53,0.05); border-color:rgba(200,241,53,0.2); }
+    .photo-step.active .dot { background:var(--accent); border-color:var(--accent); box-shadow:0 0 8px rgba(200,241,53,0.4); }
+    .photo-step.active .step-text { color:var(--accent); font-weight:500; }
+    .photo-step.done .dot { background:var(--accent2); border-color:var(--accent2); }
+    .photo-step.done .step-text { color:var(--accent2); }
+    .sidebar-tip { margin-top:auto; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem; font-size:.76rem; color:var(--muted); line-height:1.6; }
+    .sidebar-tip strong { color:var(--text); display:block; margin-bottom:4px; }
 
     /* MAIN */
-    .main { padding: 2rem 1.5rem; max-width: 660px; }
-
-    .main-header { margin-bottom: 1.5rem; }
-    .main-header h2 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.9rem; letter-spacing: 2px; line-height: 1; margin-bottom: 0.4rem;
-    }
-    .main-header p { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
-
-    /* STATUS BANNER */
-    #status-banner {
-      display: none;
-      background: rgba(200,241,53,0.07);
-      border: 1px solid rgba(200,241,53,0.2);
-      border-radius: 10px;
-      padding: 0.85rem 1.1rem;
-      font-size: 0.85rem;
-      color: var(--accent);
-      margin-bottom: 1.2rem;
-      line-height: 1.5;
-      text-align: center;
-    }
+    .main { padding:2rem 1.5rem; max-width:660px; }
+    .main-header { margin-bottom:1.5rem; }
+    .main-header h2 { font-family:'Bebas Neue',sans-serif; font-size:1.9rem; letter-spacing:2px; line-height:1; margin-bottom:.4rem; }
+    .main-header p { font-size:.85rem; color:var(--muted); line-height:1.6; }
+    #status-banner { display:none; background:rgba(200,241,53,0.07); border:1px solid rgba(200,241,53,0.2); border-radius:10px; padding:.85rem 1.1rem; font-size:.85rem; color:var(--accent); margin-bottom:1.2rem; line-height:1.5; text-align:center; }
 
     /* CAMERA */
-    .camera-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-      margin-bottom: 1.2rem;
-    }
-
-    .camera-wrap {
-      position: relative;
-      aspect-ratio: 4/3;
-      background: #000;
-      overflow: hidden;
-    }
-
-    #camera {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .camera-badge {
-      position: absolute;
-      top: 10px; left: 10px;
-      background: rgba(0,0,0,0.7);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 3px 10px;
-      font-size: 0.7rem;
-      font-family: 'DM Mono', monospace;
-      color: #fff;
-      display: flex; align-items: center; gap: 6px;
-    }
-
-    .rec-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--red);
-      animation: blink 1.2s ease infinite;
-    }
-
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-    .camera-footer {
-      padding: 0.8rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-top: 1px solid var(--border);
-    }
-
-    .camera-footer-left { font-size: 0.82rem; color: var(--muted); }
-    .camera-footer-left strong { color: var(--text); }
-    .camera-footer-right { font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .camera-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
+    .camera-wrap { position:relative; aspect-ratio:4/3; background:#000; overflow:hidden; }
+    #camera { width:100%; height:100%; object-fit:cover; display:block; }
+    .camera-footer { padding:.8rem 1rem; display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); }
+    .camera-footer-left { font-size:.82rem; color:var(--muted); }
+    .camera-footer-left strong { color:var(--text); }
+    .camera-footer-right { font-size:.75rem; color:var(--muted); font-family:'DM Mono',monospace; }
 
     /* BUTTONS */
-    .btn-row { display: flex; gap: 10px; margin-bottom: 1.2rem; }
-
-    .btn {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.9rem;
-      font-weight: 500;
-      padding: 0.8rem 1.5rem;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-      flex: 1;
-      touch-action: manipulation;
-      min-height: 48px;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .btn:hover  { opacity: 0.85; transform: translateY(-1px); }
-    .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-
-    .btn-primary { background: var(--accent); color: #000; }
-    .btn-success { background: var(--accent2); color: #000; }
-    .btn-ghost   { background: var(--card); color: var(--muted); border: 1px solid var(--border); flex: 0; padding: 0.8rem 1.2rem; }
+    .btn-row { display:flex; gap:10px; margin-bottom:1.2rem; }
+    .btn { font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:500; padding:.8rem 1.5rem; border-radius:10px; border:none; cursor:pointer; transition:opacity .15s,transform .1s; flex:1; touch-action:manipulation; min-height:48px; -webkit-tap-highlight-color:transparent; }
+    .btn:hover { opacity:.85; transform:translateY(-1px); }
+    .btn:active { transform:scale(.98); }
+    .btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+    .btn-primary { background:var(--accent); color:#000; }
+    .btn-success { background:var(--accent2); color:#000; }
+    .btn-ghost { background:var(--card); color:var(--muted); border:1px solid var(--border); flex:0; padding:.8rem 1.2rem; }
 
     /* PHOTO GRID */
-    .photos-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 1.2rem;
-    }
+    .photos-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.2rem; }
+    .photo-slot { aspect-ratio:4/3; background:var(--card); border:1px dashed var(--border2); border-radius:10px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; }
+    .photo-slot.taken { border-style:solid; border-color:var(--accent2); }
+    .photo-slot img { width:100%; height:100%; object-fit:cover; display:block; }
+    .photo-slot-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.65); padding:4px 8px; font-size:.68rem; color:#ccc; text-align:center; font-family:'DM Mono',monospace; }
+    .photo-slot-empty { font-size:.75rem; color:var(--muted2); text-align:center; padding:1rem; line-height:1.5; }
 
-    .photo-slot {
-      aspect-ratio: 4/3;
-      background: var(--card);
-      border: 1px dashed var(--border2);
-      border-radius: 10px;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    /* MANUAL MODE — 3D CUBE */
+    #manual-mode { display:none; }
+    #cube-canvas-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1rem; touch-action:none; }
+    #cube-canvas { display:block; width:100%; cursor:grab; }
+    #cube-canvas:active { cursor:grabbing; }
 
-    .photo-slot.taken { border-style: solid; border-color: var(--accent2); }
-    .photo-slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    .photo-slot-label {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: rgba(0,0,0,0.65);
-      padding: 4px 8px;
-      font-size: 0.68rem;
-      color: #ccc;
-      text-align: center;
-      font-family: 'DM Mono', monospace;
-    }
-
-    .photo-slot-empty {
-      font-size: 0.75rem;
-      color: var(--muted2);
-      text-align: center;
-      padding: 1rem;
-      line-height: 1.5;
-    }
-
-    /* COLOUR EDITOR MODAL */
-    #editor-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      background: rgba(0,0,0,0.92);
-      backdrop-filter: blur(8px);
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 1.5rem 1rem 2rem;
-      overflow-y: auto;
-      gap: 1rem;
-    }
-
-    #editor-modal.open { display: flex; }
-
-    .editor-header {
-      width: 100%;
-      max-width: 440px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .editor-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.5rem;
-      letter-spacing: 2px;
-      color: var(--accent);
-    }
-
-    #editor-close {
-      background: var(--card);
-      border: 1px solid var(--border2);
-      color: var(--text);
-      width: 42px; height: 42px;
-      border-radius: 10px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      touch-action: manipulation;
-    }
-
-    .editor-hint {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-align: center;
-      max-width: 380px;
-      line-height: 1.5;
-    }
-
-    .editor-faces { display: flex; flex-direction: column; gap: 1rem; width: 100%; max-width: 440px; }
-
-    .editor-face {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1rem;
-    }
-
-    .editor-face-label {
-      font-size: 0.68rem;
-      color: var(--muted);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 0.7rem;
-    }
-
-    .editor-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-bottom: 0.8rem;
-    }
-
-    .editor-cell {
-      aspect-ratio: 1/1;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 3px solid transparent;
-      transition: transform 0.1s, border-color 0.1s;
-      touch-action: manipulation;
-    }
-
-    .editor-cell:hover  { transform: scale(1.08); }
-    .editor-cell.active { border-color: #fff; transform: scale(1.12); }
-
-    .palette {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .swatch {
-      width: 44px; height: 44px;
-      border-radius: 10px;
-      cursor: pointer;
-      border: 3px solid transparent;
-      transition: transform 0.1s, border-color 0.1s;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.6rem; color: rgba(0,0,0,0.6); font-weight: 600;
-      text-transform: uppercase;
-      touch-action: manipulation;
-    }
-
-    .swatch:hover  { transform: scale(1.1); }
-    .swatch.active { border-color: #fff; transform: scale(1.15); box-shadow: 0 0 10px rgba(255,255,255,0.25); }
-
-    #editor-save {
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: 10px;
-      padding: 0.9rem 2.5rem;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      touch-action: manipulation;
-      min-height: 50px;
-    }
+    /* COLOUR PALETTE for manual mode */
+    .colour-palette { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.2rem; align-items:center; }
+    .colour-palette .palette-label { font-size:.62rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted); width:100%; margin-bottom:2px; }
+    .palette-swatch { width:40px; height:40px; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:transform .1s,border-color .1s; touch-action:manipulation; }
+    .palette-swatch:hover { transform:scale(1.1); }
+    .palette-swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 10px rgba(255,255,255,0.3); }
 
     /* SOLUTION */
-    .solution-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      overflow: hidden;
-      margin-bottom: 1.2rem;
-    }
+    .solution-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-bottom:1.2rem; }
+    .solution-header { padding:.9rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .solution-header h3 { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; letter-spacing:1px; color:var(--accent2); }
+    .move-count { font-family:'DM Mono',monospace; font-size:.75rem; color:var(--muted); }
+    .solution-body { padding:1.1rem; }
+    .move-chip { display:inline-block; background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:4px 10px; font-family:'DM Mono',monospace; font-size:.82rem; color:var(--text); cursor:pointer; margin:3px; transition:background .1s; touch-action:manipulation; }
+    .move-chip:hover { background:var(--border); }
+    .move-chip.active { background:var(--accent); color:#000; border-color:var(--accent); }
+    #explain-panel { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; margin-top:.8rem; font-size:.85rem; line-height:1.6; }
+    #twisty-wrap { background:#111; border-top:1px solid var(--border); }
+    twisty-player { width:100%; height:300px; display:block; }
+    .error-box { background:rgba(255,77,77,0.08); border:1px solid rgba(255,77,77,0.25); border-radius:10px; padding:1rem; font-size:.85rem; color:#ff9090; line-height:1.7; }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,0,0,0.15); border-top-color:#000; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    .solution-header {
-      padding: 0.9rem 1.1rem;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-    }
+    /* COLOUR EDITOR MODAL */
+    #editor-modal { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.92); backdrop-filter:blur(8px); flex-direction:column; align-items:center; justify-content:flex-start; padding:1.5rem 1rem 2rem; overflow-y:auto; gap:1rem; }
+    #editor-modal.open { display:flex; }
+    .editor-header { width:100%; max-width:440px; display:flex; align-items:center; justify-content:space-between; }
+    .editor-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:2px; color:var(--accent); }
+    #editor-close { background:var(--card); border:1px solid var(--border2); color:var(--text); width:42px; height:42px; border-radius:10px; font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+    .editor-hint { font-size:.8rem; color:var(--muted); text-align:center; max-width:380px; line-height:1.5; }
+    .editor-faces { display:flex; flex-direction:column; gap:1rem; width:100%; max-width:440px; }
+    .editor-face { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem; }
+    .editor-face-label { font-size:.68rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:.7rem; }
+    .editor-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:.8rem; }
+    .editor-cell { aspect-ratio:1/1; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:transform .1s,border-color .1s; touch-action:manipulation; }
+    .editor-cell:hover { transform:scale(1.08); }
+    .editor-cell.active { border-color:#fff; transform:scale(1.12); }
+    .palette { display:flex; gap:8px; flex-wrap:wrap; }
+    .swatch { width:44px; height:44px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:transform .1s,border-color .1s; display:flex; align-items:center; justify-content:center; font-size:.6rem; color:rgba(0,0,0,0.6); font-weight:600; text-transform:uppercase; touch-action:manipulation; }
+    .swatch:hover { transform:scale(1.1); }
+    .swatch.active { border-color:#fff; transform:scale(1.15); box-shadow:0 0 10px rgba(255,255,255,0.25); }
+    #editor-save { background:var(--accent); color:#000; border:none; border-radius:10px; padding:.9rem 2.5rem; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:500; cursor:pointer; touch-action:manipulation; min-height:50px; }
 
-    .solution-header h3 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.3rem; letter-spacing: 1px; color: var(--accent2);
-    }
-
-    .move-count { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
-
-    .solution-body { padding: 1.1rem; }
-
-    .move-chip {
-      display: inline-block;
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.82rem;
-      color: var(--text);
-      cursor: pointer;
-      margin: 3px;
-      transition: background 0.1s;
-      touch-action: manipulation;
-    }
-
-    .move-chip:hover { background: var(--border); }
-    .move-chip.active { background: var(--accent); color: #000; border-color: var(--accent); }
-
-    #explain-panel {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      margin-top: 0.8rem;
-      font-size: 0.85rem;
-      line-height: 1.6;
-    }
-
-    #twisty-wrap { background: #111; border-top: 1px solid var(--border); }
-    twisty-player { width: 100%; height: 300px; display: block; }
-
-    .error-box {
-      background: rgba(255,77,77,0.08);
-      border: 1px solid rgba(255,77,77,0.25);
-      border-radius: 10px;
-      padding: 1rem;
-      font-size: 0.85rem;
-      color: #ff9090;
-      line-height: 1.7;
-    }
-
-    /* SPINNER */
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(0,0,0,0.15);
-      border-top-color: #000;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* MOBILE */
-    @media (max-width: 620px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar {
-        position: static;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
-        padding: 1rem;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 0.8rem;
-      }
-      .photo-steps { flex-direction: row; flex-wrap: wrap; }
-      .sidebar-tip { display: none; }
-      .main { padding: 1.2rem 1rem; }
+    @media (max-width:620px) {
+      .layout { grid-template-columns:1fr; }
+      .sidebar { position:static; height:auto; border-right:none; border-bottom:1px solid var(--border); padding:1rem; flex-direction:row; flex-wrap:wrap; gap:.8rem; }
+      .photo-steps { flex-direction:row; flex-wrap:wrap; }
+      .sidebar-tip { display:none; }
+      .main { padding:1.2rem 1rem; }
     }
   </style>
 </head>
 <body>
 
-<!-- ══ AUTH SCREEN ════════════════════════════════════════ -->
+<!-- AUTH -->
 <div id="auth-screen">
   <div class="auth-box">
     <div class="logo">CUBE<span>SOLVE</span></div>
     <span class="logo-sub">4×4 Rubik's Cube Solver</span>
-
-    <button id="google-btn" type="button">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <button id="google-btn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;flex-shrink:0">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
       </svg>
       Sign in with Google
     </button>
-
     <div id="auth-error"></div>
-
-    <div class="auth-footer">
-      Sign in to access CubeSolve.<br>Your data is private and secure.
-    </div>
+    <div class="auth-footer">Sign in to access CubeSolve.<br>Your data is private and secure.</div>
   </div>
 </div>
 
-<!-- ══ APP ════════════════════════════════════════════════ -->
+<!-- APP -->
 <div id="app">
   <div class="layout">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-logo">CUBE<span>SOLVE</span></div>
-
       <div class="user-chip">
         <div class="user-avatar" id="user-avatar"></div>
         <span class="user-name" id="user-name">Loading...</span>
         <button id="signout-btn" onclick="signOut()">out</button>
       </div>
-
       <div>
         <div class="section-label">Progress</div>
         <div class="photo-steps" id="photo-steps">
-          <div class="photo-step active" id="step-0">
-            <div class="dot"></div>
-            <span class="step-text">Photo 1 — Front angle</span>
-          </div>
-          <div class="photo-step" id="step-1">
-            <div class="dot"></div>
-            <span class="step-text">Photo 2 — Back angle</span>
-          </div>
-          <div class="photo-step" id="step-2">
-            <div class="dot"></div>
-            <span class="step-text">Photo 3 — Top angle</span>
-          </div>
-          <div class="photo-step" id="step-3">
-            <div class="dot"></div>
-            <span class="step-text">Photo 4 — Bottom angle</span>
-          </div>
+          <div class="photo-step active" id="step-0"><div class="dot"></div><span class="step-text">Photo 1 — Front corner</span></div>
+          <div class="photo-step" id="step-1"><div class="dot"></div><span class="step-text">Photo 2 — Back corner</span></div>
+          <div class="photo-step" id="step-2"><div class="dot"></div><span class="step-text">Photo 3 — Side face</span></div>
+          <div class="photo-step" id="step-3"><div class="dot"></div><span class="step-text">Photo 4 — Other side</span></div>
         </div>
       </div>
-
       <div class="sidebar-tip">
-        <strong>How to scan</strong>
-        Take 4 photos from different angles so all 6 faces are visible across the photos. Good lighting makes a big difference — avoid shadows and glare.
+        <strong>Camera mode</strong>
+        Photo 1 &amp; 2: opposite corners (each shows 3 faces). Photo 3 &amp; 4: two side faces straight-on.
       </div>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
-      <div class="main-header">
-        <h2 id="main-title">TAKE PHOTO 1</h2>
-        <p id="main-desc">Point your camera at the front of the cube. Make sure at least 3 faces are clearly visible.</p>
+
+      <!-- MODE SWITCHER -->
+      <div class="mode-switcher">
+        <button class="mode-btn active" id="mode-camera-btn" onclick="setMode('camera')">📸 Camera</button>
+        <button class="mode-btn" id="mode-manual-btn" onclick="setMode('manual')">🎲 Manual Input</button>
       </div>
 
       <div id="status-banner"></div>
 
-      <!-- Camera -->
-      <div class="camera-card">
-        <div class="camera-wrap">
-          <video id="camera" autoplay playsinline muted></video>
+      <!-- ── CAMERA MODE ── -->
+      <div id="camera-mode">
+        <div class="main-header">
+          <h2 id="main-title">TAKE PHOTO 1</h2>
+          <p id="main-desc">Point at the front-top corner of the cube so 3 faces are visible.</p>
         </div>
-        <div class="camera-footer">
-          <div class="camera-footer-left">Photo <strong id="shot-num">1</strong> of 4</div>
-          <div class="camera-footer-right" id="cam-status">Ready</div>
+
+        <div class="camera-card">
+          <div class="camera-wrap">
+            <video id="camera" autoplay playsinline muted></video>
+          </div>
+          <div class="camera-footer">
+            <div class="camera-footer-left">Photo <strong id="shot-num">1</strong> of 4</div>
+            <div class="camera-footer-right">Ready</div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="capture-btn" onclick="takePhoto()">📸 &nbsp;Take Photo</button>
+          <button class="btn btn-ghost" id="restart-btn" onclick="doRestart()" style="display:none">↺</button>
+        </div>
+
+        <div class="section-label">Photos Taken</div>
+        <div class="photos-grid">
+          <div class="photo-slot" id="slot-0"><div class="photo-slot-empty">Photo 1<br>not taken</div></div>
+          <div class="photo-slot" id="slot-1"><div class="photo-slot-empty">Photo 2<br>not taken</div></div>
+          <div class="photo-slot" id="slot-2"><div class="photo-slot-empty">Photo 3<br>not taken</div></div>
+          <div class="photo-slot" id="slot-3"><div class="photo-slot-empty">Photo 4<br>not taken</div></div>
+        </div>
+
+        <div class="btn-row" id="action-row" style="display:none">
+          <button class="btn btn-ghost" style="flex:1" onclick="openEditor()">✏️ &nbsp;Fix Colours</button>
+          <button class="btn btn-success" style="flex:2" id="solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
         </div>
       </div>
 
-      <div class="btn-row">
-        <button class="btn btn-primary" id="capture-btn" onclick="takePhoto()">📸 &nbsp;Take Photo</button>
-        <button class="btn btn-ghost" id="restart-btn" onclick="doRestart()" style="display:none">↺</button>
+      <!-- ── MANUAL MODE ── -->
+      <div id="manual-mode">
+        <div class="main-header">
+          <h2>MANUAL INPUT</h2>
+          <p>Drag to rotate the cube. Tap a sticker then pick a colour to paint it. Set all 96 stickers then press Solve.</p>
+        </div>
+
+        <div id="cube-canvas-wrap">
+          <canvas id="cube-canvas" height="360"></canvas>
+        </div>
+
+        <div class="colour-palette">
+          <div class="palette-label">Active colour</div>
+          <div class="palette-swatch active" data-colour="white"  style="background:#f0f0f0" onclick="setPaintColour('white')"></div>
+          <div class="palette-swatch" data-colour="yellow" style="background:#ffd200" onclick="setPaintColour('yellow')"></div>
+          <div class="palette-swatch" data-colour="red"    style="background:#c41e1e" onclick="setPaintColour('red')"></div>
+          <div class="palette-swatch" data-colour="orange" style="background:#ff6400" onclick="setPaintColour('orange')"></div>
+          <div class="palette-swatch" data-colour="blue"   style="background:#0046c8" onclick="setPaintColour('blue')"></div>
+          <div class="palette-swatch" data-colour="green"  style="background:#009b2d" onclick="setPaintColour('green')"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="resetManualCube()">↺ Reset</button>
+          <button class="btn btn-success" id="manual-solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
+        </div>
       </div>
 
-      <!-- 4 photo previews -->
-      <div class="section-label">Photos Taken</div>
-      <div class="photos-grid" id="photos-grid">
-        <div class="photo-slot" id="slot-0"><div class="photo-slot-empty">Photo 1<br>not taken</div></div>
-        <div class="photo-slot" id="slot-1"><div class="photo-slot-empty">Photo 2<br>not taken</div></div>
-        <div class="photo-slot" id="slot-2"><div class="photo-slot-empty">Photo 3<br>not taken</div></div>
-        <div class="photo-slot" id="slot-3"><div class="photo-slot-empty">Photo 4<br>not taken</div></div>
-      </div>
-
-      <!-- Edit + Solve buttons -->
-      <div class="btn-row" id="action-row" style="display:none">
-        <button class="btn btn-ghost" style="flex:1" onclick="openEditor()">✏️ &nbsp;Fix Colours</button>
-        <button class="btn btn-success" style="flex:2" id="solve-btn" onclick="solveCube()">✅ &nbsp;Solve!</button>
-      </div>
-
-      <!-- Solution -->
+      <!-- SOLUTION (shared) -->
       <div id="solution-area" style="display:none">
         <div class="solution-card">
           <div class="solution-header">
@@ -734,7 +306,7 @@
   </div>
 </div>
 
-<!-- ══ COLOUR EDITOR MODAL ════════════════════════════════ -->
+<!-- COLOUR EDITOR MODAL (camera mode fix) -->
 <div id="editor-modal">
   <div class="editor-header">
     <div class="editor-title">FIX COLOURS</div>
@@ -745,16 +317,12 @@
   <button id="editor-save" onclick="saveEditor()">Save &amp; Close</button>
 </div>
 
-<!-- Pass Supabase config from server -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
+<script src="/static/script.js"></script>
 <script>
   window.SUPABASE_URL      = "{{ supabase_url }}";
   window.SUPABASE_ANON_KEY = "{{ supabase_anon_key }}";
 </script>
-
-<!-- Supabase + cubing.js -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script type="module" src="https://cdn.cubing.net/v0/js/cubing/twisty"></script>
-<script src="/static/script.js"></script>
-
 </body>
 </html>
