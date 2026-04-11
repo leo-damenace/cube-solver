@@ -231,18 +231,26 @@ const COLOUR_HEX_THREE = {
 // Face index → which face letter and sticker index
 // We build 6 faces × 16 stickers = 96 sticker planes sitting just outside the cube surface
 // Face order: U(+Y), D(-Y), F(+Z), B(-Z), R(+X), L(-X)
-// FACE_CONFIG: for each face, 'right' = direction of increasing column (left->right)
-// 'up' = direction of decreasing row (top->bottom means we go in -up direction)
-// These match the solver's expected reading order: left-to-right, top-to-bottom
-// when looking at the face from outside.
 const FACE_CONFIG = [
-  { face:"U", normal:[0,1,0],  right:[1,0,0],   up:[0,0,-1] }, // top: right=+X, top-row=-Z
-  { face:"R", normal:[1,0,0],  right:[0,0,-1],  up:[0,1,0]  }, // right: right=-Z, top-row=+Y
-  { face:"F", normal:[0,0,1],  right:[1,0,0],   up:[0,1,0]  }, // front: right=+X, top-row=+Y
-  { face:"D", normal:[0,-1,0], right:[1,0,0],   up:[0,0,1]  }, // bottom: right=+X, top-row=+Z
-  { face:"L", normal:[-1,0,0], right:[0,0,1],   up:[0,1,0]  }, // left: right=+Z, top-row=+Y
-  { face:"B", normal:[0,0,-1], right:[-1,0,0],  up:[0,1,0]  }, // back: right=-X, top-row=+Y
+  { face:"U", normal:[0,1,0],  right:[1,0,0],  up:[0,0,-1] },
+  { face:"D", normal:[0,-1,0], right:[1,0,0],  up:[0,0,1]  },
+  { face:"F", normal:[0,0,1],  right:[1,0,0],  up:[0,1,0]  },
+  { face:"B", normal:[0,0,-1], right:[-1,0,0], up:[0,1,0]  },
+  { face:"R", normal:[1,0,0],  right:[0,0,-1], up:[0,1,0]  },
+  { face:"L", normal:[-1,0,0], right:[0,0,1],  up:[0,1,0]  },
 ];
+
+// Index remaps: visual sticker index -> solver expected index
+// U face is correct as-is (right=[1,0,0] up=[0,0,-1] means row0=back, correct)
+// All other faces have up=[0,1,0] so row0 is at the bottom visually — flip rows
+const FACE_REMAP = {
+  U: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+  D: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+  F: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+  B: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+  R: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+  L: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+};
 
 function initThreeJS() {
   const wrap   = document.getElementById("threejs-wrap");
@@ -346,8 +354,8 @@ function buildStickers() {
       for (let col = 0; col < 4; col++) {
         const idx = row * 4 + col;
         // u = column offset (left to right), v = row offset (top to bottom)
-        const u = -1.5 + col;       // col 0=-1.5, col 3=+1.5
-        const v = -(- 1.5 + row);   // row 0=+1.5 (top), row 3=-1.5 (bottom)
+        const u = -1.5 + col;   // col 0=-1.5, col 3=+1.5
+        const v = 1.5 - row;    // row 0=+1.5 (top), row 3=-1.5 (bottom)
 
         const geo = new THREE.PlaneGeometry(stickerSize, stickerSize);
         const colour = manualCubeState[fc.face][idx] || "none";
@@ -364,13 +372,13 @@ function buildStickers() {
           nz*offset + rz*u + uz*v
         );
 
-        // Orient the plane to face outward along the face normal
-        const normal = new THREE.Vector3(nx, ny, nz);
-        const up = new THREE.Vector3(ux, uy, uz);
-        const m = new THREE.Matrix4();
-        const right3 = new THREE.Vector3().crossVectors(up, normal).negate();
-        m.makeBasis(right3, up, normal);
-        mesh.setRotationFromMatrix(m);
+        // Orient plane to face outward using simple axis rotations
+        if (nx===0 && ny===1  && nz===0)  mesh.rotation.x = -Math.PI/2;
+        else if (nx===0 && ny===-1 && nz===0)  mesh.rotation.x =  Math.PI/2;
+        else if (nx===0 && ny===0  && nz===1)  { /* default faces +Z */ }
+        else if (nx===0 && ny===0  && nz===-1) mesh.rotation.y =  Math.PI;
+        else if (nx===1 && ny===0  && nz===0)  mesh.rotation.y =  Math.PI/2;
+        else if (nx===-1&& ny===0  && nz===0)  mesh.rotation.y = -Math.PI/2;
 
         mesh.userData = { face: fc.face, idx };
         cubeGroup.add(mesh);
@@ -498,7 +506,9 @@ async function solveCube() {
       showSolveError(`Face ${letter} is incomplete.`);
       btn.innerHTML="✅ Solve!"; btn.disabled=false; return;
     }
-    for (const c of face) {
+    const remap = FACE_REMAP[letter] || face.map((_,i)=>i);
+    for (let i = 0; i < 16; i++) {
+      const c = face[remap[i]];
       const mapped = COLOR_TO_FACE[c];
       if (!mapped) {
         showSolveError(`Unknown colour "${c}" on face ${letter}.`);
