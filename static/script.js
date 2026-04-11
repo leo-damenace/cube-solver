@@ -231,13 +231,17 @@ const COLOUR_HEX_THREE = {
 // Face index → which face letter and sticker index
 // We build 6 faces × 16 stickers = 96 sticker planes sitting just outside the cube surface
 // Face order: U(+Y), D(-Y), F(+Z), B(-Z), R(+X), L(-X)
+// FACE_CONFIG: for each face, 'right' = direction of increasing column (left->right)
+// 'up' = direction of decreasing row (top->bottom means we go in -up direction)
+// These match the solver's expected reading order: left-to-right, top-to-bottom
+// when looking at the face from outside.
 const FACE_CONFIG = [
-  { face:"U", normal:[0,1,0],  right:[1,0,0],  up:[0,0,-1] },
-  { face:"D", normal:[0,-1,0], right:[1,0,0],  up:[0,0,1]  },
-  { face:"F", normal:[0,0,1],  right:[1,0,0],  up:[0,1,0]  },
-  { face:"B", normal:[0,0,-1], right:[-1,0,0], up:[0,1,0]  },
-  { face:"R", normal:[1,0,0],  right:[0,0,-1], up:[0,1,0]  },
-  { face:"L", normal:[-1,0,0], right:[0,0,1],  up:[0,1,0]  },
+  { face:"U", normal:[0,1,0],  right:[1,0,0],   up:[0,0,-1] }, // top: right=+X, top-row=-Z
+  { face:"R", normal:[1,0,0],  right:[0,0,-1],  up:[0,1,0]  }, // right: right=-Z, top-row=+Y
+  { face:"F", normal:[0,0,1],  right:[1,0,0],   up:[0,1,0]  }, // front: right=+X, top-row=+Y
+  { face:"D", normal:[0,-1,0], right:[1,0,0],   up:[0,0,1]  }, // bottom: right=+X, top-row=+Z
+  { face:"L", normal:[-1,0,0], right:[0,0,1],   up:[0,1,0]  }, // left: right=+Z, top-row=+Y
+  { face:"B", normal:[0,0,-1], right:[-1,0,0],  up:[0,1,0]  }, // back: right=-X, top-row=+Y
 ];
 
 function initThreeJS() {
@@ -341,9 +345,9 @@ function buildStickers() {
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
         const idx = row * 4 + col;
-        // Position in face-local coords (-1.5, -0.5, 0.5, 1.5 steps)
-        const u = -1.5 + col;
-        const v = 1.5 - row;
+        // u = column offset (left to right), v = row offset (top to bottom)
+        const u = -1.5 + col;       // col 0=-1.5, col 3=+1.5
+        const v = -(- 1.5 + row);   // row 0=+1.5 (top), row 3=-1.5 (bottom)
 
         const geo = new THREE.PlaneGeometry(stickerSize, stickerSize);
         const colour = manualCubeState[fc.face][idx] || "none";
@@ -353,20 +357,20 @@ function buildStickers() {
         });
         const mesh = new THREE.Mesh(geo, mat);
 
-        // Position: face centre + right*u + up*v
+        // Position: face normal offset + right*u + up*v
         mesh.position.set(
           nx*offset + rx*u + ux*v,
           ny*offset + ry*u + uy*v,
           nz*offset + rz*u + uz*v
         );
 
-        // Orient plane to face outward
-        if (nx===0 && ny===1 && nz===0) mesh.rotation.x = -Math.PI/2;
-        else if (nx===0 && ny===-1 && nz===0) mesh.rotation.x = Math.PI/2;
-        else if (nx===0 && ny===0 && nz===1) { /* default, faces +Z */ }
-        else if (nx===0 && ny===0 && nz===-1) mesh.rotation.y = Math.PI;
-        else if (nx===1 && ny===0 && nz===0) mesh.rotation.y = Math.PI/2;
-        else if (nx===-1 && ny===0 && nz===0) mesh.rotation.y = -Math.PI/2;
+        // Orient the plane to face outward along the face normal
+        const normal = new THREE.Vector3(nx, ny, nz);
+        const up = new THREE.Vector3(ux, uy, uz);
+        const m = new THREE.Matrix4();
+        const right3 = new THREE.Vector3().crossVectors(up, normal).negate();
+        m.makeBasis(right3, up, normal);
+        mesh.setRotationFromMatrix(m);
 
         mesh.userData = { face: fc.face, idx };
         cubeGroup.add(mesh);
