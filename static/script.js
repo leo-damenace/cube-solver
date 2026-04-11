@@ -233,23 +233,22 @@ const COLOUR_HEX_THREE = {
 // Face order: U(+Y), D(-Y), F(+Z), B(-Z), R(+X), L(-X)
 const FACE_CONFIG = [
   { face:"U", normal:[0,1,0],  right:[1,0,0],  up:[0,0,-1] },
-  { face:"D", normal:[0,-1,0], right:[1,0,0],  up:[0,0,1]  },
-  { face:"F", normal:[0,0,1],  right:[1,0,0],  up:[0,1,0]  },
-  { face:"B", normal:[0,0,-1], right:[-1,0,0], up:[0,1,0]  },
   { face:"R", normal:[1,0,0],  right:[0,0,-1], up:[0,1,0]  },
+  { face:"F", normal:[0,0,1],  right:[1,0,0],  up:[0,1,0]  },
+  { face:"D", normal:[0,-1,0], right:[1,0,0],  up:[0,0,1]  },
   { face:"L", normal:[-1,0,0], right:[0,0,1],  up:[0,1,0]  },
+  { face:"B", normal:[0,0,-1], right:[-1,0,0], up:[0,1,0]  },
 ];
 
 // Index remaps: visual sticker index -> solver expected index
-// U face is correct as-is (right=[1,0,0] up=[0,0,-1] means row0=back, correct)
-// All other faces have up=[0,1,0] so row0 is at the bottom visually — flip rows
+// U face correct as-is. R,F,D,L,B all have row0 at bottom visually -> flip rows.
 const FACE_REMAP = {
-  U: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
-  D: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
-  F: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
-  B: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
-  R: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
-  L: [12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3],
+  U: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+  R: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
+  F: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
+  D: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
+  L: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
+  B: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
 };
 
 function initThreeJS() {
