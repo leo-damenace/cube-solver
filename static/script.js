@@ -351,10 +351,13 @@ function buildStickers() {
 
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
-        const idx = row * 4 + col;
-        // u = column offset (left to right), v = row offset (top to bottom)
-        const u = -1.5 + col;   // col 0=-1.5, col 3=+1.5
-        const v = 1.5 - row;    // row 0=+1.5 (top), row 3=-1.5 (bottom)
+        // For solver: idx must be row-major left-to-right top-to-bottom
+        // U face up=[0,0,-1]: row 0 is already at top (far edge) - correct
+        // All others up=[0,1,0]: row 0 is at bottom visually, so flip
+        const solverRow = (fc.up[1] === 1 || fc.up[2] === 1) ? (3 - row) : row;
+        const idx = solverRow * 4 + col;
+        const u = -1.5 + col;
+        const v = 1.5 - row;
 
         const geo = new THREE.PlaneGeometry(stickerSize, stickerSize);
         const colour = manualCubeState[fc.face][idx] || "none";
@@ -505,9 +508,7 @@ async function solveCube() {
       showSolveError(`Face ${letter} is incomplete.`);
       btn.innerHTML="✅ Solve!"; btn.disabled=false; return;
     }
-    const remap = FACE_REMAP[letter] || face.map((_,i)=>i);
-    for (let i = 0; i < 16; i++) {
-      const c = face[remap[i]];
+    for (const c of face) {
       const mapped = COLOR_TO_FACE[c];
       if (!mapped) {
         showSolveError(`Unknown colour "${c}" on face ${letter}.`);
