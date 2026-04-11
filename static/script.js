@@ -7,7 +7,7 @@ const COLOURS = {
   yellow: { hex: "#ffd200", label: "Yellow" },
   red:    { hex: "#c41e1e", label: "Red"    },
   orange: { hex: "#ff6400", label: "Orange" },
-  blue:   { hex: "#0046c8", label: "Blue"   }, 
+  blue:   { hex: "#0046c8", label: "Blue"   },
   green:  { hex: "#009b2d", label: "Green"  },
 };
 const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
@@ -275,7 +275,13 @@ function initThreeJS() {
   // Build sticker meshes
   initManualCubeState();
   buildStickers();
-  updateCamera();
+  // Fixed camera position — we rotate the cube group instead
+  threeCamera.position.set(0, 0, 7);
+  threeCamera.lookAt(0, 0, 0);
+
+  // Start with a slight rotation so user sees 3 faces
+  cubeGroup.rotation.x = 0.4;
+  cubeGroup.rotation.y = 0.6;
 
   // Events
   wrap.addEventListener("mousedown",  onPointerDown);
@@ -407,10 +413,9 @@ function onPointerMove(e) {
   const dx = e.clientX - prevMouse.x;
   const dy = e.clientY - prevMouse.y;
   if (Math.abs(e.clientX - dragStartPos.x) > 4 || Math.abs(e.clientY - dragStartPos.y) > 4) hasDragged = true;
-  spherical.theta -= dx * 0.008;
-  spherical.phi   = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi + dy * 0.008));
+  cubeGroup.rotation.y += dx * 0.012;
+  cubeGroup.rotation.x += dy * 0.012;
   prevMouse = {x: e.clientX, y: e.clientY};
-  updateCamera();
 }
 
 function onPointerUp() { isDragging = false; }
@@ -449,10 +454,9 @@ function onTouchMove(e) {
   const dx = t.clientX - prevMouse.x;
   const dy = t.clientY - prevMouse.y;
   if (Math.abs(t.clientX - dragStartPos.x) > 4 || Math.abs(t.clientY - dragStartPos.y) > 4) hasDragged = true;
-  spherical.theta -= dx * 0.008;
-  spherical.phi   = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi + dy * 0.008));
+  cubeGroup.rotation.y += dx * 0.012;
+  cubeGroup.rotation.x += dy * 0.012;
   prevMouse = {x: t.clientX, y: t.clientY};
-  updateCamera();
 }
 
 function onTouchEnd(e) {
