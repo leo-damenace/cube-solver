@@ -2,174 +2,145 @@
 //  CubeSolve — script.js
 // ═══════════════════════════════════════════════════════
 
-const COLOURS = {
-  white:  { hex: "#f0f0f0", label: "White"  },
-  yellow: { hex: "#ffd200", label: "Yellow" },
-  red:    { hex: "#c41e1e", label: "Red"    },
-  orange: { hex: "#ff6400", label: "Orange" },
-  blue:   { hex: "#0046c8", label: "Blue"   },
-  green:  { hex: "#009b2d", label: "Green"  },
-};
-const COLOUR_NAMES = ["white","yellow","red","orange","blue","green"];
-let COLOR_TO_FACE  = { white:"U", yellow:"D", green:"F", blue:"B", red:"R", orange:"L" };
-const CUBING_ORDER = ["U","R","F","D","L","B"];
-const FACE_LABELS  = { U:"Top", D:"Bottom", F:"Front", B:"Back", L:"Left", R:"Right" };
-
-const MOVE_EXP = {
-  "U":{n:"U — Top CW",w:"Rotate top layer 90° clockwise.",y:"Moves top layer pieces."},
-  "U'":{n:"U' — Top CCW",w:"Rotate top layer 90° counter-clockwise.",y:"Undoes U."},
-  "U2":{n:"U2 — Top 180°",w:"Rotate top layer 180°.",y:"Swaps opposite top pieces."},
-  "D":{n:"D — Bottom CW",w:"Rotate bottom layer 90° clockwise.",y:"Moves bottom pieces."},
-  "D'":{n:"D' — Bottom CCW",w:"Rotate bottom layer 90° counter-clockwise.",y:"Undoes D."},
-  "D2":{n:"D2 — Bottom 180°",w:"Rotate bottom layer 180°.",y:"Swaps bottom pieces."},
-  "R":{n:"R — Right CW",w:"Rotate right face 90° clockwise.",y:"Shifts right column."},
-  "R'":{n:"R' — Right CCW",w:"Rotate right face 90° counter-clockwise.",y:"Undoes R."},
-  "R2":{n:"R2 — Right 180°",w:"Rotate right face 180°.",y:"Swaps right pieces."},
-  "L":{n:"L — Left CW",w:"Rotate left face 90° clockwise.",y:"Mirrors R on left."},
-  "L'":{n:"L' — Left CCW",w:"Rotate left face 90° counter-clockwise.",y:"Undoes L."},
-  "L2":{n:"L2 — Left 180°",w:"Rotate left face 180°.",y:"Swaps left pieces."},
-  "F":{n:"F — Front CW",w:"Rotate front face 90° clockwise.",y:"Moves front pieces."},
-  "F'":{n:"F' — Front CCW",w:"Rotate front face 90° counter-clockwise.",y:"Undoes F."},
-  "F2":{n:"F2 — Front 180°",w:"Rotate front face 180°.",y:"Swaps front pieces."},
-  "B":{n:"B — Back CW",w:"Rotate back face 90° clockwise.",y:"Like F on back."},
-  "B'":{n:"B' — Back CCW",w:"Rotate back face 90° counter-clockwise.",y:"Undoes B."},
-  "B2":{n:"B2 — Back 180°",w:"Rotate back face 180°.",y:"Swaps back pieces."},
-  "Uw":{n:"Uw — Wide Top CW",w:"Rotate top 2 layers 90° CW.",y:"4x4 wide move."},
-  "Uw'":{n:"Uw' — Wide Top CCW",w:"Rotate top 2 layers CCW.",y:"Undoes Uw."},
-  "Uw2":{n:"Uw2 — Wide Top 180°",w:"Rotate top 2 layers 180°.",y:"4x4 wide move."},
-  "Dw":{n:"Dw — Wide Bot CW",w:"Rotate bottom 2 layers 90° CW.",y:"4x4 wide move."},
-  "Dw'":{n:"Dw' — Wide Bot CCW",w:"Rotate bottom 2 layers CCW.",y:"Undoes Dw."},
-  "Dw2":{n:"Dw2 — Wide Bot 180°",w:"Rotate bottom 2 layers 180°.",y:"4x4 wide move."},
-  "Rw":{n:"Rw — Wide R CW",w:"Rotate right 2 layers 90° CW.",y:"4x4 wide move."},
-  "Rw'":{n:"Rw' — Wide R CCW",w:"Rotate right 2 layers CCW.",y:"Undoes Rw."},
-  "Rw2":{n:"Rw2 — Wide R 180°",w:"Rotate right 2 layers 180°.",y:"4x4 wide move."},
-  "Lw":{n:"Lw — Wide L CW",w:"Rotate left 2 layers 90° CW.",y:"4x4 wide move."},
-  "Lw'":{n:"Lw' — Wide L CCW",w:"Rotate left 2 layers CCW.",y:"Undoes Lw."},
-  "Lw2":{n:"Lw2 — Wide L 180°",w:"Rotate left 2 layers 180°.",y:"4x4 wide move."},
-  "Fw":{n:"Fw — Wide F CW",w:"Rotate front 2 layers 90° CW.",y:"4x4 wide move."},
-  "Fw'":{n:"Fw' — Wide F CCW",w:"Rotate front 2 layers CCW.",y:"Undoes Fw."},
-  "Fw2":{n:"Fw2 — Wide F 180°",w:"Rotate front 2 layers 180°.",y:"4x4 wide move."},
-  "Bw":{n:"Bw — Wide B CW",w:"Rotate back 2 layers 90° CW.",y:"4x4 wide move."},
-  "Bw'":{n:"Bw' — Wide B CCW",w:"Rotate back 2 layers CCW.",y:"Undoes Bw."},
-  "Bw2":{n:"Bw2 — Wide B 180°",w:"Rotate back 2 layers 180°.",y:"4x4 wide move."},
-};
-function explainMove(m) { return MOVE_EXP[m]||{n:m,w:"Perform the "+m+" move.",y:"Part of the solve."}; }
-
 // ── STATE ─────────────────────────────────────────────────
 let supabaseClient = null;
 let currentUser    = null;
 let photosTaken    = [];
-let faceColors     = {};
+let currentMoves   = [];
+let currentFaceDesc = "";
 let isAnalysing    = false;
-let activePaint    = COLOUR_NAMES[0];
-let currentMode    = "camera";
 
-// ── INIT ──────────────────────────────────────────────────
+// ── INIT SUPABASE ─────────────────────────────────────────
 window.addEventListener("load", () => {
-  supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-  supabaseClient.auth.getSession().then(({ data }) => { if (data.session) showApp(data.session.user); });
-  supabaseClient.auth.onAuthStateChange((_e, session) => { if (session) showApp(session.user); else showAuth(); });
+  supabaseClient = window.supabase.createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_ANON_KEY
+  );
+  supabaseClient.auth.getSession().then(({ data }) => {
+    if (data.session) showApp(data.session.user);
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    if (session) showApp(session.user);
+    else         showAuth();
+  });
 });
 
+// ── AUTH ──────────────────────────────────────────────────
 document.getElementById("google-btn").onclick = async () => {
   const btn = document.getElementById("google-btn");
-  btn.disabled = true; btn.textContent = "Signing in...";
-  const { error } = await supabaseClient.auth.signInWithOAuth({ provider:"google", options:{redirectTo:window.location.origin} });
-  if (error) { document.getElementById("auth-error").textContent = error.message; btn.disabled=false; btn.textContent="Sign in with Google"; }
+  btn.disabled    = true;
+  btn.textContent = "Signing in...";
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options:  { redirectTo: window.location.origin }
+  });
+  if (error) {
+    document.getElementById("auth-error").textContent = error.message;
+    btn.disabled  = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Sign in with Google`;
+  }
 };
 
-async function signOut() { await supabaseClient.auth.signOut(); showAuth(); doRestart(); }
+async function signOut() {
+  await supabaseClient.auth.signOut();
+  showAuth();
+  doRestart();
+}
 
-function showAuth() { document.getElementById("auth-screen").style.display="flex"; document.getElementById("app").style.display="none"; currentUser=null; }
+function showAuth() {
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("app").style.display         = "none";
+  currentUser = null;
+}
 
 function showApp(user) {
   currentUser = user;
-  document.getElementById("auth-screen").style.display="none";
-  document.getElementById("app").style.display="block";
-  const name = user.user_metadata?.full_name || user.email || "User";
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app").style.display         = "block";
+  const name   = user.user_metadata?.full_name || user.email || "User";
   const avatar = user.user_metadata?.avatar_url;
   document.getElementById("user-name").textContent = name;
   const avatarEl = document.getElementById("user-avatar");
   if (avatar) avatarEl.innerHTML = `<img src="${avatar}" alt="${name}"/>`;
-  else avatarEl.textContent = name.charAt(0).toUpperCase();
+  else        avatarEl.textContent = name.charAt(0).toUpperCase();
   startCamera();
-  initThreeJS();
-}
-
-// ── MODE SWITCHER ─────────────────────────────────────────
-function setMode(mode) {
-  currentMode = mode;
-  document.getElementById("camera-mode").style.display = mode==="camera" ? "block" : "none";
-  document.getElementById("manual-mode").style.display  = mode==="manual" ? "block" : "none";
-  document.getElementById("mode-camera-btn").classList.toggle("active", mode==="camera");
-  document.getElementById("mode-manual-btn").classList.toggle("active",  mode==="manual");
-  document.getElementById("solution-area").style.display = "none";
-  document.getElementById("status-banner").style.display = "none";
-  if (mode === "manual") {
-    document.getElementById("tip-title").textContent = "Manual mode";
-    document.getElementById("tip-body").textContent  = "Drag to rotate. Tap a sticker then pick a colour. Set all 96 stickers then press Solve.";
-    // Resize renderer when tab becomes visible
-    setTimeout(() => { if (threeRenderer) resizeRenderer(); }, 50);
-  } else {
-    document.getElementById("tip-title").textContent = "Camera mode";
-    document.getElementById("tip-body").innerHTML    = "Photo 1 &amp; 2: opposite corners. Photo 3 &amp; 4: two side faces straight-on.";
-  }
 }
 
 // ── CAMERA ────────────────────────────────────────────────
 async function startCamera() {
   const video = document.getElementById("camera");
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:"environment"} });
-    video.srcObject = stream; video.play();
-  } catch (err) { showBanner("Camera error: "+err.message, "error"); }
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+    video.play();
+  } catch (err) {
+    showBanner("Camera error: " + err.message, "error");
+  }
 }
 
+// ── TAKE PHOTO ────────────────────────────────────────────
 function takePhoto() {
   if (isAnalysing) return;
   const video = document.getElementById("camera");
   const count = photosTaken.length;
   if (count >= 4) return;
-  const snap = document.createElement("canvas");
-  const maxW = 800, scale = Math.min(1, maxW/(video.videoWidth||1280));
-  snap.width  = Math.floor((video.videoWidth||1280)*scale);
-  snap.height = Math.floor((video.videoHeight||720)*scale);
+
+  const snap  = document.createElement("canvas");
+  const maxW  = 800;
+  const scale = Math.min(1, maxW / (video.videoWidth || 1280));
+  snap.width  = Math.floor((video.videoWidth  || 1280) * scale);
+  snap.height = Math.floor((video.videoHeight || 720)  * scale);
   snap.getContext("2d").drawImage(video, 0, 0, snap.width, snap.height);
-  const b64 = snap.toDataURL("image/jpeg",0.82).split(",")[1];
+  const b64 = snap.toDataURL("image/jpeg", 0.82).split(",")[1];
+
   photosTaken.push(b64);
+
   const slot = document.getElementById(`slot-${count}`);
   slot.innerHTML = `<img src="data:image/jpeg;base64,${b64}"/><div class="photo-slot-label">Photo ${count+1}</div>`;
   slot.classList.add("taken");
   markStep(count, "done");
-  const descs = [
-    "Now rotate to the OPPOSITE corner and take Photo 2.",
-    "Now point straight at one SIDE face (not top or bottom) for Photo 3.",
-    "Now point at the other SIDE face for Photo 4."
-  ];
+
   if (photosTaken.length < 4) {
     markStep(photosTaken.length, "active");
-    document.getElementById("shot-num").textContent = photosTaken.length+1;
-    document.getElementById("main-title").textContent = `TAKE PHOTO ${photosTaken.length+1}`;
-    document.getElementById("main-desc").textContent = descs[photosTaken.length-1]||"";
-    showBanner(`✅ Photo ${count+1} saved! ${4-photosTaken.length} more to go.`);
+    document.getElementById("shot-num").textContent   = photosTaken.length + 1;
+    document.getElementById("main-title").textContent = `TAKE PHOTO ${photosTaken.length + 1}`;
+    const descs = [
+      "Point at the front of the cube so at least 3 faces are visible.",
+      "Rotate and show the back — capture the other faces.",
+      "Tilt to show the top face clearly.",
+      "Flip to show the bottom face."
+    ];
+    document.getElementById("main-desc").textContent = descs[photosTaken.length] || "";
+    showBanner(`✅ Photo ${count+1} saved! ${4 - photosTaken.length} more to go.`);
   } else {
     document.getElementById("capture-btn").style.display = "none";
     document.getElementById("restart-btn").style.display = "block";
-    document.getElementById("main-title").textContent = "ANALYSING...";
-    document.getElementById("main-desc").textContent  = "Gemini is reading all 6 faces...";
+    document.getElementById("main-title").textContent    = "SOLVING...";
+    document.getElementById("main-desc").textContent     = "Gemini is reading your cube and calculating the solution.";
     analysePhotos();
   }
 }
 
-// ── GEMINI ────────────────────────────────────────────────
+// ── SEND TO GEMINI ────────────────────────────────────────
 async function analysePhotos() {
   isAnalysing = true;
-  showBanner("🤖 Sending to Gemini...");
+  showBanner("🤖 Gemini is reading and solving your cube...");
+
+  const controller = new AbortController();
+  const timeout    = setTimeout(() => controller.abort(), 180000);
+
   try {
-    const res  = await fetch("/analyze", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({images:photosTaken}) });
+    const res = await fetch("/analyze", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ images: photosTaken }),
+      signal:  controller.signal
+    });
+    clearTimeout(timeout);
     const data = await res.json();
+
     if (!data.ok) {
-      showBanner("⚠️ "+data.error, "error");
+      showBanner("⚠️ " + data.error, "error");
       isAnalysing = false;
       document.getElementById("capture-btn").style.display = "block";
       document.getElementById("capture-btn").textContent   = "📸 Retake Last Photo";
@@ -180,493 +151,131 @@ async function analysePhotos() {
         slot.classList.remove("taken");
         markStep(photosTaken.length, "active");
         document.getElementById("capture-btn").textContent = "📸 Take Photo";
-        document.getElementById("capture-btn").onclick = takePhoto;
-        document.getElementById("main-title").textContent = `TAKE PHOTO ${photosTaken.length+1}`;
+        document.getElementById("capture-btn").onclick     = takePhoto;
+        document.getElementById("main-title").textContent  = `TAKE PHOTO ${photosTaken.length+1}`;
       };
       return;
     }
-    faceColors = {};
-    for (const [face, colours] of Object.entries(data.faces)) {
-      faceColors[face] = colours.map(c=>c.toLowerCase().trim());
-    }
-    if (data.orientation) {
-      COLOR_TO_FACE = {};
-      for (const [face, colour] of Object.entries(data.orientation)) {
-        COLOR_TO_FACE[colour.toLowerCase().trim()] = face;
-      }
-    }
-    isAnalysing = false;
+
+    isAnalysing      = false;
+    currentMoves     = data.solution.trim().split(/\s+/).filter(Boolean);
+    currentFaceDesc  = data.face_desc || "";
+
     markStep(3, "done");
-    document.getElementById("main-title").textContent = "ALL FACES SCANNED";
-    document.getElementById("main-desc").textContent  = "Check colours look right then press Solve.";
-    const counts = {};
-    for (const face of CUBING_ORDER) for (const c of (faceColors[face]||[])) counts[c]=(counts[c]||0)+1;
-    const wrong = Object.entries(counts).filter(([,n])=>n!==16);
-    if (wrong.length) showBanner("⚠️ Colour counts off: "+wrong.map(([c,n])=>`${c}=${n}`).join(", ")+" — fix before solving.", "error");
-    else showBanner("✅ All 6 colours read correctly. Press Solve!");
-    document.getElementById("action-row").style.display = "flex";
+    document.getElementById("main-title").textContent = "SOLUTION READY";
+    document.getElementById("main-desc").textContent  = "Follow the moves below on the 3D cube. If the solution is wrong, tap Report.";
+    showBanner(`✅ Solution found — ${currentMoves.length} moves!`);
+
+    showSolution();
+
   } catch (err) {
-    showBanner("⚠️ "+err.message, "error");
+    clearTimeout(timeout);
+    showBanner("⚠️ " + (err.name === "AbortError" ? "Request timed out." : err.message), "error");
     isAnalysing = false;
     document.getElementById("capture-btn").style.display = "block";
   }
 }
 
-// ══════════════════════════════════════════════════════════
-//  THREE.JS 3D CUBE
-// ══════════════════════════════════════════════════════════
+// ── SHOW SOLUTION ─────────────────────────────────────────
+function showSolution() {
+  const algStr = currentMoves.join(" ");
 
-let threeScene, threeCamera, threeRenderer, threeRaycaster, threeMouse;
-let cubeGroup, stickerMeshes = [];
-let manualCubeState = {};
-let manualPaintColour = "white";
-let isDragging = false, prevMouse = {x:0,y:0};
-let spherical = {theta: 0.6, phi: 1.0, radius: 7};
+  document.getElementById("move-count").textContent = currentMoves.length + " moves";
 
-const COLOUR_HEX_THREE = {
-  white:"#f0f0f0", yellow:"#ffd200", red:"#c41e1e",
-  orange:"#ff6400", blue:"#0046c8", green:"#009b2d", none:"#1a1a1a"
-};
+  // Render move chips
+  const wrap = document.getElementById("moves-wrap");
+  wrap.innerHTML = "";
 
-// Face index → which face letter and sticker index
-// We build 6 faces × 16 stickers = 96 sticker planes sitting just outside the cube surface
-// Face order: U(+Y), D(-Y), F(+Z), B(-Z), R(+X), L(-X)
-const FACE_CONFIG = [
-  { face:"U", normal:[0,1,0],  right:[1,0,0],  up:[0,0,-1] },
-  { face:"R", normal:[1,0,0],  right:[0,0,-1], up:[0,1,0]  },
-  { face:"F", normal:[0,0,1],  right:[1,0,0],  up:[0,1,0]  },
-  { face:"D", normal:[0,-1,0], right:[1,0,0],  up:[0,0,1]  },
-  { face:"L", normal:[-1,0,0], right:[0,0,1],  up:[0,1,0]  },
-  { face:"B", normal:[0,0,-1], right:[-1,0,0], up:[0,1,0]  },
-];
-
-// Index remaps: visual sticker index -> solver expected index
-// U face correct as-is. R,F,D,L,B all have row0 at bottom visually -> flip rows.
-const FACE_REMAP = {
-  U: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-  R: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
-  F: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
-  D: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
-  L: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
-  B: [12, 13, 14, 15, 8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3],
-};
-
-function initThreeJS() {
-  const wrap   = document.getElementById("threejs-wrap");
-  const canvas = document.getElementById("threejs-canvas");
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-
-  threeScene    = new THREE.Scene();
-  threeScene.background = new THREE.Color(0x111111);
-  threeCamera   = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
-  threeRenderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-  threeRenderer.setPixelRatio(window.devicePixelRatio);
-  threeRenderer.setSize(W, H);
-  threeRaycaster = new THREE.Raycaster();
-  threeMouse = new THREE.Vector2();
-
-  // Lighting
-  threeScene.add(new THREE.AmbientLight(0xffffff, 0.7));
-  const dir = new THREE.DirectionalLight(0xffffff, 0.5);
-  dir.position.set(5, 8, 6);
-  threeScene.add(dir);
-  const dir2 = new THREE.DirectionalLight(0xffffff, 0.3);
-  dir2.position.set(-5, -3, -4);
-  threeScene.add(dir2);
-
-  // Build cube group
-  cubeGroup = new THREE.Group();
-  threeScene.add(cubeGroup);
-
-  // Solid black cube base
-  const baseGeo = new THREE.BoxGeometry(4, 4, 4);
-  const baseMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-  cubeGroup.add(new THREE.Mesh(baseGeo, baseMat));
-
-  // Build sticker meshes
-  initManualCubeState();
-  buildStickers();
-  // Fixed camera position — we rotate the cube group instead
-  threeCamera.position.set(0, 0, 7);
-  threeCamera.lookAt(0, 0, 0);
-
-  // Start with a slight rotation so user sees 3 faces
-  cubeGroup.rotation.x = 0.4;
-  cubeGroup.rotation.y = 0.6;
-
-  // Events
-  wrap.addEventListener("mousedown",  onPointerDown);
-  wrap.addEventListener("mousemove",  onPointerMove);
-  wrap.addEventListener("mouseup",    onPointerUp);
-  wrap.addEventListener("mouseleave", onPointerUp);
-  wrap.addEventListener("click",      onPointerClick);
-  wrap.addEventListener("touchstart", onTouchStart, {passive:false});
-  wrap.addEventListener("touchmove",  onTouchMove,  {passive:false});
-  wrap.addEventListener("touchend",   onTouchEnd,   {passive:false});
-
-  window.addEventListener("resize", resizeRenderer);
-  animate();
-}
-
-function resizeRenderer() {
-  const wrap = document.getElementById("threejs-wrap");
-  if (!wrap || !threeRenderer) return;
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-  threeRenderer.setSize(W, H);
-  threeCamera.aspect = W / H;
-  threeCamera.updateProjectionMatrix();
-}
-
-function initManualCubeState() {
-  manualCubeState = {};
-  for (const face of CUBING_ORDER) manualCubeState[face] = Array(16).fill("none");
-}
-
-function resetManualCube() {
-  initManualCubeState();
-  buildStickers();
-  document.getElementById("solution-area").style.display = "none";
-  showBanner("Cube reset. Tap stickers to set colours.");
-}
-
-function setPaintColour(colour) {
-  manualPaintColour = colour;
-  document.querySelectorAll(".palette-swatch").forEach(s => {
-    s.classList.toggle("active", s.dataset.colour === colour);
+  const chipsDiv = document.createElement("div");
+  chipsDiv.className = "chips-container";
+  currentMoves.forEach(m => {
+    const chip = document.createElement("span");
+    chip.className   = "move-chip";
+    chip.textContent = m;
+    chipsDiv.appendChild(chip);
   });
+  wrap.appendChild(chipsDiv);
+
+  // Report wrong solution button
+  const reportBtn = document.createElement("button");
+  reportBtn.className = "btn btn-report";
+  reportBtn.textContent = "⚠ This solution is wrong — report it";
+  reportBtn.onclick = reportWrongSolution;
+  wrap.appendChild(reportBtn);
+
+  // Apply to twisty
+  const twisty = document.getElementById("twisty");
+  twisty.setAttribute("alg", algStr);
+  document.getElementById("twisty-wrap").style.display = "block";
+
+  document.getElementById("solution-area").style.display = "block";
+  document.getElementById("solution-area").scrollIntoView({ behavior: "smooth" });
 }
 
-function buildStickers() {
-  // Remove old stickers
-  stickerMeshes.forEach(m => cubeGroup.remove(m));
-  stickerMeshes = [];
-
-  const stickerSize = 0.82;
-  const offset = 2.01; // just outside the cube face
-
-  FACE_CONFIG.forEach(fc => {
-    const [nx,ny,nz] = fc.normal;
-    const [rx,ry,rz] = fc.right;
-    const [ux,uy,uz] = fc.up;
-
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 4; col++) {
-        // For solver: idx must be row-major left-to-right top-to-bottom
-        // U face up=[0,0,-1]: row 0 is already at top (far edge) - correct
-        // All others up=[0,1,0]: row 0 is at bottom visually, so flip
-        const solverRow = (fc.up[1] === 1 || fc.up[2] === 1) ? (3 - row) : row;
-        const idx = solverRow * 4 + col;
-        const u = -1.5 + col;
-        const v = 1.5 - row;
-
-        const geo = new THREE.PlaneGeometry(stickerSize, stickerSize);
-        const colour = manualCubeState[fc.face][idx] || "none";
-        const mat = new THREE.MeshLambertMaterial({
-          color: new THREE.Color(COLOUR_HEX_THREE[colour]),
-          side: THREE.FrontSide
-        });
-        const mesh = new THREE.Mesh(geo, mat);
-
-        // Position: face normal offset + right*u + up*v
-        mesh.position.set(
-          nx*offset + rx*u + ux*v,
-          ny*offset + ry*u + uy*v,
-          nz*offset + rz*u + uz*v
-        );
-
-        // Orient plane to face outward using simple axis rotations
-        if (nx===0 && ny===1  && nz===0)  mesh.rotation.x = -Math.PI/2;
-        else if (nx===0 && ny===-1 && nz===0)  mesh.rotation.x =  Math.PI/2;
-        else if (nx===0 && ny===0  && nz===1)  { /* default faces +Z */ }
-        else if (nx===0 && ny===0  && nz===-1) mesh.rotation.y =  Math.PI;
-        else if (nx===1 && ny===0  && nz===0)  mesh.rotation.y =  Math.PI/2;
-        else if (nx===-1&& ny===0  && nz===0)  mesh.rotation.y = -Math.PI/2;
-
-        mesh.userData = { face: fc.face, idx };
-        cubeGroup.add(mesh);
-        stickerMeshes.push(mesh);
-      }
-    }
-  });
-}
-
-function updateStickerColour(face, idx) {
-  const mesh = stickerMeshes.find(m => m.userData.face===face && m.userData.idx===idx);
-  if (!mesh) return;
-  const colour = manualCubeState[face][idx] || "none";
-  mesh.material.color.set(COLOUR_HEX_THREE[colour]);
-}
-
-function updateCamera() {
-  const { theta, phi, radius } = spherical;
-  threeCamera.position.set(
-    radius * Math.sin(phi) * Math.sin(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.cos(theta)
-  );
-  threeCamera.lookAt(0, 0, 0);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-  threeRenderer.render(threeScene, threeCamera);
-}
-
-// ── DRAG ROTATION ─────────────────────────────────────────
-let dragStartPos = null;
-let hasDragged = false;
-
-function onPointerDown(e) {
-  isDragging = true; hasDragged = false;
-  prevMouse = {x: e.clientX, y: e.clientY};
-  dragStartPos = {x: e.clientX, y: e.clientY};
-}
-
-function onPointerMove(e) {
-  if (!isDragging) return;
-  const dx = e.clientX - prevMouse.x;
-  const dy = e.clientY - prevMouse.y;
-  if (Math.abs(e.clientX - dragStartPos.x) > 4 || Math.abs(e.clientY - dragStartPos.y) > 4) hasDragged = true;
-  cubeGroup.rotation.y += dx * 0.012;
-  cubeGroup.rotation.x += dy * 0.012;
-  prevMouse = {x: e.clientX, y: e.clientY};
-}
-
-function onPointerUp() { isDragging = false; }
-
-function onPointerClick(e) {
-  if (hasDragged) return;
-  const wrap   = document.getElementById("threejs-wrap");
-  const rect   = wrap.getBoundingClientRect();
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-  threeMouse.x = ((e.clientX - rect.left) / W) * 2 - 1;
-  threeMouse.y = -((e.clientY - rect.top) / H) * 2 + 1;
-  threeRaycaster.setFromCamera(threeMouse, threeCamera);
-  const hits = threeRaycaster.intersectObjects(stickerMeshes);
-  if (hits.length > 0) {
-    const { face, idx } = hits[0].object.userData;
-    manualCubeState[face][idx] = manualPaintColour;
-    updateStickerColour(face, idx);
-  }
-}
-
-// ── TOUCH ─────────────────────────────────────────────────
-let touchStart = null;
-
-function onTouchStart(e) {
-  e.preventDefault();
-  const t = e.touches[0];
-  isDragging = true; hasDragged = false;
-  prevMouse = {x: t.clientX, y: t.clientY};
-  dragStartPos = {x: t.clientX, y: t.clientY};
-  touchStart = {x: t.clientX, y: t.clientY};
-}
-
-function onTouchMove(e) {
-  e.preventDefault();
-  const t = e.touches[0];
-  const dx = t.clientX - prevMouse.x;
-  const dy = t.clientY - prevMouse.y;
-  if (Math.abs(t.clientX - dragStartPos.x) > 4 || Math.abs(t.clientY - dragStartPos.y) > 4) hasDragged = true;
-  cubeGroup.rotation.y += dx * 0.012;
-  cubeGroup.rotation.x += dy * 0.012;
-  prevMouse = {x: t.clientX, y: t.clientY};
-}
-
-function onTouchEnd(e) {
-  e.preventDefault();
-  isDragging = false;
-  if (!hasDragged && e.changedTouches[0]) {
-    const t = e.changedTouches[0];
-    const wrap = document.getElementById("threejs-wrap");
-    const rect = wrap.getBoundingClientRect();
-    const W = wrap.clientWidth, H = wrap.clientHeight;
-    threeMouse.x = ((t.clientX - rect.left) / W) * 2 - 1;
-    threeMouse.y = -((t.clientY - rect.top) / H) * 2 + 1;
-    threeRaycaster.setFromCamera(threeMouse, threeCamera);
-    const hits = threeRaycaster.intersectObjects(stickerMeshes);
-    if (hits.length > 0) {
-      const { face, idx } = hits[0].object.userData;
-      manualCubeState[face][idx] = manualPaintColour;
-      updateStickerColour(face, idx);
-    }
-  }
-}
-
-// ── SOLVE ─────────────────────────────────────────────────
-async function solveCube() {
-  const source = currentMode === "manual" ? manualCubeState : faceColors;
-  const btnId  = currentMode === "manual" ? "manual-solve-btn" : "solve-btn";
-  const btn    = document.getElementById(btnId);
-  btn.innerHTML = '<span class="spinner"></span> Solving...';
-  btn.disabled  = true;
-
-  let stateStr = "";
-  for (const letter of CUBING_ORDER) {
-    const face = source[letter];
-    if (!face || face.length !== 16) {
-      showSolveError(`Face ${letter} is incomplete.`);
-      btn.innerHTML="✅ Solve!"; btn.disabled=false; return;
-    }
-    for (const c of face) {
-      const mapped = COLOR_TO_FACE[c];
-      if (!mapped) {
-        showSolveError(`Unknown colour "${c}" on face ${letter}.`);
-        btn.innerHTML="✅ Solve!"; btn.disabled=false; return;
-      }
-      stateStr += mapped;
-    }
-  }
-
-  const counts = {};
-  for (const ch of stateStr) counts[ch]=(counts[ch]||0)+1;
-  const wrong = Object.entries(counts).filter(([,n])=>n!==16);
-  if (wrong.length) {
-    showSolveError("Each colour must appear exactly 16 times. Off: "+wrong.map(([f,n])=>`${f}=${n}/16`).join(", "));
-    btn.innerHTML="✅ Solve!"; btn.disabled=false; return;
-  }
+// ── REPORT WRONG SOLUTION ─────────────────────────────────
+async function reportWrongSolution() {
+  const btn = document.querySelector(".btn-report");
+  if (btn) { btn.disabled = true; btn.textContent = "Reporting..."; }
 
   try {
-    const { experimental4x4x4Solve } = await import("https://cdn.cubing.net/v0/js/cubing/search");
-    const solution = await experimental4x4x4Solve(stateStr);
-    const algStr   = solution.toString().trim();
-    const twisty   = document.getElementById("twisty");
-    twisty.setAttribute("experimental-setup-alg", invertAlg(algStr));
-    twisty.setAttribute("alg", algStr);
-    showSolution(algStr);
-  } catch (err) {
-    showSolveError(
-      "Solver rejected this state.<br>" +
-      "State: <code style='font-size:.65rem;word-break:break-all;color:#aaa'>"+stateStr+"</code><br><br>" +
-      (currentMode==="camera" ? "Press <strong>Fix Colours</strong> to correct stickers." : "Check every sticker is correct.")
-    );
-    btn.innerHTML="✅ Solve!"; btn.disabled=false;
+    await fetch("/report-error", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        face_desc:  currentFaceDesc,
+        solution:   currentMoves.join(" "),
+        error_type: "wrong_solution",
+        lesson:     "The solution produced did not solve the cube. Gemini must re-examine its reasoning about centre identification, edge pairing, and parity handling for 4x4 cubes."
+      })
+    });
+    if (btn) { btn.textContent = "✅ Reported — Gemini will learn from this"; }
+    showBanner("Thanks! This mistake has been logged. Gemini will do better next time.", "info");
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = "⚠ This solution is wrong — report it"; }
   }
 }
-
-function invertAlg(algStr) {
-  return algStr.trim().split(/\s+/).reverse().map(m => {
-    if (m.endsWith("2")) return m;
-    if (m.endsWith("'")) return m.slice(0,-1);
-    return m+"'";
-  }).join(" ");
-}
-
-function showSolveError(html) {
-  document.getElementById("solution-area").style.display="block";
-  document.getElementById("twisty-wrap").style.display="none";
-  document.getElementById("moves-wrap").innerHTML=`<div class="error-box"><strong>Could not solve.</strong><br><br>${html}</div>`;
-}
-
-// ── SHOW SOLUTION ─────────────────────────────────────────
-function showSolution(algStr) {
-  const moves = algStr.trim().split(/\s+/).filter(Boolean);
-  document.getElementById("move-count").textContent = moves.length+" moves";
-  const wrap = document.getElementById("moves-wrap");
-  wrap.innerHTML = `<p style="font-size:.78rem;color:#555;margin-bottom:.8rem;">Tap any move to see what it does.</p>`;
-  const chips = document.createElement("div"); chips.style.marginBottom="0.8rem";
-  let activeChip = null;
-  moves.forEach((m,i) => {
-    const chip = document.createElement("span");
-    chip.className="move-chip"; chip.textContent=m;
-    const activate = () => {
-      if (activeChip) activeChip.classList.remove("active");
-      chip.classList.add("active"); activeChip=chip;
-      renderExplanation(m,i,moves.length);
-    };
-    chip.addEventListener("click", activate);
-    chip.addEventListener("touchend", e=>{e.preventDefault();activate();});
-    chips.appendChild(chip);
-  });
-  wrap.appendChild(chips);
-  chips.firstChild && chips.firstChild.classList.add("active");
-  activeChip = chips.firstChild;
-  renderExplanation(moves[0],0,moves.length);
-  document.getElementById("twisty-wrap").style.display="block";
-  document.getElementById("solution-area").style.display="block";
-  document.getElementById("solution-area").scrollIntoView({behavior:"smooth"});
-}
-
-function renderExplanation(move, index, total) {
-  const info = explainMove(move);
-  const panel = document.getElementById("explain-panel");
-  panel.style.display="block";
-  panel.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
-      <span style="font-family:'DM Mono',monospace;font-size:1.1rem;color:var(--accent);font-weight:500;">${move}</span>
-      <span style="font-size:.7rem;color:#555;letter-spacing:1px;">MOVE ${index+1} OF ${total}</span>
-    </div>
-    <div style="font-size:.75rem;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:.4rem;">${info.n}</div>
-    <div style="font-size:.88rem;color:var(--text);margin-bottom:.4rem;line-height:1.5;">🔄 ${info.w}</div>
-    <div style="font-size:.82rem;color:var(--muted);line-height:1.5;">💡 <em>${info.y}</em></div>`;
-}
-
-// ── COLOUR EDITOR ─────────────────────────────────────────
-function openEditor() {
-  const container = document.getElementById("editor-faces");
-  container.innerHTML = "";
-  activePaint = COLOUR_NAMES[0];
-  ["U","D","F","B","L","R"].forEach(face => {
-    const colours = faceColors[face]||Array(16).fill("white");
-    const section = document.createElement("div"); section.className="editor-face";
-    const lbl = document.createElement("div"); lbl.className="editor-face-label"; lbl.textContent=FACE_LABELS[face]+" face ("+face+")"; section.appendChild(lbl);
-    const grid = document.createElement("div"); grid.className="editor-grid";
-    colours.forEach((c,i) => {
-      const cell = document.createElement("div"); cell.className="editor-cell"; cell.style.background=COLOURS[c]?.hex||"#333";
-      const paint = () => { faceColors[face][i]=activePaint; cell.style.background=COLOURS[activePaint].hex; cell.classList.add("active"); setTimeout(()=>cell.classList.remove("active"),250); };
-      cell.addEventListener("click",paint); cell.addEventListener("touchend",e=>{e.preventDefault();paint();}); grid.appendChild(cell);
-    });
-    section.appendChild(grid);
-    const palette = document.createElement("div"); palette.className="palette";
-    COLOUR_NAMES.forEach(name => {
-      const sw = document.createElement("div"); sw.className="swatch"+(name===activePaint?" active":""); sw.style.background=COLOURS[name].hex; sw.textContent=COLOURS[name].label; sw.dataset.colour=name;
-      sw.addEventListener("click",()=>{ activePaint=name; document.querySelectorAll(".swatch").forEach(s=>s.classList.toggle("active",s.dataset.colour===name)); });
-      palette.appendChild(sw);
-    });
-    section.appendChild(palette); container.appendChild(section);
-  });
-  document.getElementById("editor-modal").classList.add("open");
-  document.body.style.overflow="hidden";
-}
-function closeEditor() { document.getElementById("editor-modal").classList.remove("open"); document.body.style.overflow=""; }
-function saveEditor() { closeEditor(); }
 
 // ── RESTART ───────────────────────────────────────────────
 function doRestart() {
-  photosTaken=[]; faceColors={}; isAnalysing=false;
-  for (let i=0;i<4;i++) {
-    const slot=document.getElementById(`slot-${i}`);
-    slot.innerHTML=`<div class="photo-slot-empty">Photo ${i+1}<br>not taken</div>`;
-    slot.classList.remove("taken"); markStep(i,i===0?"active":"");
+  photosTaken     = [];
+  currentMoves    = [];
+  currentFaceDesc = "";
+  isAnalysing     = false;
+
+  for (let i = 0; i < 4; i++) {
+    const slot = document.getElementById(`slot-${i}`);
+    slot.innerHTML = `<div class="photo-slot-empty">Photo ${i+1}<br>not taken</div>`;
+    slot.classList.remove("taken");
+    markStep(i, i === 0 ? "active" : "");
   }
-  document.getElementById("shot-num").textContent="1";
-  document.getElementById("main-title").textContent="TAKE PHOTO 1";
-  document.getElementById("main-desc").textContent="Point at the front-top corner so 3 faces are visible.";
-  document.getElementById("capture-btn").style.display="block";
-  document.getElementById("capture-btn").textContent="📸 Take Photo";
-  document.getElementById("capture-btn").onclick=takePhoto;
-  document.getElementById("restart-btn").style.display="none";
-  document.getElementById("action-row").style.display="none";
-  document.getElementById("solution-area").style.display="none";
-  document.getElementById("status-banner").style.display="none";
-  document.getElementById("solve-btn").innerHTML="✅ Solve!";
-  document.getElementById("solve-btn").disabled=false;
-  window.scrollTo({top:0,behavior:"smooth"});
+
+  document.getElementById("shot-num").textContent        = "1";
+  document.getElementById("main-title").textContent      = "TAKE PHOTO 1";
+  document.getElementById("main-desc").textContent       = "Point your camera at the front of the cube. Make sure at least 3 faces are clearly visible.";
+  document.getElementById("capture-btn").style.display   = "block";
+  document.getElementById("capture-btn").textContent     = "📸 Take Photo";
+  document.getElementById("capture-btn").onclick         = takePhoto;
+  document.getElementById("restart-btn").style.display   = "none";
+  document.getElementById("solution-area").style.display = "none";
+  document.getElementById("status-banner").style.display = "none";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// ── HELPERS ───────────────────────────────────────────────
 function markStep(index, state) {
-  const el=document.getElementById(`step-${index}`);
-  if(!el) return;
+  const el = document.getElementById(`step-${index}`);
+  if (!el) return;
   el.classList.remove("active","done");
-  if(state) el.classList.add(state);
+  if (state) el.classList.add(state);
 }
 
-function showBanner(msg, type="info") {
-  const b=document.getElementById("status-banner");
-  if(!b) return;
-  b.style.display="block";
-  b.style.background  = type==="error"?"rgba(255,77,77,0.08)":"rgba(200,241,53,0.07)";
-  b.style.borderColor = type==="error"?"rgba(255,77,77,0.2)":"rgba(200,241,53,0.2)";
-  b.style.color       = type==="error"?"#ff9090":"var(--accent)";
-  b.textContent=msg;
+function showBanner(msg, type = "info") {
+  const b = document.getElementById("status-banner");
+  if (!b) return;
+  b.style.display     = "block";
+  b.style.background  = type === "error" ? "rgba(255,77,77,0.08)"  : "rgba(200,241,53,0.07)";
+  b.style.borderColor = type === "error" ? "rgba(255,77,77,0.2)"   : "rgba(200,241,53,0.2)";
+  b.style.color       = type === "error" ? "#ff9090"                : "var(--accent)";
+  b.textContent       = msg;
 }
